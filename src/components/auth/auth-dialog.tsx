@@ -75,7 +75,7 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Account access</DialogTitle>
-          <DialogDescription>Use Email/Password locally today, or Telegram WebApp auth when the app runs inside Telegram.</DialogDescription>
+          <DialogDescription>Войди через email или Telegram.</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'sign-in' | 'sign-up')}>
@@ -166,8 +166,8 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
 
           {!telegramAvailable ? (
             <Alert>
-              <AlertTitle>Telegram sign-in is unavailable in this window</AlertTitle>
-              <AlertDescription>Open the Mini App inside Telegram to supply `initData`, or continue with Email/Password for local development.</AlertDescription>
+              <AlertTitle>Telegram sign-in is unavailable</AlertTitle>
+              <AlertDescription>Открой приложение внутри Telegram или используй email и пароль.</AlertDescription>
             </Alert>
           ) : null}
 
@@ -175,14 +175,6 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
             {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Sign in with Telegram
           </Button>
-
-          <div className="rounded-2xl bg-secondary/60 p-4 text-sm leading-6 text-muted-foreground">
-            <div className="mb-2 flex items-center gap-2 font-semibold text-foreground">
-              <Mail className="h-4 w-4 text-primary" />
-              Future-ready auth architecture
-            </div>
-            Email/Password and Telegram auth both hydrate the same `profiles` table and the same role layer in the frontend.
-          </div>
         </div>
       </DialogContent>
     </Dialog>

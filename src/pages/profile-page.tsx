@@ -41,7 +41,7 @@ export function ProfilePage() {
   if (!isAuthed || !user) {
     return (
       <Container className="safe-pb py-10">
-        <StateCard title="Profile requires sign-in" description="Sign in with Email/Password for local development or use Telegram sign-in when the Mini App is opened inside Telegram." />
+        <StateCard title="Profile requires sign-in" description="Войди в аккаунт, чтобы открыть профиль." />
         <div className="mt-6 flex justify-center gap-3">
           <Button onClick={() => setAuthDialogOpen(true)}>Open auth</Button>
           <Button asChild variant="outline">
@@ -68,7 +68,7 @@ export function ProfilePage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Profile</p>
                 <CardTitle className="mt-2 text-3xl">{displayName}</CardTitle>
-                <p className="mt-2 text-sm text-muted-foreground">{user.email ?? 'Telegram-only account'}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{user.email ?? 'Telegram account'}</p>
               </div>
             </div>
             <div className="rounded-full border border-border bg-background/80 px-4 py-2 text-sm font-semibold">
@@ -106,7 +106,7 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <dt className="font-semibold text-muted-foreground">Telegram ID</dt>
-                  <dd className="mt-1 break-all">{profile?.telegram_id ?? 'Not linked yet'}</dd>
+                  <dd className="mt-1 break-all">{profile?.telegram_id ?? 'Not linked'}</dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-muted-foreground">Username</dt>

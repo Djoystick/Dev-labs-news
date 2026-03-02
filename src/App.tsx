@@ -8,6 +8,7 @@ export type AppLayoutContext = {
   hasMore: boolean;
   isLoading: boolean;
   isLoadingMore: boolean;
+  isRefreshing: boolean;
   isTopicsLoading: boolean;
   loadMore: () => void;
   postsError: string | null;
@@ -33,8 +34,6 @@ export function App() {
       onSearchChange={feed.setQuery}
       onTopicChange={feed.setActiveTopic}
       query={feed.query}
-      resultsCount={feed.resultsCount}
-      selectedTopic={feed.selectedTopic}
       topicsError={feed.topicsError}
       topics={feed.topics}
       retryTopics={feed.retryTopics}

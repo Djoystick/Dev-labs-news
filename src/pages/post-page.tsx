@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock3, PencilLine } from 'lucide-react';
+import { ArrowLeft, Clock3, Home, PencilLine } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Container } from '@/components/layout/container';
@@ -14,10 +14,16 @@ import type { Post } from '@/types/db';
 
 export function PostPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [id]);
 
   useEffect(() => {
     let ignore = false;
@@ -88,15 +94,30 @@ export function PostPage() {
   }
 
   const topic = post.topic;
+  const canGoBack = location.key !== 'default';
 
   return (
     <Container className="safe-pb py-10">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (canGoBack) {
+                navigate(-1);
+                return;
+              }
+
+              navigate('/');
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <Button asChild variant="outline">
             <Link to="/">
-              <ArrowLeft className="h-4 w-4" />
-              Back
+              <Home className="h-4 w-4" />
+              Home
             </Link>
           </Button>
           {isAdmin ? (

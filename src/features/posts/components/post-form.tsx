@@ -137,7 +137,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         <CardHeader className="border-b border-border/70 bg-secondary/40">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Admin CRUD</p>
               <CardTitle className="mt-2 text-3xl">{pageTitle}</CardTitle>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -257,7 +256,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <Label>Content</Label>
-                <p className="text-xs text-muted-foreground">Markdown stored in `posts.content`</p>
+                <p className="text-xs text-muted-foreground">Markdown</p>
               </div>
               <MarkdownEditor
                 editorKey={`${mode}-${post?.id ?? 'new'}`}
@@ -274,9 +273,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-muted-foreground">
-                {mode === 'create' ? 'New posts are inserted directly into Supabase and gated by RLS.' : 'Edits update the same post record and preserve admin-only write access.'}
-              </div>
+              <div className="text-sm text-muted-foreground">{mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}</div>
               <div className="flex flex-wrap gap-3">
                 {mode === 'edit' && post ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
@@ -298,14 +295,14 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete post?</DialogTitle>
-            <DialogDescription>This action deletes the post from the database. Supabase RLS still enforces admin-only access.</DialogDescription>
+            <DialogDescription>Пост будет удалён без возможности восстановления.</DialogDescription>
           </DialogHeader>
           <div className="rounded-2xl bg-destructive/10 p-4 text-sm leading-6 text-destructive">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4" />
               Permanent action
             </div>
-            The post record will be removed immediately. Uploaded images are not auto-deleted in this MVP.
+            Запись будет удалена сразу. Загруженные изображения останутся в storage.
           </div>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
@@ -9,23 +10,23 @@ import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
 
 export function FeedPage() {
-  const { hasMore, isLoading, isLoadingMore, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery } =
+  const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery } =
     useOutletContext<AppLayoutContext>();
   const featuredPost = posts[0];
   const remainingPosts = posts.slice(1);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedTopic.slug]);
 
   return (
     <Container className="safe-pb py-8">
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-8">
         <div className="grid gap-4 rounded-[2rem] border border-border/70 bg-card/75 p-6 shadow-[0_32px_80px_-40px_rgba(8,145,209,0.55)] backdrop-blur md:grid-cols-[1.35fr_0.85fr]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-primary">UI Layout</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-balance sm:text-4xl">
-              A calmer, sharper reading surface for technical news inside Telegram and the browser.
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-              Search by title, pivot by topic from the drawer, and scan a feed tuned for dense editorial content instead of dashboard chrome.
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-primary">Dev-labs News</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-balance sm:text-4xl">Главное из разработки, архитектуры и продуктов.</h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Выбирай темы в меню, находи нужные материалы через поиск и сохраняй контекст чтения без лишних переходов.</p>
             <div className="mt-6 flex flex-wrap gap-3 text-sm">
               <span className="rounded-full border border-border bg-background/70 px-4 py-2 font-semibold">{selectedTopic.name}</span>
               <span className="rounded-full border border-border bg-background/70 px-4 py-2 text-muted-foreground">{resultsCount} matching posts</span>
@@ -33,12 +34,12 @@ export function FeedPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Search-first</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">The header now owns the main discovery path: search, topic context, and theme switching.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Search</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Поиск и темы находятся в меню слева, чтобы лента оставалась чистой и удобной на мобильных экранах.</p>
             </div>
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Seeded data</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Supabase is now the source of truth for topics and posts. Search stays client-side over the loaded feed for this MVP.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Reading flow</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Лента подгружает материалы постепенно и сохраняет выбранные фильтры при переходах между страницами.</p>
             </div>
           </div>
         </div>
@@ -64,6 +65,11 @@ export function FeedPage() {
           </motion.div>
         ) : (
           <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+            {isRefreshing ? (
+              <div className="rounded-[1.5rem] border border-border/70 bg-card/70 p-4">
+                <FeedSkeleton />
+              </div>
+            ) : null}
             {featuredPost ? (
               <motion.article
                 initial={{ opacity: 0, y: 20 }}

@@ -26,7 +26,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
       <Container className="safe-pb py-10">
         <StateCard
           title="No admin access"
-          description="This route is available only to profiles with role `admin`. UI access is blocked here, and Supabase RLS remains the primary protection."
+          description="Эта страница доступна только администраторам."
           icon={<ShieldAlert className="h-5 w-5" />}
         />
         <div className="mt-6 flex justify-center">

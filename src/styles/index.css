@@ -6,6 +6,8 @@
 
 @layer base {
   :root {
+    --app-header-base-height: 3.25rem;
+    --app-header-total-height: calc(var(--app-header-base-height) + env(safe-area-inset-top, 0px));
     --background: 210 20% 98%;
     --foreground: 215 25% 14%;
     --card: 0 0% 100%;
@@ -62,6 +64,12 @@
     --telegram-button-text: #0f1723;
   }
 
+  @media (min-width: 640px) {
+    :root {
+      --app-header-base-height: 3rem;
+    }
+  }
+
   * {
     @apply border-border;
   }
@@ -112,6 +120,10 @@
 
   .safe-pt {
     padding-top: calc(1.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  .app-header-offset {
+    padding-top: var(--app-header-total-height);
   }
 
   .text-balance {

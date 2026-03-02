@@ -14,10 +14,10 @@ export function SheetContent({
 }) {
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
+      <Dialog.Overlay className="fixed inset-0 z-[70] bg-slate-950/45 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out" />
       <Dialog.Content
         className={cn(
-          'fixed top-0 z-50 h-full w-[88vw] max-w-sm border-border bg-background/96 p-6 shadow-2xl backdrop-blur data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'fixed top-0 z-[80] h-full w-[88vw] max-w-sm border-border bg-background/96 p-6 shadow-2xl backdrop-blur data-[state=open]:animate-in data-[state=closed]:animate-out',
           side === 'left'
             ? 'left-0 border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left'
             : 'right-0 border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
