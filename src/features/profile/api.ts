@@ -1,17 +1,18 @@
+import { normalizeProfileHandle } from '@/features/profile/validation';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Favorite, Post, Profile, ReadingHistoryEntry } from '@/types/db';
 
 const postSelect = 'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
-const profileSelect = 'id, role, handle, bio, telegram_id, username, full_name, avatar_url, created_at';
+const profileSelect = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
 const favoriteSelect = `id, user_id, post_id, created_at, post:posts(${postSelect})`;
 const historySelect = `id, user_id, post_id, last_read_at, read_count, post:posts(${postSelect})`;
 
 function getProfileErrorMessage(error: { code?: string; message: string }) {
   if (error.code === '23505') {
-    return 'Такой псевдоним уже занят.';
+    return 'Псевдоним уже занят.';
   }
 
-  return error.message;
+  return 'Не удалось сохранить профиль.';
 }
 
 export async function updateProfileDetails(
@@ -24,7 +25,35 @@ export async function updateProfileDetails(
   },
 ) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('profiles').update(values).eq('id', userId).select(profileSelect).single();
+  const handleNorm = normalizeProfileHandle(values.handle);
+
+  const { data: handleConflict, error: handleConflictError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('handle_norm', handleNorm)
+    .neq('id', userId)
+    .limit(1);
+
+  if (handleConflictError) {
+    throw new Error(getProfileErrorMessage(handleConflictError));
+  }
+
+  if ((handleConflict ?? []).length > 0) {
+    throw new Error('Псевдоним уже занят.');
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      avatar_url: values.avatar_url,
+      bio: values.bio,
+      full_name: values.full_name,
+      handle: values.handle,
+      handle_norm: handleNorm,
+    })
+    .eq('id', userId)
+    .select(profileSelect)
+    .single();
 
   if (error) {
     throw new Error(getProfileErrorMessage(error));

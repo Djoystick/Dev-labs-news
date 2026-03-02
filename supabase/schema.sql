@@ -11,6 +11,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   role text not null default 'user' check (role in ('admin', 'user')),
   handle text,
+  handle_norm text,
   bio text,
   telegram_id text unique,
   username text,
@@ -20,11 +21,18 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles add column if not exists handle text;
+alter table public.profiles add column if not exists handle_norm text;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists username text;
 alter table public.profiles add column if not exists full_name text;
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists telegram_id text;
+
+update public.profiles
+set handle_norm = lower(trim(regexp_replace(handle, '\s+', ' ', 'g')))
+where handle is not null
+  and trim(handle) <> ''
+  and (handle_norm is null or handle_norm <> lower(trim(regexp_replace(handle, '\s+', ' ', 'g'))));
 
 create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
@@ -81,6 +89,7 @@ create index if not exists idx_posts_created_at_desc on public.posts (created_at
 create index if not exists idx_posts_title on public.posts (title);
 create index if not exists idx_profiles_role on public.profiles (role);
 create unique index if not exists idx_profiles_handle on public.profiles (lower(handle)) where handle is not null;
+create unique index if not exists idx_profiles_handle_norm on public.profiles (handle_norm) where handle_norm is not null;
 create unique index if not exists idx_profiles_telegram_id on public.profiles (telegram_id) where telegram_id is not null;
 create index if not exists idx_favorites_user_created_at on public.favorites (user_id, created_at desc);
 create index if not exists idx_favorites_post_id on public.favorites (post_id);

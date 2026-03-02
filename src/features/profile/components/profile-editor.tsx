@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { updateProfileDetails } from '@/features/profile/api';
 import { uploadAvatar } from '@/features/profile/storage';
-import { profileFormSchema, type ProfileFormValues } from '@/features/profile/validation';
+import { normalizeOptionalProfileText, profileFormSchema, type ProfileFormValues } from '@/features/profile/validation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Profile } from '@/types/db';
 
@@ -134,9 +134,9 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
           try {
             const nextProfile = await updateProfileDetails(profile.id, {
               avatar_url: values.avatar_url?.trim() || null,
-              bio: values.bio?.trim() || null,
-              full_name: values.full_name?.trim() || null,
-              handle: values.handle.trim().toLowerCase(),
+              bio: normalizeOptionalProfileText(values.bio) || null,
+              full_name: normalizeOptionalProfileText(values.full_name) || null,
+              handle: values.handle,
             });
 
             toast.success('Профиль сохранён.');

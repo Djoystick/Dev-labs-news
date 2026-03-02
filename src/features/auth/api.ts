@@ -14,6 +14,7 @@ function getProfileDefaults(user: User) {
           ? user.user_metadata.name
           : null,
     handle: null,
+    handle_norm: null,
     telegram_id: typeof user.user_metadata.telegram_id === 'string' ? user.user_metadata.telegram_id : null,
     username: typeof user.user_metadata.username === 'string' ? user.user_metadata.username : null,
   };
@@ -76,7 +77,7 @@ export async function fetchProfile(userId: string) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, role, handle, bio, telegram_id, username, full_name, avatar_url, created_at')
+    .select('id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -97,7 +98,7 @@ export async function createProfileForUser(user: User) {
   const { data, error } = await supabase
     .from('profiles')
     .insert(payload)
-    .select('id, role, handle, bio, telegram_id, username, full_name, avatar_url, created_at')
+    .select('id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at')
     .single();
 
   if (error) {
@@ -109,14 +110,14 @@ export async function createProfileForUser(user: User) {
 
 export async function updateOwnProfile(
   userId: string,
-  values: Partial<Pick<Profile, 'avatar_url' | 'bio' | 'full_name' | 'handle' | 'telegram_id' | 'username'>>,
+  values: Partial<Pick<Profile, 'avatar_url' | 'bio' | 'full_name' | 'handle' | 'handle_norm' | 'telegram_id' | 'username'>>,
 ) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('profiles')
     .update(values)
     .eq('id', userId)
-    .select('id, role, handle, bio, telegram_id, username, full_name, avatar_url, created_at')
+    .select('id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at')
     .single();
 
   if (error) {

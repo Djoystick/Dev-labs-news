@@ -27,6 +27,7 @@ export type Profile = {
   id: string;
   role: UserRole;
   handle: string | null;
+  handle_norm: string | null;
   bio: string | null;
   telegram_id: string | null;
   username: string | null;
@@ -124,6 +125,7 @@ export type Database = {
           id: string;
           role?: UserRole;
           handle?: string | null;
+          handle_norm?: string | null;
           bio?: string | null;
           telegram_id?: string | null;
           username?: string | null;
@@ -135,6 +137,7 @@ export type Database = {
           id?: string;
           role?: UserRole;
           handle?: string | null;
+          handle_norm?: string | null;
           bio?: string | null;
           telegram_id?: string | null;
           username?: string | null;
