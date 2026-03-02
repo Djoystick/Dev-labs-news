@@ -1,28 +1,45 @@
 import { Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/app-shell';
-import { topicSeeds } from '@/features/topics/data';
-import { useState } from 'react';
+import { usePostFeed } from '@/features/posts/hooks';
+import type { Post, Topic } from '@/types/db';
 
 export type AppLayoutContext = {
   activeTopic: string;
+  hasMore: boolean;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+  isTopicsLoading: boolean;
+  loadMore: () => void;
+  postsError: string | null;
+  posts: Post[];
   query: string;
+  resultsCount: number;
+  selectedTopic: Topic & { count: number };
   setActiveTopic: (slug: string) => void;
   setQuery: (value: string) => void;
+  topicsError: string | null;
+  topics: Array<Topic & { count: number }>;
+  retryPosts: () => void;
+  retryTopics: () => void;
 };
 
 export function App() {
-  const [query, setQuery] = useState('');
-  const [activeTopic, setActiveTopic] = useState('all');
+  const feed = usePostFeed();
 
   return (
     <AppShell
-      activeTopic={activeTopic}
-      onSearchChange={setQuery}
-      onTopicChange={setActiveTopic}
-      query={query}
-      topics={topicSeeds}
+      activeTopic={feed.activeTopic}
+      isTopicsLoading={feed.isTopicsLoading}
+      onSearchChange={feed.setQuery}
+      onTopicChange={feed.setActiveTopic}
+      query={feed.query}
+      resultsCount={feed.resultsCount}
+      selectedTopic={feed.selectedTopic}
+      topicsError={feed.topicsError}
+      topics={feed.topics}
+      retryTopics={feed.retryTopics}
     >
-      <Outlet context={{ activeTopic, query, setActiveTopic, setQuery } satisfies AppLayoutContext} />
+      <Outlet context={{ ...feed } satisfies AppLayoutContext} />
     </AppShell>
   );
 }

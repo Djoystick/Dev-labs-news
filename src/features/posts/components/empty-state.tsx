@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 
 export function EmptyState({ onReset }: { onReset: () => void }) {
   return (
-    <div className="rounded-[2rem] border border-dashed border-border bg-card/70 px-6 py-16 text-center">
+    <div className="rounded-[2rem] border border-dashed border-border bg-card/70 px-6 py-16 text-center shadow-[0_28px_80px_-46px_rgba(15,23,42,0.5)]">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-muted-foreground">
         <SearchX className="h-6 w-6" />
       </div>
