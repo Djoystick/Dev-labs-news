@@ -1,124 +1,306 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+/// <reference lib="deno.ns" />
+/// <reference lib="dom" />
+
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+
+const PROFILE_SELECT = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
+const DEFAULT_AUTH_MAX_AGE_SECONDS = 60 * 60 * 24;
+const encoder = new TextEncoder();
 
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Origin': '*',
+  'Content-Type': 'application/json',
+} as const;
+
+type TelegramAuthRequestBody = {
+  initData?: string;
 };
 
-function toHex(buffer: ArrayBuffer) {
-  return Array.from(new Uint8Array(buffer))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-}
+type TelegramUser = {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  photo_url?: string;
+  username?: string;
+};
 
-async function hmacSha256Raw(key: string | Uint8Array, message: string) {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    typeof key === 'string' ? encoder.encode(key) : key,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+type ProfileRecord = {
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+  full_name: string | null;
+  handle: string | null;
+  handle_norm: string | null;
+  id: string;
+  role: 'admin' | 'user';
+  telegram_id: string | null;
+  username: string | null;
+};
 
-  return await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-}
+type AuthUserMetadata = {
+  avatar_url: string | null;
+  full_name: string | null;
+  telegram_id: string;
+  username: string | null;
+};
 
-async function hmacSha256Hex(key: string | Uint8Array, message: string) {
-  return toHex(await hmacSha256Raw(key, message));
+type AdminClient = SupabaseClient;
+
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json',
-    },
+    headers: corsHeaders,
     status,
   });
 }
 
-function parseTelegramUser(rawUser: string | null) {
-  if (!rawUser) {
-    throw new Error('Telegram payload is missing the user field.');
-  }
-
-  const user = JSON.parse(rawUser) as {
-    id: number;
-    first_name?: string;
-    last_name?: string;
-    photo_url?: string;
-    username?: string;
-  };
-
-  if (!user?.id) {
-    throw new Error('Telegram payload does not contain a valid user id.');
-  }
-
-  return user;
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-async function verifyInitData(initData: string, botToken: string) {
-  const params = new URLSearchParams(initData);
-  const hash = params.get('hash');
-  const authDateValue = params.get('auth_date');
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = '';
 
-  if (!hash) {
-    throw new Error('Telegram payload is missing hash.');
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
 
-  if (!authDateValue) {
-    throw new Error('Telegram payload is missing auth_date.');
-  }
-
-  const authDate = Number(authDateValue);
-
-  if (!Number.isFinite(authDate)) {
-    throw new Error('Telegram payload auth_date is invalid.');
-  }
-
-  if (Math.floor(Date.now() / 1000) - authDate > 60 * 60 * 24) {
-    throw new Error('Telegram payload is too old.');
-  }
-
-  const entries = Array.from(params.entries())
-    .filter(([key]) => key !== 'hash')
-    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey));
-
-  const dataCheckString = entries.map(([key, value]) => `${key}=${value}`).join('\n');
-  const secretKey = new Uint8Array(await hmacSha256Raw('WebAppData', botToken));
-  const calculatedHash = await hmacSha256Hex(secretKey, dataCheckString);
-
-  if (calculatedHash !== hash) {
-    throw new Error('Telegram initData hash verification failed.');
-  }
-
-  return parseTelegramUser(params.get('user'));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/u, '');
 }
 
-function getDisplayName(user: { first_name?: string; last_name?: string }) {
-  return [user.first_name, user.last_name].filter(Boolean).join(' ') || null;
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 }
 
-async function getDeterministicPassword(botToken: string, telegramId: string) {
-  const hex = await hmacSha256Hex(botToken, `telegram-auth:${telegramId}`);
-  return `Tg!${hex.slice(0, 48)}`;
+async function signHmacSha256(key: string | Uint8Array, message: string): Promise<Uint8Array> {
+  const rawKey = typeof key === 'string' ? encoder.encode(key) : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    toArrayBuffer(rawKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, toArrayBuffer(encoder.encode(message)));
+
+  return new Uint8Array(signature);
 }
 
-function getEnv(name: string) {
+function timingSafeEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  let diff = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+
+  return diff === 0;
+}
+
+function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'TELEGRAM_BOT_TOKEN'): string {
   const value = Deno.env.get(name);
 
   if (!value) {
-    throw new Error(`Missing required secret: ${name}`);
+    throw new HttpError(500, `Missing required secret: ${name}`);
   }
 
   return value;
 }
 
-Deno.serve(async (request) => {
+function getAuthMaxAgeSeconds(): number {
+  const value = Deno.env.get('TELEGRAM_AUTH_MAX_AGE_SECONDS');
+
+  if (!value) {
+    return DEFAULT_AUTH_MAX_AGE_SECONDS;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return DEFAULT_AUTH_MAX_AGE_SECONDS;
+  }
+
+  return parsed;
+}
+
+function parseTelegramUser(rawUser: string | null): TelegramUser {
+  if (!rawUser) {
+    throw new HttpError(400, 'Telegram payload is missing the user field.');
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(rawUser);
+  } catch {
+    throw new HttpError(400, 'Telegram payload user field is not valid JSON.');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new HttpError(400, 'Telegram payload user field is invalid.');
+  }
+
+  const user = parsed as TelegramUser;
+
+  if (!Number.isInteger(user.id) || user.id <= 0) {
+    throw new HttpError(400, 'Telegram payload does not contain a valid user id.');
+  }
+
+  return user;
+}
+
+async function verifyInitData(initData: string, botToken: string, maxAgeSeconds: number): Promise<TelegramUser> {
+  const params = new URLSearchParams(initData);
+  const hash = params.get('hash');
+  const authDateValue = params.get('auth_date');
+
+  if (!hash) {
+    throw new HttpError(400, 'Telegram payload is missing hash.');
+  }
+
+  if (!authDateValue) {
+    throw new HttpError(400, 'Telegram payload is missing auth_date.');
+  }
+
+  const authDate = Number(authDateValue);
+
+  if (!Number.isInteger(authDate)) {
+    throw new HttpError(400, 'Telegram payload auth_date is invalid.');
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  if (authDate > nowSeconds + 300) {
+    throw new HttpError(400, 'Telegram payload auth_date is in the future.');
+  }
+
+  if (nowSeconds - authDate > maxAgeSeconds) {
+    throw new HttpError(400, 'Telegram payload is too old.');
+  }
+
+  const dataCheckString = Array.from(params.entries())
+    .filter(([key]) => key !== 'hash')
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+
+  const secretKey = await signHmacSha256('WebAppData', botToken);
+  const calculatedHash = bytesToHex(await signHmacSha256(secretKey, dataCheckString));
+
+  if (!timingSafeEqual(calculatedHash, hash)) {
+    throw new HttpError(400, 'Telegram initData hash is invalid.');
+  }
+
+  return parseTelegramUser(params.get('user'));
+}
+
+function getDisplayName(user: TelegramUser): string | null {
+  return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || null;
+}
+
+function buildAuthMetadata(user: TelegramUser, telegramId: string): AuthUserMetadata {
+  return {
+    avatar_url: user.photo_url ?? null,
+    full_name: getDisplayName(user),
+    telegram_id: telegramId,
+    username: user.username ?? null,
+  };
+}
+
+async function getDeterministicPassword(botToken: string, telegramId: string): Promise<string> {
+  const hash = await signHmacSha256(botToken, `tg:${telegramId}:dev-labs-news`);
+  return `Tg!${bytesToBase64Url(hash)}`;
+}
+
+async function parseRequestBody(request: Request): Promise<TelegramAuthRequestBody> {
+  try {
+    return (await request.json()) as TelegramAuthRequestBody;
+  } catch {
+    throw new HttpError(400, 'Request body must be valid JSON.');
+  }
+}
+
+async function findAuthUserByEmail(
+  adminClient: AdminClient,
+  email: string,
+): Promise<User | null> {
+  const perPage = 200;
+
+  for (let page = 1; page <= 10; page += 1) {
+    const result = await adminClient.auth.admin.listUsers({ page, perPage });
+
+    if (result.error) {
+      throw new HttpError(500, result.error.message);
+    }
+
+    const foundUser = result.data.users.find((user: User) => user.email?.toLowerCase() === email.toLowerCase());
+
+    if (foundUser) {
+      return foundUser;
+    }
+
+    if (result.data.users.length < perPage) {
+      break;
+    }
+  }
+
+  return null;
+}
+
+async function getProfileByTelegramId(
+  adminClient: AdminClient,
+  telegramId: string,
+): Promise<ProfileRecord | null> {
+  const result = await adminClient
+    .from('profiles')
+    .select(PROFILE_SELECT)
+    .eq('telegram_id', telegramId)
+    .maybeSingle();
+
+  if (result.error) {
+    throw new HttpError(500, result.error.message);
+  }
+
+  return (result.data as ProfileRecord | null) ?? null;
+}
+
+async function getProfileByUserId(
+  adminClient: AdminClient,
+  userId: string,
+): Promise<ProfileRecord | null> {
+  const result = await adminClient.from('profiles').select(PROFILE_SELECT).eq('id', userId).maybeSingle();
+
+  if (result.error) {
+    throw new HttpError(500, result.error.message);
+  }
+
+  return (result.data as ProfileRecord | null) ?? null;
+}
+
+Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, {
+      headers: corsHeaders,
+      status: 204,
+    });
   }
 
   if (request.method !== 'POST') {
@@ -126,19 +308,21 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const botToken = getEnv('TELEGRAM_BOT_TOKEN');
-    const serviceRoleKey = getEnv('SUPABASE_SERVICE_ROLE_KEY');
-    const supabaseUrl = getEnv('SUPABASE_URL');
-    const { initData } = (await request.json()) as { initData?: string };
+    const body = await parseRequestBody(request);
+    const initData = typeof body.initData === 'string' ? body.initData.trim() : '';
 
     if (!initData) {
-      throw new Error('initData is required.');
+      throw new HttpError(400, 'initData is required.');
     }
 
-    const telegramUser = await verifyInitData(initData, botToken);
+    const botToken = getRequiredEnv('TELEGRAM_BOT_TOKEN');
+    const serviceRoleKey = getRequiredEnv('SERVICE_ROLE_KEY');
+    const supabaseUrl = getRequiredEnv('PROJECT_URL');
+    const telegramUser = await verifyInitData(initData, botToken, getAuthMaxAgeSeconds());
     const telegramId = String(telegramUser.id);
     const email = `tg_${telegramId}@telegram.local`;
     const password = await getDeterministicPassword(botToken, telegramId);
+    const metadata = buildAuthMetadata(telegramUser, telegramId);
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -147,95 +331,83 @@ Deno.serve(async (request) => {
       },
     });
 
-    const authUsers = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
+    let existingProfile = await getProfileByTelegramId(adminClient, telegramId);
+    let userId = existingProfile?.id ?? null;
 
-    if (authUsers.error) {
-      throw new Error(authUsers.error.message);
+    if (!userId) {
+      const existingAuthUser = await findAuthUserByEmail(adminClient, email);
+      userId = existingAuthUser?.id ?? null;
+
+      if (userId) {
+        existingProfile = await getProfileByUserId(adminClient, userId);
+      }
     }
 
-    const existingUser = authUsers.data.users.find((user) => user.email === email);
-    const displayName = getDisplayName(telegramUser);
-    let userId = existingUser?.id ?? null;
-
-    if (!existingUser) {
+    if (!userId) {
       const createUserResult = await adminClient.auth.admin.createUser({
         email,
         email_confirm: true,
         password,
-        user_metadata: {
-          avatar_url: telegramUser.photo_url ?? null,
-          full_name: displayName,
-          telegram_id: telegramId,
-          username: telegramUser.username ?? null,
-        },
+        user_metadata: metadata,
       });
 
       if (createUserResult.error) {
-        throw new Error(createUserResult.error.message);
+        throw new HttpError(500, createUserResult.error.message);
       }
 
       userId = createUserResult.data.user.id;
+      existingProfile = await getProfileByUserId(adminClient, userId);
     } else {
-      const updateUserResult = await adminClient.auth.admin.updateUserById(existingUser.id, {
+      const updateUserResult = await adminClient.auth.admin.updateUserById(userId, {
         email,
         email_confirm: true,
         password,
-        user_metadata: {
-          avatar_url: telegramUser.photo_url ?? null,
-          full_name: displayName,
-          telegram_id: telegramId,
-          username: telegramUser.username ?? null,
-        },
+        user_metadata: metadata,
       });
 
       if (updateUserResult.error) {
-        throw new Error(updateUserResult.error.message);
+        throw new HttpError(500, updateUserResult.error.message);
       }
-
-      userId = updateUserResult.data.user.id;
     }
 
     if (!userId) {
-      throw new Error('Failed to resolve Supabase auth user.');
+      throw new HttpError(500, 'Failed to resolve Supabase auth user.');
     }
 
-    const existingProfileResult = await adminClient
+    const profilePayload = {
+      avatar_url: metadata.avatar_url,
+      bio: existingProfile?.bio ?? null,
+      full_name: metadata.full_name,
+      handle: existingProfile?.handle ?? null,
+      handle_norm: existingProfile?.handle_norm ?? null,
+      id: userId,
+      role: existingProfile?.role ?? 'user',
+      telegram_id: telegramId,
+      username: metadata.username,
+    };
+
+    const upsertProfileResult = await adminClient
       .from('profiles')
-      .select('id, role')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (existingProfileResult.error) {
-      throw new Error(existingProfileResult.error.message);
-    }
-
-    const profileRole = existingProfileResult.data?.role ?? 'user';
-    const upsertProfileResult = await adminClient.from('profiles').upsert(
-      {
-        avatar_url: telegramUser.photo_url ?? null,
-        full_name: displayName,
-        id: userId,
-        role: profileRole,
-        telegram_id: telegramId,
-        username: telegramUser.username ?? null,
-      },
-      { onConflict: 'id' },
-    );
+      .upsert(profilePayload, { onConflict: 'id' })
+      .select(PROFILE_SELECT)
+      .single();
 
     if (upsertProfileResult.error) {
-      throw new Error(upsertProfileResult.error.message);
+      throw new HttpError(500, upsertProfileResult.error.message);
     }
 
-    return jsonResponse({ email, password });
+    return jsonResponse({
+      email,
+      password,
+      profile: upsertProfileResult.data as ProfileRecord,
+      userId,
+    });
   } catch (error) {
-    return jsonResponse(
-      {
-        error: error instanceof Error ? error.message : 'Unexpected error.',
-      },
-      400,
-    );
+    if (error instanceof HttpError) {
+      return jsonResponse({ error: error.message }, error.status);
+    }
+
+    console.error('telegram-auth failed', error);
+    return jsonResponse({ error: 'Internal server error.' }, 500);
   }
 });
