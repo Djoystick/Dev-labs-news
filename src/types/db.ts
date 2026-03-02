@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'user';
+export type PostSort = 'newest' | 'oldest';
 
 export type Topic = {
   id: string;

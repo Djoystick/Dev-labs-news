@@ -1,7 +1,10 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="dom" />
 
-import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import "@supabase/edge-runtime.d.ts";
+import { serve } from "@std/http/server";
+import { SignJWT } from "jose";
+import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 
 const PROFILE_SELECT = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
 const DEFAULT_AUTH_MAX_AGE_SECONDS = 60 * 60 * 24;
@@ -115,7 +118,7 @@ function timingSafeEqual(left: string, right: string): boolean {
   return diff === 0;
 }
 
-function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'TELEGRAM_BOT_TOKEN'): string {
+function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'SUPABASE_JWT_SECRET' | 'TELEGRAM_BOT_TOKEN'): string {
   const value = Deno.env.get(name);
 
   if (!value) {
@@ -295,7 +298,7 @@ async function getProfileByUserId(
   return (result.data as ProfileRecord | null) ?? null;
 }
 
-Deno.serve(async (request: Request) => {
+serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: corsHeaders,
@@ -309,15 +312,18 @@ Deno.serve(async (request: Request) => {
 
   try {
     const body = await parseRequestBody(request);
-    const initData = typeof body.initData === 'string' ? body.initData.trim() : '';
+    const rawInitData = typeof body.initData === 'string' ? body.initData.trim() : null;
 
-    if (!initData) {
+    if (!rawInitData) {
       throw new HttpError(400, 'initData is required.');
     }
+
+    const initData: string = rawInitData;
 
     const botToken = getRequiredEnv('TELEGRAM_BOT_TOKEN');
     const serviceRoleKey = getRequiredEnv('SERVICE_ROLE_KEY');
     const supabaseUrl = getRequiredEnv('PROJECT_URL');
+    const jwtSecret = getRequiredEnv('SUPABASE_JWT_SECRET');
     const telegramUser = await verifyInitData(initData, botToken, getAuthMaxAgeSeconds());
     const telegramId = String(telegramUser.id);
     const email = `tg_${telegramId}@telegram.local`;
@@ -396,11 +402,29 @@ Deno.serve(async (request: Request) => {
       throw new HttpError(500, upsertProfileResult.error.message);
     }
 
+    const profile = upsertProfileResult.data as ProfileRecord;
+    const key = encoder.encode(jwtSecret);
+    const token = await new SignJWT({
+      app_role: profile.role,
+      role: 'authenticated',
+      telegram_id: profile.telegram_id,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setAudience('authenticated')
+      .setSubject(profile.id)
+      .setIssuedAt()
+      .setExpirationTime('7d')
+      .sign(key);
+
     return jsonResponse({
-      email,
-      password,
-      profile: upsertProfileResult.data as ProfileRecord,
-      userId,
+      ok: true,
+      profile: {
+        id: profile.id,
+        role: profile.role,
+        telegram_id: profile.telegram_id,
+        username: profile.username,
+      },
+      token,
     });
   } catch (error) {
     if (error instanceof HttpError) {

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { listPosts } from '@/features/posts/api';
+import { getPosts } from '@/features/posts/api';
 import { clearTopicsCache, listTopics } from '@/features/topics/api';
 import { saveFeedState } from '@/lib/feed-state';
-import type { Post, Topic } from '@/types/db';
+import type { Post, PostSort, Topic } from '@/types/db';
 
-const pageSize = 12;
+const pageSize = 10;
 const allTopicsEntry: Topic = {
   id: 'all',
   slug: 'all',
@@ -38,10 +38,12 @@ export function usePostFeed() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTopic = searchParams.get('topic') ?? 'all';
   const urlSearch = searchParams.get('search') ?? '';
+  const sortParam = searchParams.get('sort');
+  const sort: PostSort = sortParam === 'oldest' ? 'oldest' : 'newest';
   const [queryInput, setQueryInput] = useState(urlSearch);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [page, setPage] = useState(1);
+  const [pageState, setPageState] = useState<{ filterKey: string; page: number }>({ filterKey: '', page: 1 });
   const [postsReloadToken, setPostsReloadToken] = useState(0);
   const [topicsReloadToken, setTopicsReloadToken] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -49,11 +51,14 @@ export function usePostFeed() {
   const [isTopicsLoading, setIsTopicsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
   const [topicsError, setTopicsError] = useState<string | null>(null);
-  const [pendingTopicSlug, setPendingTopicSlug] = useState<string | null>(null);
   const currentParamsString = location.search.startsWith('?') ? location.search.slice(1) : location.search;
   const debouncedQuery = useDebouncedValue(queryInput, 300);
 
   const selectedTopicRecord = useMemo(() => topics.find((topic) => topic.slug === activeTopic) ?? null, [activeTopic, topics]);
+  const normalizedQuery = debouncedQuery.trim();
+  const selectedTopicId = activeTopic === 'all' ? undefined : selectedTopicRecord?.id;
+  const filterKey = `${selectedTopicId ?? 'all'}:${sort}:${normalizedQuery}`;
+  const page = pageState.filterKey === filterKey ? pageState.page : 1;
 
   useEffect(() => {
     if (location.pathname !== '/' || urlSearch === queryInput) {
@@ -69,7 +74,6 @@ export function usePostFeed() {
     }
 
     const nextParams = new URLSearchParams();
-    const normalizedQuery = debouncedQuery.trim();
 
     if (activeTopic !== 'all') {
       nextParams.set('topic', activeTopic);
@@ -79,6 +83,10 @@ export function usePostFeed() {
       nextParams.set('search', normalizedQuery);
     }
 
+    if (sort === 'oldest') {
+      nextParams.set('sort', 'oldest');
+    }
+
     const nextParamsString = nextParams.toString();
 
     if (nextParamsString === currentParamsString) {
@@ -86,7 +94,7 @@ export function usePostFeed() {
     }
 
     setSearchParams(nextParams, { replace: true });
-  }, [activeTopic, currentParamsString, debouncedQuery, location.pathname, setSearchParams]);
+  }, [activeTopic, currentParamsString, location.pathname, normalizedQuery, setSearchParams, sort]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,7 +105,6 @@ export function usePostFeed() {
 
       try {
         const loadedTopics = await listTopics(controller.signal, { force: topicsReloadToken > 0 });
-
         setTopics(loadedTopics);
       } catch (error) {
         if (controller.signal.aborted) {
@@ -140,7 +147,19 @@ export function usePostFeed() {
   }, [activeTopic, isTopicsLoading, setSearchParams, topics]);
 
   useEffect(() => {
-    if (activeTopic !== 'all' && (isTopicsLoading || !selectedTopicRecord)) {
+    setHasMore(true);
+    setPostsError(null);
+    setPageState((currentState) => {
+      if (currentState.filterKey === filterKey && currentState.page === 1) {
+        return currentState;
+      }
+
+      return { filterKey, page: 1 };
+    });
+  }, [filterKey]);
+
+  useEffect(() => {
+    if (activeTopic !== 'all' && (isTopicsLoading || !selectedTopicId)) {
       return;
     }
 
@@ -151,20 +170,23 @@ export function usePostFeed() {
       setPostsError(null);
 
       try {
-        const loadedPosts = await listPosts({
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
+        const response = await getPosts({
+          page,
+          pageSize,
+          query: normalizedQuery || undefined,
           signal: controller.signal,
-          topicId: selectedTopicRecord?.id,
+          sort,
+          topicId: selectedTopicId,
         });
 
         if (controller.signal.aborted) {
           return;
         }
 
-        setPosts((currentPosts) => (page === 1 ? loadedPosts : [...currentPosts, ...loadedPosts.filter((post) => !currentPosts.some((currentPost) => currentPost.id === post.id))]));
-        setHasMore(loadedPosts.length === pageSize);
-        setPendingTopicSlug(null);
+        setPosts((currentPosts) =>
+          page === 1 ? response.items : [...currentPosts, ...response.items.filter((post) => !currentPosts.some((currentPost) => currentPost.id === post.id))],
+        );
+        setHasMore(response.hasMore);
       } catch (error) {
         if (controller.signal.aborted) {
           return;
@@ -172,7 +194,6 @@ export function usePostFeed() {
 
         setPostsError(getErrorMessage(error));
         setHasMore(false);
-        setPendingTopicSlug(null);
       } finally {
         if (!controller.signal.aborted) {
           setIsPostsLoading(false);
@@ -185,17 +206,7 @@ export function usePostFeed() {
     return () => {
       controller.abort();
     };
-  }, [activeTopic, isTopicsLoading, page, postsReloadToken, selectedTopicRecord]);
-
-  const filteredPosts = useMemo(() => {
-    const normalizedQuery = debouncedQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return posts;
-    }
-
-    return posts.filter((post) => post.title.toLowerCase().includes(normalizedQuery));
-  }, [debouncedQuery, posts]);
+  }, [activeTopic, isTopicsLoading, normalizedQuery, page, postsReloadToken, selectedTopicId, sort]);
 
   const topicOptions = useMemo(
     () =>
@@ -215,25 +226,27 @@ export function usePostFeed() {
     activeTopic,
     hasMore,
     isLoading: isPostsLoading && posts.length === 0,
-    isLoadingMore: isPostsLoading && posts.length > 0,
-    isRefreshing: pendingTopicSlug !== null || (isPostsLoading && posts.length > 0 && page === 1),
+    isLoadingMore: isPostsLoading && posts.length > 0 && page > 1,
+    isRefreshing: isPostsLoading && posts.length > 0 && page === 1,
     isTopicsLoading,
     loadMore: () => {
       if (isPostsLoading || !hasMore) {
         return;
       }
 
-      setPage((currentPage) => currentPage + 1);
+      setPageState((currentState) => ({
+        filterKey,
+        page: (currentState.filterKey === filterKey ? currentState.page : 1) + 1,
+      }));
     },
-    posts: filteredPosts,
+    posts,
     postsError,
     query: queryInput,
-    resultsCount: filteredPosts.length,
+    resultsCount: posts.length,
     retryPosts: () => {
       setHasMore(true);
       setPostsError(null);
-      setPendingTopicSlug(activeTopic);
-      setPage(1);
+      setPageState({ filterKey, page: 1 });
       setPostsReloadToken((currentToken) => currentToken + 1);
     },
     retryTopics: () => {
@@ -250,8 +263,6 @@ export function usePostFeed() {
 
       setHasMore(true);
       setPostsError(null);
-      setPendingTopicSlug(nextSlug ?? 'all');
-      setPage(1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       setSearchParams((currentParams) => {
@@ -274,6 +285,33 @@ export function usePostFeed() {
     setQuery: (value: string) => {
       setQueryInput(value);
     },
+    setSort: (value: PostSort) => {
+      if (value === sort) {
+        return;
+      }
+
+      setHasMore(true);
+      setPostsError(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+
+        if (value === 'oldest') {
+          nextParams.set('sort', value);
+        } else {
+          nextParams.delete('sort');
+        }
+
+        saveFeedState({
+          scrollY: 0,
+          search: nextParams.toString() ? `?${nextParams.toString()}` : '',
+        });
+
+        return nextParams;
+      }, { replace: true });
+    },
+    sort,
     topics: topicOptions,
     topicsError,
   };

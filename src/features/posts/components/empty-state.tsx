@@ -7,10 +7,10 @@ export function EmptyState({ onReset }: { onReset: () => void }) {
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-muted-foreground">
         <SearchX className="h-6 w-6" />
       </div>
-      <h2 className="mt-5 text-2xl font-extrabold">No posts match the current filter</h2>
+      <h2 className="mt-5 text-2xl font-extrabold">Ничего не найдено</h2>
       <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Сбрось поиск или выбери другую тему, чтобы снова увидеть материалы.</p>
       <Button variant="secondary" className="mt-6" onClick={onReset}>
-        Reset filters
+        Сбросить фильтры
       </Button>
     </div>
   );

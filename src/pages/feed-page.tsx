@@ -1,18 +1,21 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { Search } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StateCard } from '@/components/ui/state-card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
 import { consumeFeedReturnIntent, markFeedReturnIntent, readFeedState, saveFeedState } from '@/lib/feed-state';
 
 export function FeedPage() {
-  const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery } =
+  const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery, setSort, sort } =
     useOutletContext<AppLayoutContext>();
   const featuredPost = posts[0];
   const remainingPosts = posts.slice(1);
@@ -91,6 +94,40 @@ export function FeedPage() {
         </div>
       </motion.section>
 
+      <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.3 }} className="mb-6 sm:mb-8">
+        <div className="grid gap-4 rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="grid gap-3">
+            <label htmlFor="feed-search" className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">
+              Search
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="feed-search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11"
+                placeholder="Найти по заголовку, анонсу или содержанию"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:min-w-[280px]">
+            <span className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">Сортировка</span>
+            <Tabs value={sort} onValueChange={(value) => setSort(value === 'oldest' ? 'oldest' : 'newest')}>
+              <TabsList className="h-12 w-full justify-start rounded-[1.25rem] bg-secondary/80 p-1">
+                <TabsTrigger value="newest" className="flex-1 rounded-[1rem]">
+                  Новые
+                </TabsTrigger>
+                <TabsTrigger value="oldest" className="flex-1 rounded-[1rem]">
+                  Сначала старые
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+      </motion.section>
+
       <AnimatePresence mode="wait">
         {isLoading ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -105,6 +142,7 @@ export function FeedPage() {
             <EmptyState
               onReset={() => {
                 setQuery('');
+                setSort('newest');
                 setActiveTopic('all');
               }}
             />

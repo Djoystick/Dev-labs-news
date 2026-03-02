@@ -1,23 +1,31 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getStoredAuthToken } from '@/lib/auth-storage';
 import { requireEnv } from '@/lib/env';
 import type { Database } from '@/types/db';
 
-let supabaseClient: SupabaseClient<Database> | null = null;
+const supabaseClientCache = new Map<string, SupabaseClient<Database>>();
 
-export function getSupabaseClient() {
-  if (supabaseClient) {
-    return supabaseClient;
+export function getSupabaseClient(token?: string) {
+  const resolvedToken = typeof token === 'string' ? token : getStoredAuthToken() ?? '';
+  const cacheKey = resolvedToken || '__anon__';
+  const cachedClient = supabaseClientCache.get(cacheKey);
+
+  if (cachedClient) {
+    return cachedClient;
   }
 
   const { supabaseAnonKey, supabaseUrl } = requireEnv();
-
-  supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  const client = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       persistSession: true,
     },
+    global: {
+      headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {},
+    },
   });
 
-  return supabaseClient;
+  supabaseClientCache.set(cacheKey, client);
+  return client;
 }

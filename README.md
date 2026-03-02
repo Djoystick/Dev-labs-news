@@ -39,12 +39,18 @@ npm install
 npm run dev
 ```
 
+VS Code for Supabase Edge Functions:
+
+- Install the Deno VS Code extension.
+- Reload the VS Code window after opening this repo so `supabase/` is picked up with [supabase/deno.json](./supabase/deno.json).
+
 ## Checks
 
 ```bash
 npm run typecheck
 npm run lint
 npm run build
+npm run deno:check:functions
 ```
 
 ## Environment Variables
@@ -134,21 +140,18 @@ Why public read was chosen:
 Deploy the function from the project root:
 
 ```bash
-supabase functions deploy telegram-auth
-```
-
-Set required secrets:
-
-```bash
-supabase secrets set TELEGRAM_BOT_TOKEN=your_bot_token_here
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+supabase link --project-ref your-project-ref
+supabase secrets set TELEGRAM_BOT_TOKEN="your_bot_token_here" SUPABASE_SERVICE_ROLE_KEY="your_service_role_key_here" SUPABASE_URL="https://your-project-ref.supabase.co"
+supabase functions deploy telegram-auth --no-verify-jwt
 ```
 
 Notes:
 
 - `TELEGRAM_BOT_TOKEN` is used only inside the Edge Function to verify Telegram `initData`.
 - `SUPABASE_SERVICE_ROLE_KEY` is used only inside the Edge Function to create/update auth users and upsert `profiles`.
-- `SUPABASE_URL` is available to Supabase Edge Functions automatically in hosted environments.
+- `SUPABASE_URL` is read by the function explicitly, so set it together with the other secrets.
+- The function is designed for public login bootstrap and must be deployed with `--no-verify-jwt`.
+- Optional: set `TELEGRAM_AUTH_MAX_AGE_SECONDS=604800` in a dev environment if you need a 7-day `auth_date` window. Default is 24 hours.
 
 ### 6. Assign admin role
 
@@ -234,7 +237,15 @@ Current MVP behavior:
 
 - The app shows `Sign in with Telegram` in the auth dialog.
 - In a normal browser without Telegram `initData`, the app explains that Telegram sign-in requires opening the Mini App inside Telegram.
-- Inside Telegram, the button posts `initData` to `telegram-auth`.
-- The Edge Function verifies the payload and returns a technical email/password pair for sign-in.
+- Inside Telegram, the button posts `window.Telegram.WebApp.initData` to `${VITE_SUPABASE_URL}/functions/v1/telegram-auth`.
+- The Edge Function verifies the payload, derives a deterministic password from the bot token and Telegram user id, creates or updates the Auth user, and upserts `public.profiles`.
+- The frontend then performs `supabase.auth.signInWithPassword(...)` and refreshes the profile state.
 
 This keeps the frontend architecture ready for a future production migration to direct token/session issuance if needed.
+
+Telegram Mini App verification checklist:
+
+- Open the Mini App inside Telegram.
+- Press `Войти через Telegram`.
+- Confirm the user appears in `Auth -> Users` with email `tg_<telegram_id>@telegram.local`.
+- Confirm `public.profiles.telegram_id`, `username`, `full_name`, and `avatar_url` are populated.
