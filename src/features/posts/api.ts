@@ -6,6 +6,7 @@ type ListPostsParams = {
   search?: string;
   limit: number;
   offset: number;
+  signal?: AbortSignal;
 };
 
 const postSelect = 'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
@@ -19,9 +20,13 @@ export type PostMutationInput = {
   topic_id: string;
 };
 
-export async function listPosts({ topicId, search, limit, offset }: ListPostsParams) {
+export async function listPosts({ topicId, search, limit, offset, signal }: ListPostsParams) {
   const supabase = getSupabaseClient();
   let query = supabase.from('posts').select(postSelect).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+  if (signal) {
+    query = query.abortSignal(signal);
+  }
 
   if (topicId) {
     query = query.eq('topic_id', topicId);
@@ -44,9 +49,15 @@ export async function listPosts({ topicId, search, limit, offset }: ListPostsPar
   return posts.filter((post) => post.title.toLowerCase().includes(normalizedSearch));
 }
 
-export async function getPost(id: string) {
+export async function getPost(id: string, signal?: AbortSignal) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('posts').select(postSelect).eq('id', id).maybeSingle();
+  let query = supabase.from('posts').select(postSelect).eq('id', id);
+
+  if (signal) {
+    query = query.abortSignal(signal);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(`Failed to load the post. ${error.message}`);

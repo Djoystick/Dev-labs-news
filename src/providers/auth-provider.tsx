@@ -67,44 +67,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
 
-    void getCurrentSession()
-      .then(async (currentSession) => {
-        if (!active) {
-          return;
-        }
+    const syncAuthState = async (nextSession: Session | null) => {
+      if (!active) {
+        return;
+      }
 
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        setProfile(await resolveProfileForUser(currentSession?.user ?? null));
-      })
-      .catch(() => {
-        if (active) {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-
-    const { data } = subscribeToAuthChanges(async (nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(true);
 
       try {
-        setProfile(await resolveProfileForUser(nextSession?.user ?? null));
+        const nextProfile = await resolveProfileForUser(nextSession?.user ?? null);
+
+        if (!active) {
+          return;
+        }
+
+        setProfile(nextProfile);
+      } catch {
+        if (active) {
+          setProfile(null);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
+    };
+
+    void getCurrentSession()
+      .then((currentSession) => syncAuthState(currentSession))
+      .catch(() => {
+        if (active) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+        }
+      });
+
+    const {
+      data: { subscription },
+    } = subscribeToAuthChanges((nextSession) => {
+      void syncAuthState(nextSession);
     });
 
     return () => {
       active = false;
-      data.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 

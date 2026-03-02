@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { BottomBar } from '@/components/layout/bottom-bar';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { TopicDrawer } from '@/components/layout/topic-drawer';
@@ -11,8 +12,6 @@ type AppShellProps = {
   onSearchChange: (value: string) => void;
   onTopicChange: (slug: string) => void;
   query: string;
-  resultsCount: number;
-  selectedTopic: Topic & { count: number };
   topicsError: string | null;
   topics: Array<Topic & { count: number }>;
   retryTopics: () => void;
@@ -25,8 +24,6 @@ export function AppShell({
   onSearchChange,
   onTopicChange,
   query,
-  resultsCount,
-  selectedTopic,
   topicsError,
   topics,
   retryTopics,
@@ -34,26 +31,23 @@ export function AppShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <Header
-        onMenuClick={() => setDrawerOpen(true)}
-        onSearchChange={onSearchChange}
-        resultsCount={resultsCount}
-        searchValue={query}
-        selectedTopicName={selectedTopic.name}
-      />
+    <div className="relative min-h-screen overflow-x-hidden">
+      <Header onMenuClick={() => setDrawerOpen(true)} />
       <TopicDrawer
         activeTopic={activeTopic}
         isLoading={isTopicsLoading}
         onOpenChange={setDrawerOpen}
+        onSearchChange={onSearchChange}
         onRetry={retryTopics}
         onSelect={onTopicChange}
         open={drawerOpen}
+        query={query}
         topics={topics}
         topicsError={topicsError}
       />
-      <main>{children}</main>
+      <main className="app-header-offset app-bottom-nav-offset">{children}</main>
       <Footer />
+      <BottomBar />
     </div>
   );
 }

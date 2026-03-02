@@ -1,13 +1,42 @@
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Topic } from '@/types/db';
 
-export async function listTopics() {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('topics').select('id, slug, name, created_at').order('name', { ascending: true });
+let cachedTopics: Topic[] | null = null;
+let topicsRequest: Promise<Topic[]> | null = null;
 
-  if (error) {
-    throw new Error(`Failed to load topics. ${error.message}`);
+export async function listTopics(signal?: AbortSignal, options?: { force?: boolean }) {
+  if (cachedTopics && !options?.force) {
+    return cachedTopics;
   }
 
-  return (data ?? []) as Topic[];
+  if (topicsRequest && !options?.force) {
+    return topicsRequest;
+  }
+
+  topicsRequest = (async () => {
+  const supabase = getSupabaseClient();
+  let query = supabase.from('topics').select('id, slug, name, created_at').order('name', { ascending: true });
+
+  if (signal) {
+    query = query.abortSignal(signal);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+      topicsRequest = null;
+      throw new Error(`Failed to load topics. ${error.message}`);
+  }
+
+    cachedTopics = (data ?? []) as Topic[];
+    topicsRequest = null;
+    return cachedTopics;
+  })();
+
+  return topicsRequest;
+}
+
+export function clearTopicsCache() {
+  cachedTopics = null;
+  topicsRequest = null;
 }

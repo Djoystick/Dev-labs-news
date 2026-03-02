@@ -8,9 +8,7 @@ export function EmptyState({ onReset }: { onReset: () => void }) {
         <SearchX className="h-6 w-6" />
       </div>
       <h2 className="mt-5 text-2xl font-extrabold">No posts match the current filter</h2>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
-        Reset the query or switch topic to bring back the seeded feed. Real Supabase results replace this state in Stage 3.
-      </p>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Сбрось поиск или выбери другую тему, чтобы снова увидеть материалы.</p>
       <Button variant="secondary" className="mt-6" onClick={onReset}>
         Reset filters
       </Button>

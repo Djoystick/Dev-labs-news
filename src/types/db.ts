@@ -26,11 +26,36 @@ export type Post = PostRow & {
 export type Profile = {
   id: string;
   role: UserRole;
+  handle: string | null;
+  bio: string | null;
   telegram_id: string | null;
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
   created_at: string;
+};
+
+export type FavoriteRow = {
+  id: string;
+  user_id: string;
+  post_id: string;
+  created_at: string;
+};
+
+export type Favorite = FavoriteRow & {
+  post?: Post | null;
+};
+
+export type ReadingHistoryRow = {
+  id: string;
+  user_id: string;
+  post_id: string;
+  last_read_at: string;
+  read_count: number;
+};
+
+export type ReadingHistoryEntry = ReadingHistoryRow & {
+  post?: Post | null;
 };
 
 export type Database = {
@@ -98,6 +123,8 @@ export type Database = {
         Insert: {
           id: string;
           role?: UserRole;
+          handle?: string | null;
+          bio?: string | null;
           telegram_id?: string | null;
           username?: string | null;
           full_name?: string | null;
@@ -107,6 +134,8 @@ export type Database = {
         Update: {
           id?: string;
           role?: UserRole;
+          handle?: string | null;
+          bio?: string | null;
           telegram_id?: string | null;
           username?: string | null;
           full_name?: string | null;
@@ -114,6 +143,70 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      favorites: {
+        Row: FavoriteRow;
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          post_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'favorites_post_id_fkey';
+            columns: ['post_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favorites_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reading_history: {
+        Row: ReadingHistoryRow;
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id: string;
+          last_read_at?: string;
+          read_count?: number;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          post_id?: string;
+          last_read_at?: string;
+          read_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reading_history_post_id_fkey';
+            columns: ['post_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reading_history_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: Record<string, never>;
