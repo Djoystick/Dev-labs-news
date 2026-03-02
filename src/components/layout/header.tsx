@@ -5,6 +5,7 @@ import { AuthDialog } from '@/components/auth/auth-dialog';
 import { UserMenu } from '@/components/auth/user-menu';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -45,10 +46,10 @@ export function Header({ onMenuClick }: HeaderProps) {
             <ThemeToggle className="h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]" />
             {isAuthed && isAdmin ? (
               <Button asChild size="sm" className="h-9 shrink-0 rounded-full px-3 shadow-[0_10px_24px_-18px_rgba(8,145,209,0.55)]">
-                <Link to="/admin/new">
+                <AppLink to="/admin/new">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Новая новость</span>
-                </Link>
+                </AppLink>
               </Button>
             ) : null}
             {loading ? (

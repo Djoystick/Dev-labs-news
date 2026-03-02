@@ -92,6 +92,7 @@ Local storage keys used by the app:
 2. Run [supabase/schema.sql](./supabase/schema.sql).
 3. Run [supabase/rls_policies.sql](./supabase/rls_policies.sql).
 4. Run [supabase/seed.sql](./supabase/seed.sql) if you want starter content.
+5. If you apply SQL incrementally instead of the full schema, run [supabase/migrations/001_profiles_auth_trigger.sql](./supabase/migrations/001_profiles_auth_trigger.sql) to auto-create `profiles` rows for new auth users.
 
 What this creates:
 
@@ -100,9 +101,11 @@ What this creates:
 - `profiles`
 - indexes
 - `updated_at` trigger for posts
+- automatic `profiles` creation trigger on `auth.users`
 - `storage` bucket `posts`
 - RLS for public read on feed data and protected writes for admins
 - self-service profile read/update rules
+- role remains protected by RLS and is not sent from the client update payload
 - storage policies for public image reads and admin-only uploads/deletes
 
 ### 4. Configure Storage bucket
@@ -157,7 +160,9 @@ set role = 'admin'
 where id = 'USER_UUID_HERE';
 ```
 
-If the `profiles` row does not exist yet, insert it manually:
+`profiles` is created automatically by the auth trigger for new users, and the frontend still has a fallback `upsert` on first sync if an older account does not have a row yet.
+
+If you are fixing an older project where the user already exists but the profile row is still missing, insert it manually once:
 
 ```sql
 insert into public.profiles (id, role)
@@ -174,6 +179,7 @@ Current auth flow:
 - Email/Password uses standard Supabase Auth.
 - After successful sign-in, the app fetches `profiles` by `auth.uid()`.
 - If the profile row does not exist, the app creates it with role `user`.
+- New auth users also get a `profiles` row automatically from the database trigger on `auth.users`.
 - Telegram login uses `window.Telegram.WebApp.initData` and calls the `telegram-auth` Edge Function.
 - The Edge Function verifies the payload, creates or updates a Supabase Auth user, upserts `public.profiles`, and returns technical credentials for MVP sign-in.
 

@@ -97,7 +97,9 @@ export async function createProfileForUser(user: User) {
   };
   const { data, error } = await supabase
     .from('profiles')
-    .insert(payload)
+    .upsert(payload, {
+      onConflict: 'id',
+    })
     .select('id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at')
     .single();
 

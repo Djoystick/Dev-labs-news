@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
 import { House, LogOut, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { AppLink } from '@/components/ui/app-link';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,23 +48,23 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link to="/">
+          <AppLink to="/">
             <House className="h-4 w-4" />
             Главная
-          </Link>
+          </AppLink>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/profile">
+          <AppLink to="/profile">
             <UserRound className="h-4 w-4" />
             Профиль
-          </Link>
+          </AppLink>
         </DropdownMenuItem>
         {isAdmin ? (
           <DropdownMenuItem asChild>
-            <Link to="/admin/new">
+            <AppLink to="/admin/new">
               <ShieldCheck className="h-4 w-4" />
               Новая новость
-            </Link>
+            </AppLink>
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuSeparator />

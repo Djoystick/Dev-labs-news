@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { updateProfileDetails } from '@/features/profile/api';
 import { uploadAvatar } from '@/features/profile/storage';
 import { normalizeOptionalProfileText, profileFormSchema, type ProfileFormValues } from '@/features/profile/validation';
@@ -206,6 +206,10 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="safe-pt w-full max-w-md overflow-y-auto">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Редактировать профиль</SheetTitle>
+            <SheetDescription>Изменение псевдонима, имени, описания и аватара.</SheetDescription>
+          </SheetHeader>
           {header}
         </SheetContent>
       </Sheet>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { Container } from '@/components/layout/container';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
@@ -31,7 +31,7 @@ export function AdminGuard({ children }: { children: ReactNode }) {
         />
         <div className="mt-6 flex justify-center">
           <Button asChild variant="outline">
-            <Link to="/">Back to feed</Link>
+            <AppLink to="/">Back to feed</AppLink>
           </Button>
         </div>
       </Container>

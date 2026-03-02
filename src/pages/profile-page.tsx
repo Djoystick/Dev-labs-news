@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Cable, Eraser, Mail, PencilLine, Settings2, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -182,7 +183,7 @@ export function ProfilePage() {
         <div className="mt-6 flex justify-center gap-3">
           <Button onClick={() => setAuthDialogOpen(true)}>Войти</Button>
           <Button asChild variant="outline">
-            <Link to="/">На главную</Link>
+            <AppLink to="/">На главную</AppLink>
           </Button>
         </div>
         <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />

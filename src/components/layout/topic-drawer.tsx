@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Hash, House, LogOut, PencilLine, Search, UserRound } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthDialog } from '@/components/auth/auth-dialog';
+import { AppLink } from '@/components/ui/app-link';
 import { useAuth } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { StateCard } from '@/components/ui/state-card';
 import { cn } from '@/lib/utils';
 import type { Topic } from '@/types/db';
@@ -33,6 +33,10 @@ export function TopicDrawer({ activeTopic, isLoading, onOpenChange, onRetry, onS
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="left" className="safe-pt">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Меню ленты</SheetTitle>
+            <SheetDescription>Поиск, фильтр по темам и быстрые действия.</SheetDescription>
+          </SheetHeader>
           <div className="space-y-3">
             <div className="px-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Меню</div>
             <div className="relative">
@@ -46,26 +50,26 @@ export function TopicDrawer({ activeTopic, isLoading, onOpenChange, onRetry, onS
             </div>
             <div className="grid gap-1.5">
               <Button asChild variant="ghost" size="sm" className="h-9 justify-start rounded-xl px-3">
-                <Link to="/" onClick={() => onOpenChange(false)}>
+                <AppLink to="/" onClick={() => onOpenChange(false)}>
                   <House className="h-4 w-4" />
                   Главная
-                </Link>
+                </AppLink>
               </Button>
               {isAdmin ? (
                 <Button asChild variant="ghost" size="sm" className="h-9 justify-start rounded-xl px-3">
-                  <Link to="/admin/new" onClick={() => onOpenChange(false)}>
+                  <AppLink to="/admin/new" onClick={() => onOpenChange(false)}>
                     <PencilLine className="h-4 w-4" />
                     Новая новость
-                  </Link>
+                  </AppLink>
                 </Button>
               ) : null}
               {isAuthed ? (
                 <>
                   <Button asChild variant="ghost" size="sm" className="h-9 justify-start rounded-xl px-3">
-                    <Link to="/profile" onClick={() => onOpenChange(false)}>
+                    <AppLink to="/profile" onClick={() => onOpenChange(false)}>
                       <UserRound className="h-4 w-4" />
                       Профиль
-                    </Link>
+                    </AppLink>
                   </Button>
                   <Button
                     type="button"

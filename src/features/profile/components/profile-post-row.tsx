@@ -1,5 +1,6 @@
 import { BookmarkCheck, History, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCompactPostMeta } from '@/features/profile/api';
@@ -40,10 +41,10 @@ export function ProfilePostRow({ post, metaLabel, metaValue, mode }: ProfilePost
               </span>
             </div>
             <Button asChild size="sm" variant="ghost" className="h-8 px-2.5">
-              <Link to={`/post/${post.id}`}>
+              <AppLink to={`/post/${post.id}`}>
                 Открыть
                 <ArrowUpRight className="h-4 w-4" />
-              </Link>
+              </AppLink>
             </Button>
           </div>
         </div>

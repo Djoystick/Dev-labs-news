@@ -4,6 +4,10 @@ alter table public.profiles enable row level security;
 alter table public.favorites enable row level security;
 alter table public.reading_history enable row level security;
 
+-- restrict columns: authenticated can update only safe profile fields (not role)
+revoke update on public.profiles from authenticated;
+grant update (handle, handle_norm, bio, telegram_id, username, full_name, avatar_url) on public.profiles to authenticated;
+
 drop policy if exists "topics_select_public" on public.topics;
 create policy "topics_select_public"
 on public.topics

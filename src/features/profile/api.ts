@@ -1,4 +1,4 @@
-import { normalizeProfileHandle } from '@/features/profile/validation';
+import { normalizeProfileHandle, normalizeProfileHandleNorm } from '@/features/profile/validation';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Favorite, Post, Profile, ReadingHistoryEntry } from '@/types/db';
 
@@ -25,7 +25,8 @@ export async function updateProfileDetails(
   },
 ) {
   const supabase = getSupabaseClient();
-  const handleNorm = normalizeProfileHandle(values.handle);
+  const normalizedHandle = normalizeProfileHandle(values.handle);
+  const handleNorm = normalizeProfileHandleNorm(values.handle);
 
   const { data: handleConflict, error: handleConflictError } = await supabase
     .from('profiles')
@@ -48,7 +49,7 @@ export async function updateProfileDetails(
       avatar_url: values.avatar_url,
       bio: values.bio,
       full_name: values.full_name,
-      handle: values.handle,
+      handle: normalizedHandle,
       handle_norm: handleNorm,
     })
     .eq('id', userId)
@@ -154,13 +155,15 @@ export async function clearReadingHistory(userId: string) {
 
 export async function recordPostView(userId: string, postId: string) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('reading_history').select('id, read_count').eq('user_id', userId).eq('post_id', postId).maybeSingle();
+  const { data, error } = await supabase.from('reading_history').select('id, read_count').eq('user_id', userId).eq('post_id', postId).limit(1);
 
   if (error) {
     throw new Error(`Не удалось записать историю просмотра. ${error.message}`);
   }
 
-  if (!data) {
+  const existingRecord = (data ?? [])[0];
+
+  if (!existingRecord) {
     const { error: insertError } = await supabase.from('reading_history').insert({
       post_id: postId,
       read_count: 1,
@@ -178,9 +181,9 @@ export async function recordPostView(userId: string, postId: string) {
     .from('reading_history')
     .update({
       last_read_at: new Date().toISOString(),
-      read_count: Number(data.read_count ?? 0) + 1,
+      read_count: Number(existingRecord.read_count ?? 0) + 1,
     })
-    .eq('id', data.id);
+    .eq('id', existingRecord.id);
 
   if (updateError) {
     throw new Error(`Не удалось обновить историю просмотра. ${updateError.message}`);

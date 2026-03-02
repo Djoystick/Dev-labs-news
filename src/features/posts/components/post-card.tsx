@@ -1,6 +1,7 @@
 import { ArrowUpRight, Clock3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
@@ -59,14 +60,14 @@ export function PostCard({ post, index }: { post: Post; index: number }) {
           <div className="flex items-center gap-2">
             {isAdmin ? (
               <Button asChild size="sm" variant="outline">
-                <Link to={`/admin/edit/${post.id}`}>Редактировать</Link>
+                <AppLink to={`/admin/edit/${post.id}`}>Редактировать</AppLink>
               </Button>
             ) : null}
             <Button asChild size="sm" variant={isAdmin ? 'ghost' : 'outline'}>
-              <Link to={`/post/${post.id}`} onClick={handleOpen}>
+              <AppLink to={`/post/${post.id}`} onClick={handleOpen}>
                 Читать
                 <ArrowUpRight className="h-4 w-4" />
-              </Link>
+              </AppLink>
             </Button>
           </div>
         </div>

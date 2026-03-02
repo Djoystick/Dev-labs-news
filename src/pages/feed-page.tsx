@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
@@ -145,7 +146,7 @@ export function FeedPage() {
                           markFeedReturnIntent();
                         }}
                       >
-                        <Link to={`/post/${featuredPost.id}`}>Открыть</Link>
+                        <AppLink to={`/post/${featuredPost.id}`}>Открыть</AppLink>
                       </Button>
                     </div>
                   </div>

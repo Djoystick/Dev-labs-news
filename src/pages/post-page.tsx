@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Container } from '@/components/layout/container';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
@@ -154,18 +155,18 @@ export function PostPage() {
             Назад
           </Button>
           <Button asChild variant="outline">
-            <Link to="/">
+            <AppLink to="/">
               <Home className="h-4 w-4" />
               Главная
-            </Link>
+            </AppLink>
           </Button>
           <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
           {isAdmin ? (
             <Button asChild variant="outline">
-              <Link to={`/admin/edit/${post.id}`}>
+              <AppLink to={`/admin/edit/${post.id}`}>
                 <PencilLine className="h-4 w-4" />
                 Редактировать
-              </Link>
+              </AppLink>
             </Button>
           ) : null}
         </div>

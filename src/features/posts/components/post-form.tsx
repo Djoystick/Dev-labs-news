@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AppLink } from '@/components/ui/app-link';
 import { listTopics } from '@/features/topics/api';
 import { createPost, deletePost, updatePost, type PostMutationInput } from '@/features/posts/api';
 import { uploadPostImage } from '@/features/posts/storage';
@@ -142,11 +143,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <Link to={`/post/${post.id}`}>Open published view</Link>
+                  <AppLink to={`/post/${post.id}`}>Open published view</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
-                <Link to="/">Back to feed</Link>
+                <AppLink to="/">Back to feed</AppLink>
               </Button>
             </div>
           </div>
