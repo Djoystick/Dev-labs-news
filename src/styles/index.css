@@ -8,6 +8,7 @@
   :root {
     --app-header-base-height: 3.25rem;
     --app-header-total-height: calc(var(--app-header-base-height) + env(safe-area-inset-top, 0px));
+    --app-bottom-bar-height: calc(5.5rem + env(safe-area-inset-bottom, 0px));
     --background: 210 20% 98%;
     --foreground: 215 25% 14%;
     --card: 0 0% 100%;
@@ -78,6 +79,10 @@
     @apply scroll-smooth;
   }
 
+  html[data-reduce-motion='true'] {
+    scroll-behavior: auto;
+  }
+
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     background:
@@ -113,6 +118,15 @@
   }
 }
 
+html[data-reduce-motion='true'] *,
+html[data-reduce-motion='true'] *::before,
+html[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
 @layer utilities {
   .safe-pb {
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
@@ -126,7 +140,19 @@
     padding-top: var(--app-header-total-height);
   }
 
+  .app-bottom-nav-offset {
+    padding-bottom: var(--app-bottom-bar-height);
+  }
+
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@media (min-width: 768px) {
+  @layer utilities {
+    .app-bottom-nav-offset {
+      padding-bottom: 0;
+    }
   }
 }

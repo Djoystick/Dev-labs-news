@@ -2,9 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { ErrorBoundary } from '@/components/app/error-boundary';
 import { EnvGuard } from '@/components/app/env-guard';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { AuthProvider } from '@/providers/auth-provider';
+import { LibraryProvider } from '@/providers/library-provider';
+import { PreferencesProvider } from '@/providers/preferences-provider';
 import { router } from '@/router';
 import '@/styles/index.css';
 
@@ -16,13 +19,19 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <EnvGuard>
-        <AuthProvider>
-          <RouterProvider router={router} />
-          <Toaster richColors position="top-center" />
-        </AuthProvider>
-      </EnvGuard>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <PreferencesProvider>
+          <EnvGuard>
+            <AuthProvider>
+              <LibraryProvider>
+                <RouterProvider router={router} />
+                <Toaster richColors position="top-center" />
+              </LibraryProvider>
+            </AuthProvider>
+          </EnvGuard>
+        </PreferencesProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

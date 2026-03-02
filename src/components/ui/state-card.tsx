@@ -11,7 +11,7 @@ type StateCardProps = {
   title: string;
 };
 
-export function StateCard({ actionLabel = 'Try again', description, icon, onAction, title }: StateCardProps) {
+export function StateCard({ actionLabel = 'Повторить', description, icon, onAction, title }: StateCardProps) {
   return (
     <Card className="mx-auto max-w-2xl">
       <CardHeader className="items-center text-center">

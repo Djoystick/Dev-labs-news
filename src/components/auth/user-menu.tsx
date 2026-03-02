@@ -44,26 +44,26 @@ export function UserMenu() {
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>
           {displayName}
-          <div className="mt-1 text-[11px] normal-case tracking-normal text-muted-foreground">{user?.email ?? 'Telegram account'}</div>
+          <div className="mt-1 text-[11px] normal-case tracking-normal text-muted-foreground">{user?.email ?? 'Аккаунт Telegram'}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/">
             <House className="h-4 w-4" />
-            Home
+            Главная
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/profile">
             <UserRound className="h-4 w-4" />
-            Profile
+            Профиль
           </Link>
         </DropdownMenuItem>
         {isAdmin ? (
           <DropdownMenuItem asChild>
             <Link to="/admin/new">
               <ShieldCheck className="h-4 w-4" />
-              New post
+              Новая новость
             </Link>
           </DropdownMenuItem>
         ) : null}
@@ -72,14 +72,14 @@ export function UserMenu() {
           onClick={async () => {
             try {
               await signOut();
-              toast.success('Signed out.');
+              toast.success('Вы вышли из аккаунта.');
             } catch (error) {
-              toast.error(error instanceof Error ? error.message : 'Sign-out failed.');
+              toast.error(error instanceof Error ? error.message : 'Не удалось выйти.');
             }
           }}
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          Выйти
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

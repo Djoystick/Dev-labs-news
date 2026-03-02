@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { BottomBar } from '@/components/layout/bottom-bar';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { TopicDrawer } from '@/components/layout/topic-drawer';
@@ -44,8 +45,9 @@ export function AppShell({
         topics={topics}
         topicsError={topicsError}
       />
-      <main className="app-header-offset">{children}</main>
+      <main className="app-header-offset app-bottom-nav-offset">{children}</main>
       <Footer />
+      <BottomBar />
     </div>
   );
 }

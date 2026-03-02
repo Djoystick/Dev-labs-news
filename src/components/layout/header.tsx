@@ -37,7 +37,6 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[10px] font-bold uppercase tracking-[0.24em] text-primary transition group-hover:text-primary/80">DEV-LABS NEWS</p>
-                  <p className="hidden truncate text-xs text-muted-foreground sm:block">Tech news feed for Telegram and the browser</p>
                 </div>
               </div>
             </Link>
@@ -48,7 +47,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               <Button asChild size="sm" className="h-9 shrink-0 rounded-full px-3 shadow-[0_10px_24px_-18px_rgba(8,145,209,0.55)]">
                 <Link to="/admin/new">
                   <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">New post</span>
+                  <span className="hidden sm:inline">Новая новость</span>
                 </Link>
               </Button>
             ) : null}
@@ -58,8 +57,8 @@ export function Header({ onMenuClick }: HeaderProps) {
               <UserMenu />
             ) : (
               <Button onClick={() => setAuthDialogOpen(true)} size="sm" variant="secondary" className="h-9 shrink-0 rounded-full px-3">
-                <span className="hidden sm:inline">Sign in</span>
-                <span className="sm:hidden">Sign</span>
+                <span className="hidden sm:inline">Войти</span>
+                <span className="sm:hidden">Вход</span>
               </Button>
             )}
           </div>

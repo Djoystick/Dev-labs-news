@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock3, Home, PencilLine } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ChevronRight, Clock3, Home, PencilLine } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -8,29 +8,48 @@ import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
+import { BookmarkButton } from '@/features/profile/components/bookmark-button';
+import { recordPostView } from '@/features/profile/api';
 import { getPost } from '@/features/posts/api';
 import { useAuth } from '@/providers/auth-provider';
+import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
 
 export function PostPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const { motionEnabled, textSizeClassName, textWidthClassName } = useReadingPreferences();
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [id]);
+    window.scrollTo({ top: 0, behavior: motionEnabled ? 'smooth' : 'auto' });
+  }, [id, motionEnabled]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 600);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
+    const controller = new AbortController();
 
     async function loadPost() {
       if (!id) {
-        setError('Post id is missing.');
+        setError('Не найден идентификатор поста.');
         setIsLoading(false);
         return;
       }
@@ -39,7 +58,7 @@ export function PostPage() {
       setError(null);
 
       try {
-        const loadedPost = await getPost(id);
+        const loadedPost = await getPost(id, controller.signal);
 
         if (!ignore) {
           setPost(loadedPost);
@@ -47,7 +66,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : 'Unexpected error.');
+          setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить материал.');
         }
       } finally {
         if (!ignore) {
@@ -60,8 +79,27 @@ export function PostPage() {
 
     return () => {
       ignore = true;
+      controller.abort();
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!post?.id || !user?.id) {
+      return;
+    }
+
+    const historyKey = `dev-labs-read:${user.id}:${post.id}`;
+    const lastRecorded = window.sessionStorage.getItem(historyKey);
+
+    if (lastRecorded && Date.now() - Number(lastRecorded) < 5000) {
+      return;
+    }
+
+    window.sessionStorage.setItem(historyKey, String(Date.now()));
+    void recordPostView(user.id, post.id).catch(() => {
+      window.sessionStorage.removeItem(historyKey);
+    });
+  }, [post?.id, user?.id]);
 
   if (isLoading) {
     return (
@@ -88,18 +126,19 @@ export function PostPage() {
   if (error || !post) {
     return (
       <Container className="safe-pb py-10">
-        <StateCard title="Post unavailable" description={error ?? 'The requested post could not be loaded.'} />
+        <StateCard title="Материал недоступен" description={error ?? 'Запрошенный материал не удалось загрузить.'} />
       </Container>
     );
   }
 
   const topic = post.topic;
   const canGoBack = location.key !== 'default';
+  const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
 
   return (
-    <Container className="safe-pb py-10">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <Container className="safe-pb py-8 sm:py-10">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="ghost"
             onClick={() => {
@@ -112,43 +151,52 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            Назад
           </Button>
           <Button asChild variant="outline">
             <Link to="/">
               <Home className="h-4 w-4" />
-              Home
+              Главная
             </Link>
           </Button>
+          <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
           {isAdmin ? (
             <Button asChild variant="outline">
               <Link to={`/admin/edit/${post.id}`}>
                 <PencilLine className="h-4 w-4" />
-                Edit
+                Редактировать
               </Link>
             </Button>
           ) : null}
         </div>
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock3 className="h-3.5 w-3.5" />
-          {new Date(post.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+          {new Date(post.created_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })}
         </span>
       </motion.div>
+
+      <motion.nav initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+        <Link to="/" className="transition hover:text-foreground">
+          Темы
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <Link to={topicHref} className="font-medium text-foreground transition hover:text-primary">
+          {topic?.name ?? 'Новости'}
+        </Link>
+      </motion.nav>
 
       <motion.article
         initial={{ opacity: 0, y: 22 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur"
+        className={`mx-auto overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur ${textWidthClassName}`}
       >
-        {post.cover_url ? <img src={post.cover_url} alt="" className="aspect-[16/7] w-full object-cover" /> : null}
+        {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/7] w-full object-cover" /> : null}
         <div className="p-6 sm:p-8 lg:p-10">
-          <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-            {topic?.name ?? 'General'}
-          </span>
+          <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
           <h1 className="mt-5 max-w-3xl font-['Source_Serif_4'] text-4xl font-bold leading-tight sm:text-5xl">{post.title}</h1>
           {post.excerpt ? <p className="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
-          <div className="prose prose-slate mt-10 max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:rounded-[1.25rem] prose-pre:bg-slate-950 prose-img:rounded-[1.25rem] dark:prose-invert">
+          <div className={`prose prose-slate mt-10 max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:rounded-[1.25rem] prose-pre:bg-slate-950 prose-img:rounded-[1.25rem] dark:prose-invert ${textSizeClassName}`}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -166,6 +214,18 @@ export function PostPage() {
           </div>
         </div>
       </motion.article>
+
+      {showScrollTop ? (
+        <Button
+          type="button"
+          size="icon"
+          className="fixed bottom-[calc(var(--app-bottom-bar-height)+1rem)] right-4 z-40 h-11 w-11 rounded-full shadow-[0_20px_36px_-24px_rgba(15,23,42,0.7)] md:bottom-6"
+          onClick={() => window.scrollTo({ top: 0, behavior: motionEnabled ? 'smooth' : 'auto' })}
+          aria-label="Наверх"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      ) : null}
     </Container>
   );
 }

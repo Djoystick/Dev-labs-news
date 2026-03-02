@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
@@ -8,38 +8,83 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
+import { consumeFeedReturnIntent, markFeedReturnIntent, readFeedState, saveFeedState } from '@/lib/feed-state';
 
 export function FeedPage() {
   const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery } =
     useOutletContext<AppLayoutContext>();
   const featuredPost = posts[0];
   const remainingPosts = posts.slice(1);
+  const scrollTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedTopic.slug]);
+    const savedState = readFeedState();
+
+    if (!savedState || savedState.search !== window.location.search) {
+      return;
+    }
+
+    const shouldRestore = consumeFeedReturnIntent();
+
+    if (!shouldRestore) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: savedState.scrollY, behavior: 'auto' });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (scrollTimerRef.current) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+
+      scrollTimerRef.current = window.setTimeout(() => {
+        saveFeedState({
+          scrollY: window.scrollY,
+          search: window.location.search,
+        });
+      }, 200);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+
+      if (scrollTimerRef.current) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
-    <Container className="safe-pb py-8">
-      <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-8">
-        <div className="grid gap-4 rounded-[2rem] border border-border/70 bg-card/75 p-6 shadow-[0_32px_80px_-40px_rgba(8,145,209,0.55)] backdrop-blur md:grid-cols-[1.35fr_0.85fr]">
+    <Container className="safe-pb py-6 sm:py-8">
+      <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-6 sm:mb-8">
+        <div className="grid gap-4 rounded-[2rem] border border-border/70 bg-card/75 p-5 shadow-[0_32px_80px_-40px_rgba(8,145,209,0.55)] backdrop-blur md:grid-cols-[1.35fr_0.85fr] sm:p-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-primary">Dev-labs News</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-balance sm:text-4xl">Главное из разработки, архитектуры и продуктов.</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Выбирай темы в меню, находи нужные материалы через поиск и сохраняй контекст чтения без лишних переходов.</p>
-            <div className="mt-6 flex flex-wrap gap-3 text-sm">
+            <h2 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-balance sm:text-4xl">Главное из разработки, архитектуры и продукта.</h2>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Читай ленту, сохраняй полезные материалы и возвращайся к ним без потери фильтров и позиции скролла.</p>
+            <div className="mt-5 flex flex-wrap gap-3 text-sm">
               <span className="rounded-full border border-border bg-background/70 px-4 py-2 font-semibold">{selectedTopic.name}</span>
-              <span className="rounded-full border border-border bg-background/70 px-4 py-2 text-muted-foreground">{resultsCount} matching posts</span>
+              <span className="rounded-full border border-border bg-background/70 px-4 py-2 text-muted-foreground">{resultsCount} материалов</span>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Search</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Поиск и темы находятся в меню слева, чтобы лента оставалась чистой и удобной на мобильных экранах.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Лента</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Поиск и темы доступны в меню, поэтому сама лента остаётся чистой и удобной на мобильных экранах.</p>
             </div>
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Reading flow</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Лента подгружает материалы постепенно и сохраняет выбранные фильтры при переходах между страницами.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Чтение</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Избранное, история и восстановление позиции делают возврат к материалам быстрым и предсказуемым.</p>
             </div>
           </div>
         </div>
@@ -52,7 +97,7 @@ export function FeedPage() {
           </motion.div>
         ) : postsError && posts.length === 0 ? (
           <motion.div key="error" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-            <StateCard title="Feed unavailable" description={postsError} onAction={retryPosts} />
+            <StateCard title="Лента недоступна" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
           </motion.div>
         ) : posts.length === 0 ? (
           <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
@@ -70,6 +115,7 @@ export function FeedPage() {
                 <FeedSkeleton />
               </div>
             ) : null}
+
             {featuredPost ? (
               <motion.article
                 initial={{ opacity: 0, y: 20 }}
@@ -78,21 +124,28 @@ export function FeedPage() {
                 className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_32px_90px_-46px_rgba(15,23,42,0.55)]"
               >
                 <div className="grid gap-0 lg:grid-cols-[1.1fr_0.9fr]">
-                  {featuredPost.cover_url ? <img src={featuredPost.cover_url} alt="" className="h-full min-h-[280px] w-full object-cover" /> : null}
+                  {featuredPost.cover_url ? <img src={featuredPost.cover_url} alt="" className="h-full min-h-[280px] w-full object-cover" loading="lazy" /> : null}
                   <div className="flex flex-col justify-between p-6 sm:p-8">
                     <div>
                       <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                        Featured in {featuredPost.topic?.name ?? 'General'}
+                        {featuredPost.topic?.name ?? 'Новости'}
                       </span>
                       <h3 className="mt-5 font-['Source_Serif_4'] text-3xl font-bold leading-tight text-balance sm:text-4xl">{featuredPost.title}</h3>
                       <p className="mt-4 text-base leading-8 text-muted-foreground">{featuredPost.excerpt}</p>
                     </div>
                     <div className="mt-8 flex items-center justify-between gap-3">
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(featuredPost.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })}
-                      </span>
-                      <Button asChild>
-                        <Link to={`/post/${featuredPost.id}`}>Open story</Link>
+                      <span className="text-sm text-muted-foreground">{new Date(featuredPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}</span>
+                      <Button
+                        asChild
+                        onClick={() => {
+                          saveFeedState({
+                            scrollY: window.scrollY,
+                            search: window.location.search,
+                          });
+                          markFeedReturnIntent();
+                        }}
+                      >
+                        <Link to={`/post/${featuredPost.id}`}>Открыть</Link>
                       </Button>
                     </div>
                   </div>
@@ -112,15 +165,13 @@ export function FeedPage() {
                   <FeedSkeleton />
                 </div>
               ) : postsError ? (
-                <StateCard title="More posts could not be loaded" description={postsError} onAction={retryPosts} />
+                <StateCard title="Не удалось догрузить материалы" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
               ) : hasMore ? (
                 <Button variant="outline" onClick={loadMore}>
-                  Load more articles
+                  Показать ещё
                 </Button>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  {query ? 'All matching results are visible.' : 'You have reached the end of the loaded feed.'}
-                </p>
+                <p className="text-sm text-muted-foreground">{query ? 'Все найденные материалы уже показаны.' : 'Это конец текущей подборки.'}</p>
               )}
             </div>
           </motion.div>

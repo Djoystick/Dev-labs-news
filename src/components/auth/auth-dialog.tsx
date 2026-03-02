@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { LoaderCircle, LogIn, Mail, Send, UserPlus } from 'lucide-react';
+import { LoaderCircle, LogIn, Send, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useAuth } from '@/providers/auth-provider';
@@ -46,7 +46,7 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
 
     if (!email) {
       signInForm.setError('email', {
-        message: 'Enter your email first.',
+        message: 'Сначала укажи email.',
         type: 'manual',
       });
       return;
@@ -54,19 +54,19 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
 
     try {
       await resetPassword(email);
-      toast.success('Password reset email sent.');
+      toast.success('Письмо для сброса отправлено.');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send reset email.');
+      toast.error(error instanceof Error ? error.message : 'Не удалось отправить письмо.');
     }
   };
 
   const handleTelegramSignIn = async () => {
     try {
       await signInWithTelegram();
-      toast.success('Signed in with Telegram.');
+      toast.success('Вход через Telegram выполнен.');
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Telegram sign-in failed.');
+      toast.error(error instanceof Error ? error.message : 'Не удалось войти через Telegram.');
     }
   };
 
@@ -74,14 +74,14 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Account access</DialogTitle>
-          <DialogDescription>Войди через email или Telegram.</DialogDescription>
+          <DialogTitle>Вход</DialogTitle>
+          <DialogDescription>Используй email или Telegram.</DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'sign-in' | 'sign-up')}>
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="sign-in">Sign in</TabsTrigger>
-            <TabsTrigger value="sign-up">Register</TabsTrigger>
+            <TabsTrigger value="sign-in">Вход</TabsTrigger>
+            <TabsTrigger value="sign-up">Регистрация</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sign-in">
@@ -90,10 +90,10 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
               onSubmit={signInForm.handleSubmit(async (values) => {
                 try {
                   await signIn(values.email, values.password);
-                  toast.success('Signed in successfully.');
+                  toast.success('Вход выполнен.');
                   onOpenChange(false);
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : 'Sign-in failed.');
+                  toast.error(error instanceof Error ? error.message : 'Не удалось войти.');
                 }
               })}
             >
@@ -104,17 +104,17 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="sign-in-password">Password</Label>
+                  <Label htmlFor="sign-in-password">Пароль</Label>
                   <button type="button" className="text-xs font-semibold text-primary" onClick={handleForgotPassword}>
-                    Forgot password?
+                    Забыли пароль?
                   </button>
                 </div>
-                <Input id="sign-in-password" type="password" placeholder="At least 8 characters" disabled={loading} {...signInForm.register('password')} />
+                <Input id="sign-in-password" type="password" placeholder="Минимум 8 символов" disabled={loading} {...signInForm.register('password')} />
                 {signInForm.formState.errors.password ? <p className="text-sm text-destructive">{signInForm.formState.errors.password.message}</p> : null}
               </div>
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-                Sign in
+                Войти
               </Button>
             </form>
           </TabsContent>
@@ -125,12 +125,12 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
               onSubmit={signUpForm.handleSubmit(async (values) => {
                 try {
                   const result = await signUp(values.email, values.password);
-                  toast.success(result.requiresEmailConfirmation ? 'Registration succeeded. Confirm your email before signing in.' : 'Account created and signed in.');
+                  toast.success(result.requiresEmailConfirmation ? 'Проверь почту и подтверди регистрацию.' : 'Аккаунт создан.');
                   if (!result.requiresEmailConfirmation) {
                     onOpenChange(false);
                   }
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : 'Registration failed.');
+                  toast.error(error instanceof Error ? error.message : 'Не удалось создать аккаунт.');
                 }
               })}
             >
@@ -140,18 +140,18 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
                 {signUpForm.formState.errors.email ? <p className="text-sm text-destructive">{signUpForm.formState.errors.email.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sign-up-password">Password</Label>
-                <Input id="sign-up-password" type="password" placeholder="At least 8 characters" disabled={loading} {...signUpForm.register('password')} />
+                <Label htmlFor="sign-up-password">Пароль</Label>
+                <Input id="sign-up-password" type="password" placeholder="Минимум 8 символов" disabled={loading} {...signUpForm.register('password')} />
                 {signUpForm.formState.errors.password ? <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sign-up-confirm-password">Confirm password</Label>
-                <Input id="sign-up-confirm-password" type="password" placeholder="Repeat your password" disabled={loading} {...signUpForm.register('confirmPassword')} />
+                <Label htmlFor="sign-up-confirm-password">Повтори пароль</Label>
+                <Input id="sign-up-confirm-password" type="password" placeholder="Повтори пароль" disabled={loading} {...signUpForm.register('confirmPassword')} />
                 {signUpForm.formState.errors.confirmPassword ? <p className="text-sm text-destructive">{signUpForm.formState.errors.confirmPassword.message}</p> : null}
               </div>
               <Button className="w-full" type="submit" disabled={loading}>
                 {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                Create account
+                Создать аккаунт
               </Button>
             </form>
           </TabsContent>
@@ -166,14 +166,14 @@ export function AuthDialog({ onOpenChange, open }: AuthDialogProps) {
 
           {!telegramAvailable ? (
             <Alert>
-              <AlertTitle>Telegram sign-in is unavailable</AlertTitle>
-              <AlertDescription>Открой приложение внутри Telegram или используй email и пароль.</AlertDescription>
+              <AlertTitle>Telegram недоступен</AlertTitle>
+              <AlertDescription>Открой приложение внутри Telegram или войди по email.</AlertDescription>
             </Alert>
           ) : null}
 
           <Button className="w-full" type="button" variant="secondary" onClick={handleTelegramSignIn} disabled={loading}>
             {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Sign in with Telegram
+            Войти через Telegram
           </Button>
         </div>
       </DialogContent>

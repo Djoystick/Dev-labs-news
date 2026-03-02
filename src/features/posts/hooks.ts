@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { listPosts } from '@/features/posts/api';
-import { listTopics } from '@/features/topics/api';
+import { clearTopicsCache, listTopics } from '@/features/topics/api';
+import { saveFeedState } from '@/lib/feed-state';
 import type { Post, Topic } from '@/types/db';
 
 const pageSize = 12;
 const allTopicsEntry: Topic = {
   id: 'all',
   slug: 'all',
-  name: 'All Topics',
+  name: 'Все темы',
   created_at: '',
 };
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Unexpected error.';
+  return error instanceof Error ? error.message : 'Неожиданная ошибка.';
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
@@ -95,7 +96,7 @@ export function usePostFeed() {
       setTopicsError(null);
 
       try {
-        const loadedTopics = await listTopics(controller.signal);
+        const loadedTopics = await listTopics(controller.signal, { force: topicsReloadToken > 0 });
 
         setTopics(loadedTopics);
       } catch (error) {
@@ -103,6 +104,7 @@ export function usePostFeed() {
           return;
         }
 
+        clearTopicsCache();
         setTopics([]);
         setTopicsError(getErrorMessage(error));
       } finally {
@@ -250,6 +252,7 @@ export function usePostFeed() {
       setPostsError(null);
       setPendingTopicSlug(nextSlug ?? 'all');
       setPage(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
       setSearchParams((currentParams) => {
         const nextParams = new URLSearchParams(currentParams);
@@ -259,6 +262,11 @@ export function usePostFeed() {
         } else {
           nextParams.delete('topic');
         }
+
+        saveFeedState({
+          scrollY: 0,
+          search: nextParams.toString() ? `?${nextParams.toString()}` : '',
+        });
 
         return nextParams;
       }, { replace: true });

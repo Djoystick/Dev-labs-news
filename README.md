@@ -18,6 +18,10 @@ Implemented now:
 - Email/Password auth for local development
 - Telegram auth exchange flow via Supabase Edge Function
 - Profile page and admin route guard
+- Bottom bar for Telegram-style mobile navigation
+- Feed scroll restoration between the list and post detail pages
+- Reading preferences stored locally for post typography and motion
+- Favorites and reading history cleanup from profile settings
 - Full admin CRUD for posts
 - MDXEditor-based rich markdown editor
 - Supabase Storage uploads for cover images and inline article images
@@ -57,6 +61,14 @@ Frontend rules:
 - Use only the public `anon` key on the frontend.
 - Never put `service_role` into the web app.
 - `.env.local` stays local and is already ignored by git.
+
+Local storage keys used by the app:
+
+- `dev-labs-news-theme`
+- `dev-labs:reading:text-size`
+- `dev-labs:reading:reduce-motion`
+- `dev-labs:reading:text-width`
+- `dev-labs:feed-state`
 
 ## Supabase Setup
 
@@ -200,11 +212,15 @@ Storage behavior:
 - Header shows `Sign in` when logged out.
 - Header shows avatar menu when logged in.
 - Avatar menu includes `Profile`, `Sign out`, and `New post` when the user is admin.
-- `/profile` shows user id, email, role, telegram id, username, session expiry, and profile timestamps.
+- Mobile layout includes a persistent bottom navigation bar for `Лента`, `Избранное`, and `Профиль`.
+- Feed restores `topic/search` from the URL and `scrollY` from session storage after returning from a post.
+- `/profile` includes tabs for profile, favorites, reading history, and local reading preferences.
+- Profile settings can clear favorites and reading history for the current user.
 - `/admin/new` and `/admin/edit/:id` are blocked in UI unless `profile.role = 'admin'`.
 - Feed cards show cover, title, excerpt, topic, and date.
+- Feed cards also show approximate reading time.
 - Admin users get edit shortcuts in feed cards and on the post detail page.
-- Post detail pages render markdown with `react-markdown` and `remark-gfm`.
+- Post detail pages render markdown with `react-markdown` and `remark-gfm`, show breadcrumbs to the feed topic, and include a scroll-to-top action.
 
 ## Telegram Auth Notes
 
