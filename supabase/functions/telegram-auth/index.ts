@@ -11,10 +11,8 @@ const DEFAULT_AUTH_MAX_AGE_SECONDS = 60 * 60 * 24;
 const encoder = new TextEncoder();
 
 const corsHeaders = {
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Origin': '*',
-  'Content-Type': 'application/json',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 } as const;
 
 type TelegramAuthRequestBody = {
@@ -63,7 +61,7 @@ class HttpError extends Error {
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
-    headers: corsHeaders,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
     status,
   });
 }
@@ -300,10 +298,7 @@ async function getProfileByUserId(
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: corsHeaders,
-      status: 204,
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   if (request.method !== 'POST') {

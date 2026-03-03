@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '@/lib/supabase';
-import { requireEnv } from '@/lib/env';
+import { getEnv } from '@/lib/env';
 import { getTelegramInitData } from '@/lib/telegram';
 import type { Profile } from '@/types/db';
 
@@ -23,32 +23,28 @@ export async function fetchOwnProfile(userId: string, token?: string) {
 }
 
 export async function exchangeTelegramAuth(initDataOverride?: string) {
-  const initData = initDataOverride ?? getTelegramInitData();
+  const { supabaseAnonKey, supabaseUrl } = getEnv();
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing env');
+  }
+
+  const initData = (initDataOverride ?? getTelegramInitData()).trim();
 
   if (!initData) {
-    throw new Error('Open the mini app inside Telegram and try Telegram sign-in again.');
+    throw new Error('Откройте приложение внутри Telegram');
   }
 
-  const { supabaseUrl } = requireEnv();
-  const response = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
-    body: JSON.stringify({ initData }),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    method: 'POST',
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.functions.invoke('telegram-auth', {
+    body: { initData },
   });
 
-  let payload: { error?: string } & Partial<TelegramAuthResult> | null = null;
-
-  try {
-    payload = (await response.json()) as ({ error?: string } & Partial<TelegramAuthResult>) | null;
-  } catch {
-    payload = null;
+  if (error) {
+    throw new Error(error.message || 'Telegram sign-in failed.');
   }
 
-  if (!response.ok) {
-    throw new Error(payload?.error ?? 'Telegram sign-in failed.');
-  }
+  const payload = data as ({ error?: string } & Partial<TelegramAuthResult>) | null;
 
   if (!payload?.ok || !payload.token || !payload.profile?.id || !payload.profile.role) {
     throw new Error('Telegram auth returned an incomplete payload.');
