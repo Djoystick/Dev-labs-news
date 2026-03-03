@@ -10,6 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 } as const;
 
+const responseHeaders = {
+  ...corsHeaders,
+  "Cache-Control": "no-store",
+  "Content-Type": "application/json",
+} as const;
+
 const profileSelect = "id, telegram_id, username, handle, role";
 
 type RoleChangeBody = {
@@ -37,7 +43,7 @@ class HttpError extends Error {
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: responseHeaders,
     status,
   });
 }
@@ -119,7 +125,7 @@ async function sendTelegramMessage(bot: string, telegramId: string, text: string
 
 serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: responseHeaders });
   }
 
   if (request.method !== "POST") {
