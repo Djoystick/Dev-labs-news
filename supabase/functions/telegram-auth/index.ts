@@ -15,6 +15,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 } as const;
 
+const responseHeaders = {
+  ...corsHeaders,
+  "Cache-Control": "no-store",
+  "Content-Type": "application/json",
+} as const;
+
 type TelegramAuthRequestBody = {
   initData?: string;
 };
@@ -61,7 +67,7 @@ class HttpError extends Error {
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: responseHeaders,
     status,
   });
 }
@@ -116,14 +122,21 @@ function timingSafeEqual(left: string, right: string): boolean {
   return diff === 0;
 }
 
-function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'JWT_SECRET' | 'TELEGRAM_BOT_TOKEN'): string {
-  const value = Deno.env.get(name);
+function getEnvWithFallback(primary: string, fallback?: string) {
+  return Deno.env.get(primary) ?? (fallback ? Deno.env.get(fallback) : undefined);
+}
 
-  if (!value) {
-    throw new HttpError(500, `Missing required secret: ${name}`);
+function getRequiredServerEnv() {
+  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
+  const jwtSecret = Deno.env.get('JWT_SECRET');
+  const serviceRoleKey = getEnvWithFallback('SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl = getEnvWithFallback('PROJECT_URL', 'SUPABASE_URL');
+
+  if (!botToken || !jwtSecret || !serviceRoleKey || !supabaseUrl) {
+    throw new HttpError(500, 'Server misconfigured');
   }
 
-  return value;
+  return { botToken, jwtSecret, serviceRoleKey, supabaseUrl };
 }
 
 function getAuthMaxAgeSeconds(): number {
@@ -298,7 +311,7 @@ async function getProfileByUserId(
 
 serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response('ok', { headers: responseHeaders });
   }
 
   if (request.method !== 'POST') {
@@ -315,10 +328,7 @@ serve(async (request: Request) => {
 
     const initData: string = rawInitData;
 
-    const botToken = getRequiredEnv('TELEGRAM_BOT_TOKEN');
-    const serviceRoleKey = getRequiredEnv('SERVICE_ROLE_KEY');
-    const supabaseUrl = getRequiredEnv('PROJECT_URL');
-    const jwtSecret = getRequiredEnv('JWT_SECRET');
+    const { botToken, jwtSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
     const telegramUser = await verifyInitData(initData, botToken, getAuthMaxAgeSeconds());
     const telegramId = String(telegramUser.id);
     const email = `tg_${telegramId}@telegram.local`;

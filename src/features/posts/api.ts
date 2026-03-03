@@ -1,5 +1,5 @@
+import { getStoredProfileId } from '@/lib/auth-storage';
 import { getSupabaseClient } from '@/lib/supabase';
-import { getStoredProfileId } from '@/lib/auth-storage'; // <-- замени путь на реальный файл, где ты добавил getStoredProfileId()
 import type { Post, PostSort } from '@/types/db';
 
 type GetPostsParams = {
