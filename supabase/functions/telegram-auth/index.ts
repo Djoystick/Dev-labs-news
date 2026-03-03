@@ -116,7 +116,7 @@ function timingSafeEqual(left: string, right: string): boolean {
   return diff === 0;
 }
 
-function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'SUPABASE_JWT_SECRET' | 'TELEGRAM_BOT_TOKEN'): string {
+function getRequiredEnv(name: 'SERVICE_ROLE_KEY' | 'PROJECT_URL' | 'JWT_SECRET' | 'TELEGRAM_BOT_TOKEN'): string {
   const value = Deno.env.get(name);
 
   if (!value) {
@@ -318,7 +318,7 @@ serve(async (request: Request) => {
     const botToken = getRequiredEnv('TELEGRAM_BOT_TOKEN');
     const serviceRoleKey = getRequiredEnv('SERVICE_ROLE_KEY');
     const supabaseUrl = getRequiredEnv('PROJECT_URL');
-    const jwtSecret = getRequiredEnv('SUPABASE_JWT_SECRET');
+    const jwtSecret = getRequiredEnv('JWT_SECRET');
     const telegramUser = await verifyInitData(initData, botToken, getAuthMaxAgeSeconds());
     const telegramId = String(telegramUser.id);
     const email = `tg_${telegramId}@telegram.local`;
