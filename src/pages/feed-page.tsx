@@ -8,23 +8,23 @@ import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StateCard } from '@/components/ui/state-card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
-import { TopicsFilter } from '@/features/topics/components/topics-filter';
-import { matchesTopicFilters } from '@/features/topics/model';
+import { getVisiblePosts } from '@/features/topics/model';
 import { consumeFeedReturnIntent, markFeedReturnIntent, readFeedState, saveFeedState } from '@/lib/feed-state';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 
 export function FeedPage() {
-  const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setActiveTopic, setQuery, setSort, sort } =
+  const { hasMore, isLoading, isLoadingMore, isRefreshing, loadMore, posts, postsError, query, resultsCount, retryPosts, selectedTopic, setQuery } =
     useOutletContext<AppLayoutContext>();
-  const { enabledTopicCount, resetTopicFilters, setTopicEnabled, topicFilters } = useReadingPreferences();
+  const { resetTopicFilters, topicFilters } = useReadingPreferences();
   const scrollTimerRef = useRef<number | null>(null);
-  const filteredPosts = useMemo(() => posts.filter((post) => matchesTopicFilters(post, topicFilters)), [posts, topicFilters]);
+  const filteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
   const featuredPost = filteredPosts[0];
   const remainingPosts = filteredPosts.slice(1);
+  const hasBackendPosts = posts.length > 0;
+  const isFiltersOnlyEmpty = hasBackendPosts && filteredPosts.length === 0;
 
   useEffect(() => {
     const savedState = readFeedState();
@@ -80,27 +80,35 @@ export function FeedPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-primary">Dev-labs News</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-extrabold leading-tight text-balance sm:text-4xl">Главное из разработки, инфраструктуры и технологий.</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Следите за лентой, сохраняйте полезные материалы и настраивайте отображение по интересующим темам.</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+              Следите за лентой, сохраняйте полезные материалы и настраивайте отображение по интересующим темам.
+            </p>
             <div className="mt-5 flex flex-wrap gap-3 text-sm">
               <span className="rounded-full border border-border bg-background/70 px-4 py-2 font-semibold">{selectedTopic.name}</span>
-              <span className="rounded-full border border-border bg-background/70 px-4 py-2 text-muted-foreground">{filteredPosts.length} из {resultsCount} материалов</span>
+              <span className="rounded-full border border-border bg-background/70 px-4 py-2 text-muted-foreground">
+                {filteredPosts.length} из {resultsCount} материалов
+              </span>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Лента</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Поиск, сортировка и фильтры по темам доступны прямо на этой странице.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Поиск доступен прямо на этой странице, а фильтры по темам открываются из кнопки в верхней панели.
+              </p>
             </div>
             <div className="rounded-[1.5rem] bg-secondary/70 p-5">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Чтение</p>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Открывайте материалы, возвращайтесь к ним позже и управляйте тем, что хотите видеть в ленте.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Открывайте материалы, возвращайтесь к ним позже и управляйте тем, что хотите видеть в ленте.
+              </p>
             </div>
           </div>
         </div>
       </motion.section>
 
       <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.3 }} className="mb-6 sm:mb-8">
-        <div className="grid gap-4 rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="grid gap-4 rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] sm:p-5">
           <div className="grid gap-3">
             <label htmlFor="feed-search" className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">
               Search
@@ -116,25 +124,7 @@ export function FeedPage() {
               />
             </div>
           </div>
-
-          <div className="grid gap-3 lg:min-w-[280px]">
-            <span className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">Сортировка</span>
-            <Tabs value={sort} onValueChange={(value) => setSort(value === 'oldest' ? 'oldest' : 'newest')}>
-              <TabsList className="h-12 w-full justify-start rounded-[1.25rem] bg-secondary/80 p-1">
-                <TabsTrigger value="newest" className="flex-1 rounded-[1rem]">
-                  Новое
-                </TabsTrigger>
-                <TabsTrigger value="oldest" className="flex-1 rounded-[1rem]">
-                  Старое
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
         </div>
-      </motion.section>
-
-      <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.3 }} className="mb-6 sm:mb-8">
-        <TopicsFilter enabledCount={enabledTopicCount} onReset={resetTopicFilters} onToggle={setTopicEnabled} selectedTopics={topicFilters} />
       </motion.section>
 
       <AnimatePresence mode="wait">
@@ -146,15 +136,16 @@ export function FeedPage() {
           <motion.div key="error" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
             <StateCard title="Не удалось загрузить материалы" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
           </motion.div>
-        ) : filteredPosts.length === 0 ? (
+        ) : posts.length === 0 ? (
           <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
+            <EmptyState onReset={retryPosts} actionLabel="Повторить" description="Материалы пока не найдены. Попробуйте обновить ленту." title="Лента пока пуста" />
+          </motion.div>
+        ) : isFiltersOnlyEmpty ? (
+          <motion.div key="filtered-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
             <EmptyState
-              onReset={() => {
-                setQuery('');
-                setSort('newest');
-                setActiveTopic('all');
-                resetTopicFilters();
-              }}
+              onReset={resetTopicFilters}
+              description="По выбранным темам материалов нет. Сбросьте фильтр, чтобы снова показать всю ленту."
+              title="Ничего не найдено"
             />
           </motion.div>
         ) : (

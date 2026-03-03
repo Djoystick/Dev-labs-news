@@ -9,9 +9,10 @@ type TopicsFilterProps = {
   enabledCount: number;
   onToggle: (key: TopicKey, value: boolean) => void;
   onReset: () => void;
+  variant?: 'card' | 'compact';
 };
 
-function FilterSwitch({ checked, label, onChange }: { checked: boolean; label: string; onChange: (value: boolean) => void }) {
+function FilterSwitch({ checked, compact = false, label, onChange }: { checked: boolean; compact?: boolean; label: string; onChange: (value: boolean) => void }) {
   return (
     <button
       type="button"
@@ -19,11 +20,12 @@ function FilterSwitch({ checked, label, onChange }: { checked: boolean; label: s
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        'flex min-h-11 w-full items-center justify-between gap-3 rounded-[1.25rem] border border-border/70 bg-background/80 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        'flex min-h-11 w-full items-center justify-between gap-3 border border-border/70 bg-background/80 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
+        compact ? 'rounded-[1rem] px-3 py-2.5' : 'rounded-[1.25rem] px-4 py-3',
         checked ? 'shadow-[0_16px_36px_-28px_rgba(8,145,209,0.8)]' : 'opacity-90',
       )}
     >
-      <span className="pr-2 text-sm font-semibold leading-5 text-foreground">{label}</span>
+      <span className={cn('pr-2 font-semibold leading-5 text-foreground', compact ? 'text-[13px] sm:text-sm' : 'text-sm')}>{label}</span>
       <span
         aria-hidden
         className={cn(
@@ -42,7 +44,28 @@ function FilterSwitch({ checked, label, onChange }: { checked: boolean; label: s
   );
 }
 
-export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset }: TopicsFilterProps) {
+export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, variant = 'card' }: TopicsFilterProps) {
+  if (variant === 'compact') {
+    return (
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-sm font-semibold">
+            {enabledCount} из {TOPIC_LABELS.length} включено
+          </span>
+          <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onReset}>
+            <RotateCcw className="h-4 w-4" />
+            Сбросить
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {topicKeys.map((key) => (
+            <FilterSwitch key={key} checked={selectedTopics[key]} compact label={topicLabels[key]} onChange={(value) => onToggle(key, value)} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card className="border-border/70 bg-card/85">
       <CardHeader className="gap-4 pb-0">

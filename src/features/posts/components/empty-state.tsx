@@ -1,16 +1,28 @@
 import { SearchX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function EmptyState({ onReset }: { onReset: () => void }) {
+type EmptyStateProps = {
+  actionLabel?: string;
+  description?: string;
+  onReset: () => void;
+  title?: string;
+};
+
+export function EmptyState({
+  actionLabel = 'Сбросить фильтры',
+  description = 'Сбросьте поиск или включите другие фильтры, чтобы снова увидеть материалы.',
+  onReset,
+  title = 'Ничего не найдено',
+}: EmptyStateProps) {
   return (
     <div className="rounded-[2rem] border border-dashed border-border bg-card/70 px-6 py-16 text-center shadow-[0_28px_80px_-46px_rgba(15,23,42,0.5)]">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-muted-foreground">
         <SearchX className="h-6 w-6" />
       </div>
-      <h2 className="mt-5 text-2xl font-extrabold">Ничего не найдено</h2>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Сбросьте поиск или включите другие фильтры, чтобы снова увидеть материалы.</p>
+      <h2 className="mt-5 text-2xl font-extrabold">{title}</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">{description}</p>
       <Button variant="secondary" className="mt-6" onClick={onReset}>
-        Сбросить фильтры
+        {actionLabel}
       </Button>
     </div>
   );

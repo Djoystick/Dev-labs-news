@@ -1,14 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { UserMenu } from '@/components/auth/user-menu';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TopicsFilter } from '@/features/topics/components/topics-filter';
+import { TOPIC_LABELS } from '@/features/topics/model';
 import { useAuth } from '@/providers/auth-provider';
+import { useReadingPreferences } from '@/providers/preferences-provider';
 
 export function Header() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [topicsDialogOpen, setTopicsDialogOpen] = useState(false);
+  const location = useLocation();
   const { isAuthed, loading } = useAuth();
+  const { enabledTopicCount, resetTopicFilters, setTopicEnabled, topicFilters } = useReadingPreferences();
+  const isFeedRoute = location.pathname === '/';
+  const hasFilteredTopics = enabledTopicCount !== TOPIC_LABELS.length;
+
+  useEffect(() => {
+    if (!isFeedRoute) {
+      setTopicsDialogOpen(false);
+    }
+  }, [isFeedRoute]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
@@ -27,6 +44,26 @@ export function Header() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {isFeedRoute ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Открыть фильтры тем"
+                className="relative h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]"
+                onClick={() => setTopicsDialogOpen(true)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                {hasFilteredTopics ? (
+                  <>
+                    <span className="absolute -right-1 -top-1 hidden min-w-8 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground shadow sm:inline-flex">
+                      {enabledTopicCount}/{TOPIC_LABELS.length}
+                    </span>
+                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-primary shadow sm:hidden" />
+                  </>
+                ) : null}
+              </Button>
+            ) : null}
             <ThemeToggle className="h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]" />
             {loading ? (
               <div className="h-9 w-9 rounded-full bg-secondary sm:w-20" aria-hidden />
@@ -41,6 +78,27 @@ export function Header() {
           </div>
         </div>
         <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
+        {isFeedRoute ? (
+          <Dialog open={topicsDialogOpen} onOpenChange={setTopicsDialogOpen}>
+            <DialogContent className="max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-xl">
+              <div className="border-b border-border/70 px-5 py-4 sm:px-6">
+                <DialogHeader className="pr-10">
+                  <DialogTitle className="text-xl sm:text-2xl">Темы</DialogTitle>
+                  <DialogDescription>Настройте, какие темы показывать в ленте.</DialogDescription>
+                </DialogHeader>
+              </div>
+              <div className="overflow-y-auto p-4 sm:p-5">
+                <TopicsFilter
+                  enabledCount={enabledTopicCount}
+                  onReset={resetTopicFilters}
+                  onToggle={setTopicEnabled}
+                  selectedTopics={topicFilters}
+                  variant="compact"
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        ) : null}
       </Container>
     </header>
   );

@@ -30,7 +30,7 @@ const TOPIC_KEYWORDS: Record<TopicKey, string[]> = {
   'ai-llm-ml': ['ai', 'llm', 'ml', 'machine learning', 'gpt', 'rag', 'нейросеть', 'искусственный интеллект'],
   cybersecurity: ['security', 'cyber', 'infosec', 'zero trust', 'кибер', 'безопас', 'уязвим', 'шифр'],
   'gadgets-devices': ['gadget', 'device', 'smartphone', 'wearable', 'смартфон', 'ноутбук', 'гаджет', 'девайс'],
-  'dev-devops': ['devops', 'frontend', 'backend', 'typescript', 'javascript', 'react', 'docker', 'kubernetes', 'разработ', 'devops'],
+  'dev-devops': ['devops', 'frontend', 'backend', 'typescript', 'javascript', 'react', 'docker', 'kubernetes', 'разработ'],
   'cloud-infra': ['cloud', 'infrastructure', 'aws', 'gcp', 'azure', 'serverless', 'sre', 'облако', 'инфраструкт'],
   'data-analytics': ['data', 'analytics', 'etl', 'sql', 'warehouse', 'lakehouse', 'аналит', 'данные'],
   'ar-vr-xr': ['ar', 'vr', 'xr', 'mixed reality', 'virtual reality', 'augmented reality'],
@@ -91,7 +91,7 @@ export function matchesTopicFilters(post: Pick<Post, 'title' | 'excerpt' | 'topi
   }
 
   if (enabledKeys.length === 0) {
-    return true;
+    return false;
   }
 
   const matchedKeys = getMatchedTopicKeys(post);
@@ -101,6 +101,20 @@ export function matchesTopicFilters(post: Pick<Post, 'title' | 'excerpt' | 'topi
   }
 
   return matchedKeys.some((key) => state[key]);
+}
+
+export function getVisiblePosts(posts: Post[], state: TopicFilterState): Post[] {
+  const enabledKeys = getEnabledTopicKeys(state);
+
+  if (enabledKeys.length === 0) {
+    return [];
+  }
+
+  if (enabledKeys.length === TOPIC_KEYS.length) {
+    return posts;
+  }
+
+  return posts.filter((post) => matchesTopicFilters(post, state));
 }
 
 export function normalizeTopicFilterState(value: unknown): TopicFilterState {
