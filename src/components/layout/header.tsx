@@ -87,7 +87,7 @@ export function Header() {
                   <DialogDescription>Настройте, какие темы показывать в ленте.</DialogDescription>
                 </DialogHeader>
               </div>
-              <div className="overflow-y-auto p-4 sm:p-5">
+              <div className="overflow-y-auto p-3 sm:p-4">
                 <TopicsFilter
                   enabledCount={enabledTopicCount}
                   onReset={resetTopicFilters}

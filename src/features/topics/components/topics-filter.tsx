@@ -21,24 +21,26 @@ function FilterSwitch({ checked, compact = false, label, onChange }: { checked: 
       onClick={() => onChange(!checked)}
       className={cn(
         'flex min-h-11 w-full items-center justify-between gap-3 border border-border/70 bg-background/80 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
-        compact ? 'rounded-[1rem] px-3 py-2.5' : 'rounded-[1.25rem] px-4 py-3',
+        compact ? 'h-14 rounded-[1rem] px-3 py-2' : 'rounded-[1.25rem] px-4 py-3',
         checked ? 'shadow-[0_16px_36px_-28px_rgba(8,145,209,0.8)]' : 'opacity-90',
       )}
     >
-      <span className={cn('pr-2 font-semibold leading-5 text-foreground', compact ? 'text-[13px] sm:text-sm' : 'text-sm')}>{label}</span>
-      <span
-        aria-hidden
-        className={cn(
-          'relative h-7 w-12 shrink-0 rounded-full border transition',
-          checked ? 'border-primary/30 bg-primary/20' : 'border-border bg-secondary',
-        )}
-      >
+      <span className={cn('pr-2 font-semibold text-foreground', compact ? 'line-clamp-2 text-[13px] leading-tight' : 'text-sm leading-5')}>{label}</span>
+      <span className="flex w-12 shrink-0 items-center justify-end">
         <span
+          aria-hidden
           className={cn(
-            'absolute top-1 h-5 w-5 rounded-full shadow-sm transition',
-            checked ? 'left-6 bg-primary' : 'left-1 bg-muted-foreground/70',
+            'relative h-7 w-12 shrink-0 rounded-full border transition',
+            checked ? 'border-primary/30 bg-primary/20' : 'border-border bg-secondary',
           )}
-        />
+        >
+          <span
+            className={cn(
+              'absolute top-1 h-5 w-5 rounded-full shadow-sm transition',
+              checked ? 'left-6 bg-primary' : 'left-1 bg-muted-foreground/70',
+            )}
+          />
+        </span>
       </span>
     </button>
   );
@@ -48,16 +50,16 @@ export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, 
   if (variant === 'compact') {
     return (
       <div className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-sm font-semibold">
+        <div className="grid grid-cols-2 gap-2">
+          <span className="flex h-11 items-center justify-center rounded-full border border-border bg-background/80 px-3 py-2 text-center text-[12px] font-semibold leading-none">
             {enabledCount} из {TOPIC_LABELS.length} включено
           </span>
-          <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onReset}>
+          <Button type="button" variant="outline" className="h-11 px-3 py-2 text-[12px]" onClick={onReset}>
             <RotateCcw className="h-4 w-4" />
             Сбросить
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid auto-rows-fr grid-cols-2 gap-2">
           {topicKeys.map((key) => (
             <FilterSwitch key={key} checked={selectedTopics[key]} compact label={topicLabels[key]} onChange={(value) => onToggle(key, value)} />
           ))}
