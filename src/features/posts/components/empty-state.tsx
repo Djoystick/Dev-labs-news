@@ -8,7 +8,7 @@ export function EmptyState({ onReset }: { onReset: () => void }) {
         <SearchX className="h-6 w-6" />
       </div>
       <h2 className="mt-5 text-2xl font-extrabold">Ничего не найдено</h2>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Сбрось поиск или выбери другую тему, чтобы снова увидеть материалы.</p>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Сбросьте поиск или включите другие фильтры, чтобы снова увидеть материалы.</p>
       <Button variant="secondary" className="mt-6" onClick={onReset}>
         Сбросить фильтры
       </Button>

@@ -43,7 +43,7 @@ export function UserMenu() {
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>
           {displayName}
-          <div className="mt-1 text-[11px] normal-case tracking-normal text-muted-foreground">{user?.email ?? 'Аккаунт‚ Telegram'}</div>
+          <div className="mt-1 text-[11px] normal-case tracking-normal text-muted-foreground">{user?.email ?? 'Аккаунт Telegram'}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem

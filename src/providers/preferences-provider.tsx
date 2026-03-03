@@ -1,16 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createDefaultTopicFilterState, getEnabledTopicKeys, type TopicFilterState, type TopicKey } from '@/features/topics/model';
+import { readTopicFilterState, writeTopicFilterState } from '@/lib/topic-filter-storage';
 
 type ReadingTextSize = 's' | 'm' | 'l';
 type ReadingWidth = 'narrow' | 'wide';
 
 type PreferencesContextValue = {
+  enabledTopicCount: number;
   motionEnabled: boolean;
   reduceMotion: boolean;
+  resetTopicFilters: () => void;
   setReadingWidth: (value: ReadingWidth) => void;
   setReduceMotion: (value: boolean) => void;
   setTextSize: (value: ReadingTextSize) => void;
+  setTopicEnabled: (key: TopicKey, value: boolean) => void;
   textSize: ReadingTextSize;
   textSizeClassName: string;
+  topicFilters: TopicFilterState;
   textWidth: ReadingWidth;
   textWidthClassName: string;
 };
@@ -36,6 +42,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [textSize, setTextSize] = useState<ReadingTextSize>('m');
   const [reduceMotion, setReduceMotion] = useState(false);
   const [textWidth, setReadingWidth] = useState<ReadingWidth>('narrow');
+  const [topicFilters, setTopicFilters] = useState<TopicFilterState>(createDefaultTopicFilterState);
 
   useEffect(() => {
     const savedTextSize = window.localStorage.getItem(textSizeKey) as ReadingTextSize | null;
@@ -53,6 +60,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     if (savedTextWidth === 'narrow' || savedTextWidth === 'wide') {
       setReadingWidth(savedTextWidth);
     }
+
+    setTopicFilters(readTopicFilterState());
   }, []);
 
   useEffect(() => {
@@ -68,19 +77,32 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(textWidthKey, textWidth);
   }, [textWidth]);
 
+  useEffect(() => {
+    writeTopicFilterState(topicFilters);
+  }, [topicFilters]);
+
   const value = useMemo<PreferencesContextValue>(
     () => ({
+      enabledTopicCount: getEnabledTopicKeys(topicFilters).length,
       motionEnabled: !reduceMotion,
       reduceMotion,
+      resetTopicFilters: () => setTopicFilters(createDefaultTopicFilterState()),
       setReadingWidth,
       setReduceMotion,
       setTextSize,
+      setTopicEnabled: (key: TopicKey, value: boolean) => {
+        setTopicFilters((current) => ({
+          ...current,
+          [key]: value,
+        }));
+      },
       textSize,
       textSizeClassName: textSizeClasses[textSize],
+      topicFilters,
       textWidth,
       textWidthClassName: textWidthClasses[textWidth],
     }),
-    [reduceMotion, textSize, textWidth],
+    [reduceMotion, textSize, textWidth, topicFilters],
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
