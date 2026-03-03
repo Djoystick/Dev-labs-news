@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cable, Eraser, Mail, PencilLine, Settings2, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
+import { Cable, Eraser, Mail, PencilLine, ScrollText, Settings2, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AuthDialog } from '@/components/auth/auth-dialog';
+import { PublicationRulesModal } from '@/components/PublicationRulesModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
@@ -15,16 +16,18 @@ import { clearFavoritePosts, clearReadingHistory, getProfileDisplayName, getProf
 import { ProfileEditor } from '@/features/profile/components/profile-editor';
 import { ProfileEmptyState } from '@/features/profile/components/profile-empty-state';
 import { ProfilePostRow } from '@/features/profile/components/profile-post-row';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 import { useLibrary } from '@/providers/library-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import { Container } from '@/components/layout/container';
-import type { Favorite, ReadingHistoryEntry } from '@/types/db';
+import type { Favorite, PublicationRule, ReadingHistoryEntry } from '@/types/db';
 
 type ProfileTab = 'profile' | 'favorites' | 'history' | 'settings';
 type ClearTarget = 'favorites' | 'history' | null;
 
 const profileTabs: ProfileTab[] = ['profile', 'favorites', 'history', 'settings'];
+const rulesSeenVersionKey = 'dev-labs-rules-seen-version';
 
 function getInitials(value: string | null | undefined) {
   if (!value) {
@@ -98,6 +101,8 @@ export function ProfilePage() {
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [clearLoading, setClearLoading] = useState(false);
+  const [publicationRules, setPublicationRules] = useState<PublicationRule | null>(null);
+  const [publicationRulesOpen, setPublicationRulesOpen] = useState(false);
   const { isAuthed, loading, profile, refreshProfile, user } = useAuth();
   const { refreshFavorites } = useLibrary();
   const { reduceMotion, setReadingWidth, setReduceMotion, setTextSize, textSize, textWidth } = useReadingPreferences();
@@ -163,6 +168,55 @@ export function ProfilePage() {
       historyController.abort();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (profile?.role !== 'editor') {
+      setPublicationRules(null);
+      setPublicationRulesOpen(false);
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadPublicationRules() {
+      try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from('publication_rules')
+          .select('id, content_md, version, updated_at, updated_by')
+          .eq('id', 1)
+          .single();
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        if (ignore) {
+          return;
+        }
+
+        const nextRules = data as PublicationRule;
+        setPublicationRules(nextRules);
+
+        const seenVersionRaw = window.localStorage.getItem(rulesSeenVersionKey) ?? '0';
+        const seenVersion = Number(seenVersionRaw);
+
+        if (!Number.isNaN(seenVersion) && nextRules.version > seenVersion) {
+          setPublicationRulesOpen(true);
+        }
+      } catch (error) {
+        if (!ignore) {
+          toast.error(error instanceof Error ? error.message : 'Не удалось загрузить правила публикаций.');
+        }
+      }
+    }
+
+    void loadPublicationRules();
+
+    return () => {
+      ignore = true;
+    };
+  }, [profile?.role]);
 
   if (loading) {
     return (
@@ -236,6 +290,14 @@ export function ProfilePage() {
     }
   };
 
+  const handlePublicationRulesOpenChange = (open: boolean) => {
+    if (!open && publicationRules) {
+      window.localStorage.setItem(rulesSeenVersionKey, String(publicationRules.version));
+    }
+
+    setPublicationRulesOpen(open);
+  };
+
   return (
     <Container className="safe-pb py-6 sm:py-8">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -266,6 +328,12 @@ export function ProfilePage() {
                         Администратор
                       </span>
                     ) : null}
+                    {profile.role === 'editor' ? (
+                      <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 font-semibold text-primary">
+                        <ScrollText className="h-4 w-4" />
+                        Редактор
+                      </span>
+                    ) : null}
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 text-sm">
                     <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-muted-foreground">Избранное: {favorites.length}</span>
@@ -273,10 +341,18 @@ export function ProfilePage() {
                   </div>
                 </div>
               </div>
-              <Button size="sm" className="h-10 rounded-full px-4 self-start" onClick={() => setEditorOpen(true)}>
-                <PencilLine className="h-4 w-4" />
-                Редактировать
-              </Button>
+              <div className="flex flex-wrap gap-2 self-start">
+                {profile.role === 'editor' ? (
+                  <Button size="sm" variant="outline" className="h-10 rounded-full px-4" onClick={() => setPublicationRulesOpen(true)}>
+                    <ScrollText className="h-4 w-4" />
+                    Правила публикаций
+                  </Button>
+                ) : null}
+                <Button size="sm" className="h-10 rounded-full px-4" onClick={() => setEditorOpen(true)}>
+                  <PencilLine className="h-4 w-4" />
+                  Редактировать
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -418,8 +494,28 @@ export function ProfilePage() {
                     <Settings2 className="h-4 w-4 text-primary" />
                     Доступ
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{profile.role === 'admin' ? 'У вас открыт доступ администратора.' : 'Стандартный пользовательский доступ.'}</p>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {profile.role === 'admin'
+                      ? 'У вас открыт доступ администратора.'
+                      : profile.role === 'editor'
+                        ? 'У вас открыт доступ редактора. Проверьте актуальные правила публикаций.'
+                        : 'Стандартный пользовательский доступ.'}
+                  </p>
                 </div>
+                {profile.role === 'editor' ? (
+                  <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <ScrollText className="h-4 w-4 text-primary" />
+                      Правила публикаций
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      Откройте актуальную версию правил. После обновления правил окно появится повторно.
+                    </p>
+                    <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setPublicationRulesOpen(true)}>
+                      Открыть правила
+                    </Button>
+                  </div>
+                ) : null}
                 <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <Eraser className="h-4 w-4 text-primary" />
@@ -476,6 +572,8 @@ export function ProfilePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PublicationRulesModal open={publicationRulesOpen} onOpenChange={handlePublicationRulesOpenChange} rules={publicationRules} />
 
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
     </Container>

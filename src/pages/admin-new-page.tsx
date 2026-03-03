@@ -1,5 +1,6 @@
 import { AdminGuard } from '@/components/auth/admin-guard';
-import { RoleManager } from '@/components/RoleManager';
+import { AdminRoleManager } from '@/components/AdminRoleManager';
+import { AdminRulesEditor } from '@/components/AdminRulesEditor';
 import { Container } from '@/components/layout/container';
 import { PostForm } from '@/features/posts/components/post-form';
 import { useAuth } from '@/providers/auth-provider';
@@ -10,8 +11,9 @@ export function AdminNewPage() {
   return (
     <AdminGuard>
       {user ? (
-        <Container className="safe-pb py-10">
-          <RoleManager />
+        <Container className="safe-pb space-y-6 py-10">
+          <AdminRoleManager />
+          <AdminRulesEditor />
           <PostForm mode="create" userId={user.id} />
         </Container>
       ) : null}

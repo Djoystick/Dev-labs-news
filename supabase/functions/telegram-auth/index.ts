@@ -35,7 +35,7 @@ type ProfileRecord = {
   handle: string | null;
   handle_norm: string | null;
   id: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'editor' | 'user';
   telegram_id: string | null;
   username: string | null;
 };

@@ -4,15 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getSupabaseClient } from '@/lib/supabase';
-import type { Profile } from '@/types/db';
+
+type AdminRoleResponse = {
+  notified: boolean;
+  ok: true;
+  profile: {
+    handle: string | null;
+    id: string;
+    role: 'admin' | 'editor' | 'user';
+    telegram_id: string | null;
+    username: string | null;
+  };
+};
 
 type RoleTarget = 'editor' | 'user';
 
-export function RoleManager() {
+export function AdminRoleManager() {
   const [handle, setHandle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<Profile | null>(null);
+  const [result, setResult] = useState<AdminRoleResponse | null>(null);
 
   const submit = async (role: RoleTarget) => {
     const normalizedHandle = handle.trim();
@@ -29,16 +40,18 @@ export function RoleManager() {
 
     try {
       const supabase = getSupabaseClient();
-      const { data, error: rpcError } = await supabase.rpc('set_profile_role_by_handle', {
-        p_handle: normalizedHandle,
-        p_role: role,
+      const { data, error: invokeError } = await supabase.functions.invoke('admin-role', {
+        body: {
+          handle: normalizedHandle,
+          role,
+        },
       });
 
-      if (rpcError) {
-        throw new Error(rpcError.message);
+      if (invokeError) {
+        throw new Error(invokeError.message);
       }
 
-      setResult(data as Profile);
+      setResult(data as AdminRoleResponse);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось обновить роль.');
     } finally {
@@ -46,13 +59,17 @@ export function RoleManager() {
     }
   };
 
-  const resultName = result?.username ? `@${result.username}` : result?.handle ? `@${result.handle}` : result?.id ?? null;
+  const profileLabel = result?.profile.username
+    ? `@${result.profile.username}`
+    : result?.profile.handle
+      ? `@${result.profile.handle}`
+      : result?.profile.id ?? null;
 
   return (
-    <Card className="mx-auto mb-6 max-w-5xl border-border/70 bg-card/90">
+    <Card className="mx-auto max-w-5xl border-border/70 bg-card/90">
       <CardHeader>
-        <CardTitle>Управление ролями</CardTitle>
-        <p className="text-sm leading-6 text-muted-foreground">Назначьте роль редактора по `@nickname`, `nickname`, `handle` или `username`.</p>
+        <CardTitle>Роли редакторов</CardTitle>
+        <p className="text-sm leading-6 text-muted-foreground">Назначьте роль редактора по `@username`, `username` или `handle`.</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
@@ -76,8 +93,9 @@ export function RoleManager() {
           <div className="rounded-[1.25rem] border border-border/70 bg-background/70 px-4 py-3 text-sm">
             <p className="font-semibold">Роль обновлена</p>
             <p className="mt-1 text-muted-foreground">
-              {resultName} {'->'} {result.role}
+              {profileLabel} {'->'} {result.profile.role}
             </p>
+            <p className="mt-1 text-muted-foreground">{result.notified ? 'Уведомление в Telegram отправлено.' : 'Уведомление не отправлено.'}</p>
           </div>
         ) : null}
 

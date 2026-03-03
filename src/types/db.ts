@@ -24,6 +24,14 @@ export type Post = PostRow & {
   topic?: Topic | null;
 };
 
+export type PublicationRule = {
+  content_md: string;
+  id: number;
+  updated_at: string;
+  updated_by: string | null;
+  version: number;
+};
+
 export type Profile = {
   id: string;
   role: UserRole;
@@ -145,6 +153,24 @@ export type Database = {
           full_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      publication_rules: {
+        Row: PublicationRule;
+        Insert: {
+          content_md?: string;
+          id?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
+        };
+        Update: {
+          content_md?: string;
+          id?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+          version?: number;
         };
         Relationships: [];
       };
