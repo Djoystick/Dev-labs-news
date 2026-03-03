@@ -129,7 +129,8 @@ export async function updatePost(id: string, input: PostMutationInput) {
 
   // Prevent clients from attempting to change post ownership.
   // Ownership is enforced by RLS and should not be mutable from the client.
-  const { author_id: _ignoredAuthorId, ...payload } = input;
+  const { author_id, ...payload } = input;
+  void author_id;
 
   const { data, error } = await supabase.from('posts').update(payload).eq('id', id).select(postSelect).single();
 

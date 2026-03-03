@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'editor' | 'user';
 export type PostSort = 'newest' | 'oldest';
 
 export type Topic = {
@@ -214,7 +214,15 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      set_profile_role_by_handle: {
+        Args: {
+          p_handle: string;
+          p_role: UserRole;
+        };
+        Returns: Profile;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
