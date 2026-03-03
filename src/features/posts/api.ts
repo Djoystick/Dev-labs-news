@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/lib/supabase';
+import { getStoredProfileId } from '@/lib/auth-storage'; // <-- замени путь на реальный файл, где ты добавил getStoredProfileId()
 import type { Post, PostSort } from '@/types/db';
 
 type GetPostsParams = {
@@ -10,7 +11,8 @@ type GetPostsParams = {
   topicId?: string;
 };
 
-const postSelect = 'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
+const postSelect =
+  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
 
 export type GetPostsResult = {
   hasMore: boolean;
@@ -30,10 +32,18 @@ function escapeIlike(value: string) {
   return value.replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, ' ');
 }
 
-export async function getPosts({ page, pageSize, query: searchQuery, signal, sort = 'newest', topicId }: GetPostsParams): Promise<GetPostsResult> {
+export async function getPosts({
+  page,
+  pageSize,
+  query: searchQuery,
+  signal,
+  sort = 'newest',
+  topicId,
+}: GetPostsParams): Promise<GetPostsResult> {
   const supabase = getSupabaseClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+
   let query = supabase
     .from('posts')
     .select(postSelect)
@@ -92,7 +102,20 @@ export async function getPost(id: string, signal?: AbortSignal) {
 
 export async function createPost(input: PostMutationInput) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('posts').insert(input).select(postSelect).single();
+
+  // Ensure author_id is set for editor RLS (must equal auth.uid()).
+  // Admin may still pass author_id explicitly; if not passed, we default to stored profile.id.
+  const authorId = input.author_id ?? getStoredProfileId();
+  const payload: PostMutationInput = {
+    ...input,
+    author_id: authorId,
+  };
+
+  if (!payload.author_id) {
+    throw new Error('Not authenticated: missing profile id (author_id). Please sign in via Telegram.');
+  }
+
+  const { data, error } = await supabase.from('posts').insert(payload).select(postSelect).single();
 
   if (error) {
     throw new Error(`Failed to create the post. ${error.message}`);
@@ -103,7 +126,12 @@ export async function createPost(input: PostMutationInput) {
 
 export async function updatePost(id: string, input: PostMutationInput) {
   const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from('posts').update(input).eq('id', id).select(postSelect).single();
+
+  // Prevent clients from attempting to change post ownership.
+  // Ownership is enforced by RLS and should not be mutable from the client.
+  const { author_id: _ignoredAuthorId, ...payload } = input;
+
+  const { data, error } = await supabase.from('posts').update(payload).eq('id', id).select(postSelect).single();
 
   if (error) {
     throw new Error(`Failed to update the post. ${error.message}`);

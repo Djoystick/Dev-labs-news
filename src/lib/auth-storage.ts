@@ -43,6 +43,16 @@ export function getStoredAuthState(): StoredAuthState | null {
   }
 }
 
+/**
+ * Convenience helper for RLS ownership checks:
+ * returns current profile.id (UUID) from stored auth state.
+ */
+export function getStoredProfileId(): string | null {
+  const state = getStoredAuthState();
+  const id = state?.profile?.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
 export function setStoredAuthState(value: StoredAuthState) {
   if (!canUseStorage()) {
     return;
