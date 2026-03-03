@@ -149,10 +149,3 @@ html[data-reduce-motion='true'] *::after {
   }
 }
 
-@media (min-width: 768px) {
-  @layer utilities {
-    .app-bottom-nav-offset {
-      padding-bottom: 0;
-    }
-  }
-}

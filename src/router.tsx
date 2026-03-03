@@ -5,6 +5,8 @@ import { Container } from '@/components/layout/container';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const FeedPage = lazy(() => import('@/pages/feed-page').then((module) => ({ default: module.FeedPage })));
+const DigestsPage = lazy(() => import('@/pages/digests-page').then((module) => ({ default: module.DigestsPage })));
+const RandomPage = lazy(() => import('@/pages/random-page').then((module) => ({ default: module.RandomPage })));
 const PostPage = lazy(() => import('@/pages/post-page').then((module) => ({ default: module.PostPage })));
 const ProfilePage = lazy(() => import('@/pages/profile-page').then((module) => ({ default: module.ProfilePage })));
 const AdminNewPage = lazy(() => import('@/pages/admin-new-page').then((module) => ({ default: module.AdminNewPage })));
@@ -35,6 +37,8 @@ export const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: withSuspense(FeedPage) },
+      { path: 'digests', element: withSuspense(DigestsPage) },
+      { path: 'random', element: withSuspense(RandomPage) },
       { path: 'post/:id', element: withSuspense(PostPage) },
       { path: 'profile', element: withSuspense(ProfilePage) },
       { path: 'admin/new', element: withSuspense(AdminNewPage) },
