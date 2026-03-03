@@ -91,7 +91,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       setReduceMotion,
       setTextSize,
       setTopicEnabled: (key: TopicKey, value: boolean) => {
-        setTopicFilters((current) => ({
+        setTopicFilters((current: TopicFilterState) => ({
           ...current,
           [key]: value,
         }));
