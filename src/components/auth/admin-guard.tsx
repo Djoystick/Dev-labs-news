@@ -7,8 +7,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { useAuth } from '@/providers/auth-provider';
 
-export function AdminGuard({ children }: { children: ReactNode }) {
-  const { isAdmin, isAuthed, loading } = useAuth();
+type AdminGuardProps = {
+  allowEditor?: boolean;
+  children: ReactNode;
+};
+
+export function AdminGuard({ allowEditor = false, children }: AdminGuardProps) {
+  const { isAdmin, isAuthed, loading, profile } = useAuth();
+  const hasAccess = isAdmin || (allowEditor && profile?.role === 'editor');
+  const accessTitle = allowEditor ? 'No editor access' : 'No admin access';
+  const accessDescription = allowEditor
+    ? 'Страница доступна редакторам и администраторам.'
+    : 'Страница доступна только администраторам.';
 
   if (loading) {
     return (
@@ -21,14 +31,10 @@ export function AdminGuard({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAuthed || !isAdmin) {
+  if (!isAuthed || !hasAccess) {
     return (
       <Container className="safe-pb py-10">
-        <StateCard
-          title="No admin access"
-          description="Эта страница доступна только администраторам."
-          icon={<ShieldAlert className="h-5 w-5" />}
-        />
+        <StateCard title={accessTitle} description={accessDescription} icon={<ShieldAlert className="h-5 w-5" />} />
         <div className="mt-6 flex justify-center">
           <Button asChild variant="outline">
             <AppLink to="/">Back to feed</AppLink>

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TopicsFilter } from '@/features/topics/components/topics-filter';
@@ -31,7 +32,7 @@ export function Header() {
       <Container className="py-2 sm:py-1.5">
         <div className="flex h-9 items-center gap-3 sm:h-12">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="group min-w-0">
+            <AppLink to="/" aria-label="На главную" className="group min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary shadow-inner shadow-primary/10">
                   <span className="text-[11px] font-extrabold uppercase tracking-[0.22em]">DL</span>
@@ -40,7 +41,7 @@ export function Header() {
                   <p className="truncate text-[10px] font-bold uppercase tracking-[0.24em] text-primary transition group-hover:text-primary/80">DEV-LABS NEWS</p>
                 </div>
               </div>
-            </div>
+            </AppLink>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {isFeedRoute ? (

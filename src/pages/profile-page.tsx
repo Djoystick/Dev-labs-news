@@ -470,7 +470,8 @@ export function ProfilePage() {
                       Сеанс
                     </div>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">Выйдите из аккаунта из профиля с коротким подтверждением.</p>
-                    <Button type="button" variant="outline" className="mt-4 h-11 rounded-full px-4" onClick={() => setSignOutDialogOpen(true)}>
+                    <Button type="button" variant="outline" className="mt-4 h-11 w-full justify-start rounded-full px-4" onClick={() => setSignOutDialogOpen(true)}>
+                      <LogOut className="h-4 w-4" />
                       Выйти
                     </Button>
                   </div>
