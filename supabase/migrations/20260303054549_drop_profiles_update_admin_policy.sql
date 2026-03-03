@@ -1,0 +1,1 @@
+drop policy if exists profiles_update_admin on public.profiles;
