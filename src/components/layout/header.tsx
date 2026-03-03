@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
-import { UserMenu } from '@/components/auth/user-menu';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -68,7 +67,7 @@ export function Header() {
             {loading ? (
               <div className="h-9 w-9 rounded-full bg-secondary sm:w-20" aria-hidden />
             ) : isAuthed ? (
-              <UserMenu />
+              null
             ) : (
               <Button onClick={() => setAuthDialogOpen(true)} size="sm" variant="secondary" className="h-9 shrink-0 rounded-full px-3">
                 <span className="hidden sm:inline">Войти</span>
