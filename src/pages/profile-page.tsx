@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cable, Eraser, Mail, PencilLine, ScrollText, Settings2, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
+import { Cable, ChevronDown, Eraser, Mail, PencilLine, ScrollText, Settings2, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { AdminRoleManager } from '@/components/AdminRoleManager';
+import { AdminRulesEditor } from '@/components/AdminRulesEditor';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { PublicationRulesModal } from '@/components/PublicationRulesModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,21 +14,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { clearFavoritePosts, clearReadingHistory, getProfileDisplayName, getProfileSubtitle, listFavoritePosts, listReadingHistory } from '@/features/profile/api';
+import { clearFavoritePosts, clearReadingHistory, getProfileDisplayName, listFavoritePosts, listReadingHistory } from '@/features/profile/api';
 import { ProfileEditor } from '@/features/profile/components/profile-editor';
 import { ProfileEmptyState } from '@/features/profile/components/profile-empty-state';
 import { ProfilePostRow } from '@/features/profile/components/profile-post-row';
 import { getSupabaseClient } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useLibrary } from '@/providers/library-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import { Container } from '@/components/layout/container';
 import type { Favorite, PublicationRule, ReadingHistoryEntry } from '@/types/db';
 
-type ProfileTab = 'profile' | 'favorites' | 'history' | 'settings';
+type ProfileTab = 'profile' | 'favorites' | 'history';
 type ClearTarget = 'favorites' | 'history' | null;
 
-const profileTabs: ProfileTab[] = ['profile', 'favorites', 'history', 'settings'];
+const profileTabs: ProfileTab[] = ['profile', 'favorites', 'history'];
 const rulesSeenVersionKey = 'dev-labs-rules-seen-version';
 
 function getInitials(value: string | null | undefined) {
@@ -86,6 +89,33 @@ function SettingGroup({
         ))}
       </div>
     </div>
+  );
+}
+
+function RoleBadge({ role }: { role: 'admin' | 'editor' | 'user' }) {
+  if (role === 'admin') {
+    return (
+      <span className="inline-flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 text-sm font-semibold text-primary">
+        <ShieldCheck className="h-4 w-4" />
+        Администратор
+      </span>
+    );
+  }
+
+  if (role === 'editor') {
+    return (
+      <span className="inline-flex h-10 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 text-sm font-semibold text-primary">
+        <ScrollText className="h-4 w-4" />
+        Редактор
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background/80 px-4 text-sm font-semibold text-muted-foreground">
+      <UserRound className="h-4 w-4" />
+      Пользователь
+    </span>
   );
 }
 
@@ -246,8 +276,11 @@ export function ProfilePage() {
   }
 
   const displayName = getProfileDisplayName(profile, user.email);
-  const subtitle = getProfileSubtitle(profile);
-  const readableName = profile.full_name?.trim() || 'Имя пока не заполнено';
+  const readableName = profile.full_name?.trim() || displayName;
+  const bio = profile.bio?.trim() || null;
+  const showHandle = displayName !== readableName;
+  const canWriteNews = profile.role === 'admin' || profile.role === 'editor';
+  const isAdmin = profile.role === 'admin';
 
   const handleTabChange = (value: string) => {
     setSearchParams((currentParams) => {
@@ -303,7 +336,7 @@ export function ProfilePage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <Card className="overflow-hidden border-border/70 bg-card/85 shadow-[0_32px_80px_-42px_rgba(15,23,42,0.5)]">
           <CardContent className="p-6 sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-6">
               <div className="flex items-start gap-4 sm:gap-5">
                 <Avatar className="h-20 w-20 rounded-[1.5rem] sm:h-24 sm:w-24">
                   <AvatarImage src={profile.avatar_url ?? undefined} alt={displayName} />
@@ -311,77 +344,57 @@ export function ProfilePage() {
                 </Avatar>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Dev-labs News</p>
-                  <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">{displayName}</h1>
-                  <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">{subtitle}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5">
-                      <UserRound className="h-4 w-4" />
-                      {readableName}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5">
-                      <Cable className="h-4 w-4" />
-                      {profile.telegram_id ? 'Telegram подключён' : 'Telegram не подключён'}
-                    </span>
-                    {profile.role === 'admin' ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 font-semibold text-primary">
-                        <ShieldCheck className="h-4 w-4" />
-                        Администратор
-                      </span>
-                    ) : null}
-                    {profile.role === 'editor' ? (
-                      <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 font-semibold text-primary">
-                        <ScrollText className="h-4 w-4" />
-                        Редактор
-                      </span>
-                    ) : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                    <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{readableName}</h1>
+                    <RoleBadge role={profile.role} />
                   </div>
+                  {showHandle ? <p className="mt-2 text-sm font-semibold text-muted-foreground">{displayName}</p> : null}
                   <div className="mt-4 flex flex-wrap gap-2 text-sm">
                     <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-muted-foreground">Избранное: {favorites.length}</span>
                     <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-muted-foreground">История: {history.length}</span>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 self-start">
-                {profile.role === 'editor' ? (
-                  <Button size="sm" variant="outline" className="h-10 rounded-full px-4" onClick={() => setPublicationRulesOpen(true)}>
-                    <ScrollText className="h-4 w-4" />
-                    Правила публикаций
-                  </Button>
-                ) : null}
-                <Button size="sm" className="h-10 rounded-full px-4" onClick={() => setEditorOpen(true)}>
-                  <PencilLine className="h-4 w-4" />
-                  Редактировать
-                </Button>
-              </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:max-w-xl">
+          <Button className="h-11 rounded-full px-4" onClick={() => setEditorOpen(true)}>
+            <PencilLine className="h-4 w-4" />
+            Редактировать
+          </Button>
+          {canWriteNews ? (
+            <Button asChild variant="outline" className="h-11 rounded-full px-4">
+              <AppLink to="/admin/new">
+                <ScrollText className="h-4 w-4" />
+                Написать новость
+              </AppLink>
+            </Button>
+          ) : null}
+        </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 rounded-[1.5rem] p-1.5">
             <TabsTrigger value="profile">Профиль</TabsTrigger>
             <TabsTrigger value="favorites">Избранное</TabsTrigger>
             <TabsTrigger value="history">История</TabsTrigger>
-            <TabsTrigger value="settings">Настройки</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile" className="space-y-5">
-            <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
               <Card className="border-border/70 bg-card/85">
                 <CardContent className="p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">О себе</p>
-                  <h2 className="mt-3 text-2xl font-bold">{displayName}</h2>
-                  <p className="mt-4 text-sm leading-7 text-muted-foreground">{subtitle}</p>
+                  <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                    {bio ?? 'Коротко о себе пока ничего не добавлено.'}
+                  </p>
                 </CardContent>
               </Card>
               <Card className="border-border/70 bg-card/85">
                 <CardContent className="p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Профиль</p>
-                  <dl className="mt-4 space-y-4 text-sm">
-                    <div>
-                      <dt className="font-semibold text-muted-foreground">Псевдоним</dt>
-                      <dd className="mt-1">{displayName}</dd>
-                    </div>
+                  <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                     <div>
                       <dt className="font-semibold text-muted-foreground">Имя</dt>
                       <dd className="mt-1">{readableName}</dd>
@@ -389,6 +402,17 @@ export function ProfilePage() {
                     <div>
                       <dt className="font-semibold text-muted-foreground">Telegram username</dt>
                       <dd className="mt-1">{profile.username ? `@${profile.username}` : 'Не указан'}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted-foreground">Telegram</dt>
+                      <dd className="mt-1 inline-flex items-center gap-2">
+                        <Cable className="h-4 w-4 text-primary" />
+                        {profile.telegram_id ? 'Подключён' : 'Не подключён'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted-foreground">Email</dt>
+                      <dd className="mt-1 break-all">{user.email ?? 'Не указан'}</dd>
                     </div>
                   </dl>
                 </CardContent>
@@ -439,107 +463,120 @@ export function ProfilePage() {
               )
             )}
           </TabsContent>
+        </Tabs>
 
-          <TabsContent value="settings" className="space-y-5">
-            <Card className="border-border/70 bg-card/85">
-              <CardContent className="space-y-5 p-6">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <h2 className="text-lg font-semibold">Настройки чтения</h2>
-                </div>
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <SettingGroup
-                    label="Размер текста"
-                    description="Выберите комфортный размер для чтения материалов."
-                    value={textSize}
-                    options={[
-                      { label: 'S', value: 's', onSelect: () => setTextSize('s') },
-                      { label: 'M', value: 'm', onSelect: () => setTextSize('m') },
-                      { label: 'L', value: 'l', onSelect: () => setTextSize('l') },
-                    ]}
-                  />
-                  <SettingGroup
-                    label="Анимации"
-                    description="Уменьшите движение интерфейса, если хотите более спокойный режим."
-                    value={reduceMotion ? 'reduced' : 'full'}
-                    options={[
-                      { label: 'Обычные', value: 'full', onSelect: () => setReduceMotion(false) },
-                      { label: 'Минимум', value: 'reduced', onSelect: () => setReduceMotion(true) },
-                    ]}
-                  />
-                  <SettingGroup
-                    label="Ширина текста"
-                    description="Узкая колонка помогает сосредоточиться, широкая даёт больше воздуха."
-                    value={textWidth}
-                    options={[
-                      { label: 'Узко', value: 'narrow', onSelect: () => setReadingWidth('narrow') },
-                      { label: 'Широко', value: 'wide', onSelect: () => setReadingWidth('wide') },
-                    ]}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        <section className="space-y-5">
+          <Card className="border-border/70 bg-card/85">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h2 className="text-lg font-semibold">Настройки и управление</h2>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <SettingGroup
+                  label="Размер текста"
+                  description="Выберите комфортный размер для чтения материалов."
+                  value={textSize}
+                  options={[
+                    { label: 'S', value: 's', onSelect: () => setTextSize('s') },
+                    { label: 'M', value: 'm', onSelect: () => setTextSize('m') },
+                    { label: 'L', value: 'l', onSelect: () => setTextSize('l') },
+                  ]}
+                />
+                <SettingGroup
+                  label="Анимации"
+                  description="Уменьшите движение интерфейса, если хотите более спокойный режим."
+                  value={reduceMotion ? 'reduced' : 'full'}
+                  options={[
+                    { label: 'Обычные', value: 'full', onSelect: () => setReduceMotion(false) },
+                    { label: 'Минимум', value: 'reduced', onSelect: () => setReduceMotion(true) },
+                  ]}
+                />
+                <SettingGroup
+                  label="Ширина текста"
+                  description="Узкая колонка помогает сосредоточиться, широкая даёт больше воздуха."
+                  value={textWidth}
+                  options={[
+                    { label: 'Узко', value: 'narrow', onSelect: () => setReadingWidth('narrow') },
+                    { label: 'Широко', value: 'wide', onSelect: () => setReadingWidth('wide') },
+                  ]}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-border/70 bg-card/85">
-              <CardContent className="grid gap-5 p-6 md:grid-cols-2">
+          <Card className="border-border/70 bg-card/85">
+            <CardContent className="grid gap-5 p-6 md:grid-cols-2">
+              <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Mail className="h-4 w-4 text-primary" />
+                  Email
+                </div>
+                <p className="mt-3 break-all text-sm leading-6 text-muted-foreground">{user.email ?? 'Не указан'}</p>
+              </div>
+              <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Settings2 className="h-4 w-4 text-primary" />
+                  Доступ
+                </div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  {profile.role === 'admin'
+                    ? 'У вас открыт доступ администратора.'
+                    : profile.role === 'editor'
+                      ? 'У вас открыт доступ редактора. Проверьте актуальные правила публикаций.'
+                      : 'Стандартный пользовательский доступ.'}
+                </p>
+              </div>
+              {profile.role === 'editor' ? (
                 <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
                   <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Mail className="h-4 w-4 text-primary" />
-                    Email
-                  </div>
-                  <p className="mt-3 break-all text-sm leading-6 text-muted-foreground">{user.email ?? 'Не указан'}</p>
-                </div>
-                <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Settings2 className="h-4 w-4 text-primary" />
-                    Доступ
+                    <ScrollText className="h-4 w-4 text-primary" />
+                    Правила публикаций
                   </div>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    {profile.role === 'admin'
-                      ? 'У вас открыт доступ администратора.'
-                      : profile.role === 'editor'
-                        ? 'У вас открыт доступ редактора. Проверьте актуальные правила публикаций.'
-                        : 'Стандартный пользовательский доступ.'}
+                    Откройте актуальную версию правил. После обновления правил окно появится повторно.
                   </p>
-                </div>
-                {profile.role === 'editor' ? (
-                  <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <ScrollText className="h-4 w-4 text-primary" />
-                      Правила публикаций
-                    </div>
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      Откройте актуальную версию правил. После обновления правил окно появится повторно.
-                    </p>
-                    <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setPublicationRulesOpen(true)}>
-                      Открыть правила
-                    </Button>
-                  </div>
-                ) : null}
-                <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Eraser className="h-4 w-4 text-primary" />
-                    История чтения
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">Удаляет все записи о просмотренных материалах только для вашего аккаунта.</p>
-                  <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setClearTarget('history')}>
-                    Очистить историю
+                  <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setPublicationRulesOpen(true)}>
+                    Открыть правила
                   </Button>
                 </div>
-                <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Eraser className="h-4 w-4 text-primary" />
-                    Избранное
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">Удаляет все сохранённые материалы. Лента и сами посты при этом не затрагиваются.</p>
-                  <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setClearTarget('favorites')}>
-                    Очистить избранное
-                  </Button>
+              ) : null}
+              <div className={cn('rounded-[1.25rem] border border-border/70 bg-background/80 p-5', profile.role === 'editor' ? '' : 'md:col-span-1')}>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Eraser className="h-4 w-4 text-primary" />
+                  История чтения
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">Удаляет все записи о просмотренных материалах только для вашего аккаунта.</p>
+                <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setClearTarget('history')}>
+                  Очистить историю
+                </Button>
+              </div>
+              <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Eraser className="h-4 w-4 text-primary" />
+                  Избранное
+                </div>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">Удаляет все сохранённые материалы. Лента и сами посты при этом не затрагиваются.</p>
+                <Button type="button" variant="outline" className="mt-4 h-9" onClick={() => setClearTarget('favorites')}>
+                  Очистить избранное
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {isAdmin ? (
+            <details className="rounded-[1.75rem] border border-border/70 bg-card/85 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)]">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 font-semibold">
+                <span>Инструменты администратора</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition" />
+              </summary>
+              <div className="space-y-5 border-t border-border/70 p-5">
+                <AdminRoleManager />
+                <AdminRulesEditor />
+              </div>
+            </details>
+          ) : null}
+        </section>
       </div>
 
       <ProfileEditor
