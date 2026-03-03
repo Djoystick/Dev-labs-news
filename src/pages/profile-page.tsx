@@ -7,7 +7,6 @@ import { AdminRoleManager } from '@/components/AdminRoleManager';
 import { AdminRulesEditor } from '@/components/AdminRulesEditor';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Container } from '@/components/layout/container';
-import { PublicationRulesModal } from '@/components/PublicationRulesModal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
@@ -20,18 +19,15 @@ import { clearFavoritePosts, clearReadingHistory, getProfileDisplayName, listFav
 import { ProfileEditor } from '@/features/profile/components/profile-editor';
 import { ProfileEmptyState } from '@/features/profile/components/profile-empty-state';
 import { ProfilePostRow } from '@/features/profile/components/profile-post-row';
-import { getSupabaseClient } from '@/lib/supabase';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useLibrary } from '@/providers/library-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
-import type { Favorite, PublicationRule, ReadingHistoryEntry } from '@/types/db';
+import type { Favorite, ReadingHistoryEntry } from '@/types/db';
 
 type ProfileTab = 'profile' | 'favorites' | 'history' | 'settings';
 type ClearTarget = 'favorites' | 'history' | null;
 
 const profileTabs: ProfileTab[] = ['profile', 'favorites', 'history', 'settings'];
-const rulesSeenVersionKey = 'dev-labs-rules-seen-version';
 
 function getInitials(value: string | null | undefined) {
   if (!value) {
@@ -144,8 +140,6 @@ export function ProfilePage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [clearLoading, setClearLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
-  const [publicationRules, setPublicationRules] = useState<PublicationRule | null>(null);
-  const [publicationRulesOpen, setPublicationRulesOpen] = useState(false);
   const { isAuthed, loading, profile, refreshProfile, signOut, user } = useAuth();
   const { refreshFavorites } = useLibrary();
   const { reduceMotion, setReadingWidth, setReduceMotion, setTextSize, textSize, textWidth } = useReadingPreferences();
@@ -211,55 +205,6 @@ export function ProfilePage() {
       historyController.abort();
     };
   }, [user]);
-
-  useEffect(() => {
-    if (profile?.role !== 'editor') {
-      setPublicationRules(null);
-      setPublicationRulesOpen(false);
-      return;
-    }
-
-    let ignore = false;
-
-    async function loadPublicationRules() {
-      try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-          .from('publication_rules')
-          .select('id, content_md, version, updated_at, updated_by')
-          .eq('id', 1)
-          .single();
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        if (ignore) {
-          return;
-        }
-
-        const nextRules = data as PublicationRule;
-        setPublicationRules(nextRules);
-
-        const seenVersionRaw = window.localStorage.getItem(rulesSeenVersionKey) ?? '0';
-        const seenVersion = Number(seenVersionRaw);
-
-        if (!Number.isNaN(seenVersion) && nextRules.version > seenVersion) {
-          setPublicationRulesOpen(true);
-        }
-      } catch (error) {
-        if (!ignore) {
-          toast.error(error instanceof Error ? error.message : 'Не удалось загрузить правила публикаций.');
-        }
-      }
-    }
-
-    void loadPublicationRules();
-
-    return () => {
-      ignore = true;
-    };
-  }, [profile?.role]);
 
   if (loading) {
     return (
@@ -358,14 +303,6 @@ export function ProfilePage() {
     }
   };
 
-  const handlePublicationRulesOpenChange = (open: boolean) => {
-    if (!open && publicationRules) {
-      window.localStorage.setItem(rulesSeenVersionKey, String(publicationRules.version));
-    }
-
-    setPublicationRulesOpen(open);
-  };
-
   return (
     <Container className="safe-pb py-4 sm:py-5">
       <div className="mx-auto max-w-5xl space-y-4">
@@ -459,7 +396,7 @@ export function ProfilePage() {
                       {profile.role === 'admin'
                         ? 'У вас открыт доступ администратора.'
                         : profile.role === 'editor'
-                          ? 'У вас открыт доступ редактора. Проверьте актуальные правила публикаций.'
+                          ? 'У вас открыт доступ редактора.'
                           : 'Стандартный пользовательский доступ.'}
                     </p>
                   </div>
@@ -520,22 +457,7 @@ export function ProfilePage() {
 
               <Card className="border-border/70 bg-card/85">
                 <CardContent className="grid gap-3 p-4 md:grid-cols-2">
-                  {profile.role === 'editor' ? (
-                    <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <ScrollText className="h-4 w-4 text-primary" />
-                        Правила публикаций
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Откройте актуальную версию правил. После обновления окно появится повторно.
-                      </p>
-                      <Button type="button" variant="outline" className="mt-4 h-11 rounded-full px-4" onClick={() => setPublicationRulesOpen(true)}>
-                        Открыть правила
-                      </Button>
-                    </div>
-                  ) : null}
-
-                  <div className={cn('rounded-[1.25rem] border border-border/70 bg-background/80 p-4', profile.role === 'editor' ? '' : 'md:col-span-1')}>
+                  <div className="rounded-[1.25rem] border border-border/70 bg-background/80 p-4">
                     <div className="flex items-center gap-2 text-sm font-semibold">
                       <Eraser className="h-4 w-4 text-primary" />
                       История чтения
@@ -770,8 +692,6 @@ export function ProfilePage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <PublicationRulesModal open={publicationRulesOpen} onOpenChange={handlePublicationRulesOpenChange} rules={publicationRules} />
 
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
     </Container>

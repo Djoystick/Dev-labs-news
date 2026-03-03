@@ -30,16 +30,7 @@ export function App() {
   const feed = usePostFeed();
 
   return (
-    <AppShell
-      activeTopic={feed.activeTopic}
-      isTopicsLoading={feed.isTopicsLoading}
-      onSearchChange={feed.setQuery}
-      onTopicChange={feed.setActiveTopic}
-      query={feed.query}
-      topicsError={feed.topicsError}
-      topics={feed.topics}
-      retryTopics={feed.retryTopics}
-    >
+    <AppShell>
       <Outlet context={{ ...feed } satisfies AppLayoutContext} />
     </AppShell>
   );

@@ -15,7 +15,7 @@ type AdminGuardProps = {
 export function AdminGuard({ allowEditor = false, children }: AdminGuardProps) {
   const { isAdmin, isAuthed, loading, profile } = useAuth();
   const hasAccess = isAdmin || (allowEditor && profile?.role === 'editor');
-  const accessTitle = allowEditor ? 'No editor access' : 'No admin access';
+  const accessTitle = allowEditor ? 'Нет доступа к редакторской странице' : 'Нет доступа к административной странице';
   const accessDescription = allowEditor
     ? 'Страница доступна редакторам и администраторам.'
     : 'Страница доступна только администраторам.';
@@ -37,7 +37,7 @@ export function AdminGuard({ allowEditor = false, children }: AdminGuardProps) {
         <StateCard title={accessTitle} description={accessDescription} icon={<ShieldAlert className="h-5 w-5" />} />
         <div className="mt-6 flex justify-center">
           <Button asChild variant="outline">
-            <AppLink to="/">Back to feed</AppLink>
+            <AppLink to="/">Вернуться в ленту</AppLink>
           </Button>
         </div>
       </Container>
