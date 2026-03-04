@@ -40,7 +40,7 @@ function isAbortLikeError(error: unknown) {
 }
 
 function InlineError({
-  actionLabel = 'Retry',
+  actionLabel = 'Повторить',
   message,
   onAction,
 }: {
@@ -105,8 +105,8 @@ function TopicSeeAllModal({
         <div className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden">
           <div className="border-b border-border/70 px-6 py-5">
             <DialogHeader className="pr-10">
-              <DialogTitle>{topic?.name ?? 'Topic'}</DialogTitle>
-              <DialogDescription>Latest stories from this topic.</DialogDescription>
+              <DialogTitle>{topic?.name ?? 'Тема'}</DialogTitle>
+              <DialogDescription>Последние материалы по этой теме.</DialogDescription>
             </DialogHeader>
           </div>
           <div className="overflow-y-auto px-6 py-5">
@@ -114,7 +114,7 @@ function TopicSeeAllModal({
             {isLoading ? (
               <FeedSkeleton />
             ) : data.length === 0 ? (
-              <EmptyState title="No stories yet" description="There are no posts in this topic right now." actionLabel="Retry" onReset={retry} />
+              <EmptyState title="Пока материалов нет" description="Сейчас в этой теме нет публикаций." actionLabel="Повторить" onReset={retry} />
             ) : (
               <div className="grid gap-5">
                 {data.map((post, index) => (
@@ -160,15 +160,15 @@ function AllTopicsSheet({
         <div className="max-h-[85svh] overflow-hidden">
           <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
             <DialogHeader className="pr-10 text-left">
-              <DialogTitle className="text-2xl">All topics</DialogTitle>
-              <DialogDescription>Browse stories by topic without leaving Discover.</DialogDescription>
+              <DialogTitle className="text-2xl">Все темы</DialogTitle>
+              <DialogDescription>Просматривайте материалы по темам, не покидая раздел.</DialogDescription>
             </DialogHeader>
 
             {topics.length === 0 ? (
               <div className="mt-6 rounded-[1.5rem] border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">No topics</p>
+                <p className="text-sm text-muted-foreground">Тем пока нет</p>
                 <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
-                  Retry
+                  Повторить
                 </Button>
               </div>
             ) : (
@@ -197,7 +197,7 @@ function AllTopicsSheet({
                   {isLoading ? (
                     <FeedSkeleton />
                   ) : data.length === 0 ? (
-                    <EmptyState title="No stories yet" description="There are no posts in this topic right now." actionLabel="Retry" onReset={retry} />
+                    <EmptyState title="Пока материалов нет" description="Сейчас в этой теме нет публикаций." actionLabel="Повторить" onReset={retry} />
                   ) : (
                     <div className="grid gap-5">
                       {data.map((post, index) => (
@@ -247,11 +247,11 @@ function TopicSection({
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Topic</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Тема</p>
           <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">{topic.name}</h2>
         </div>
         <Button type="button" variant="ghost" className="shrink-0 px-0 text-primary hover:bg-transparent" onClick={() => onOpenTopic(topic)}>
-          See all
+          Все
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -261,7 +261,7 @@ function TopicSection({
       {isLoading && data.length === 0 ? (
         <SectionSkeleton />
       ) : data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No stories yet.</p>
+        <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
         <div className="space-y-5">
           {featuredPost ? <PostCard post={featuredPost} index={0} /> : null}
@@ -598,8 +598,8 @@ export function DigestsPage() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Discover</p>
-                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Discover</h1>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Обзор</p>
+                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Обзор</h1>
               </div>
             </div>
           </div>
@@ -610,11 +610,11 @@ export function DigestsPage() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="h-12 rounded-[1.25rem] border-border/70 bg-background/80 pl-11"
-              placeholder="Search for content"
+              placeholder="Поиск по материалам"
             />
           </div>
 
-          {topicsError ? <InlineError message={topicsError} onAction={() => setTopicsRetryToken((current) => current + 1)} actionLabel="Retry" /> : null}
+          {topicsError ? <InlineError message={topicsError} onAction={() => setTopicsRetryToken((current) => current + 1)} actionLabel="Повторить" /> : null}
         </motion.section>
       </Container>
 
@@ -642,7 +642,7 @@ export function DigestsPage() {
             </div>
 
             <Button type="button" variant="outline" className="shrink-0 rounded-full" onClick={() => setAllTopicsOpen(true)}>
-              All topics
+              Все темы
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -660,14 +660,14 @@ export function DigestsPage() {
             <AnimatePresence mode="wait">
               <motion.div key="search-results" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-extrabold">Search results</h2>
-                  <span className="text-sm text-muted-foreground">{searchResults.length} matches</span>
+                  <h2 className="text-2xl font-extrabold">Результаты поиска</h2>
+                  <span className="text-sm text-muted-foreground">Совпадений: {searchResults.length}</span>
                 </div>
                 {searchResults.length === 0 ? (
                   <EmptyState
-                    title="No matching stories"
-                    description="We only search within the topic stories that are already loaded on this screen. Scroll through a few sections or try another query."
-                    actionLabel="Clear search"
+                    title="Ничего не найдено"
+                    description="Поиск работает только по материалам из уже загруженных секций на этом экране. Прокрутите ещё несколько разделов или измените запрос."
+                    actionLabel="Очистить поиск"
                     onReset={() => setSearchQuery('')}
                   />
                 ) : (
@@ -681,9 +681,9 @@ export function DigestsPage() {
             </AnimatePresence>
           ) : !topicsError && topics.length === 0 ? (
             <EmptyState
-              title="No topics yet"
-              description="Topics will appear here as soon as the editorial catalog is filled."
-              actionLabel="Try again"
+              title="Тем пока нет"
+              description="Темы появятся здесь, как только редакционная подборка будет заполнена."
+              actionLabel="Повторить"
               onReset={() => setTopicsRetryToken((current) => current + 1)}
             />
           ) : (

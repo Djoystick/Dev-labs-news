@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, ChevronRight, LogOut, MoonStar, Settings2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, LogOut, MoonStar, Settings, Settings2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
-import { getProfileDisplayName } from '@/features/profile/api';
+import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
 
@@ -18,7 +18,7 @@ function getInitial(value: string | null | undefined) {
     return 'D';
   }
 
-  return value.trim().charAt(0).toUpperCase();
+  return normalizeHandle(value).trim().charAt(0).toUpperCase() || 'D';
 }
 
 function AccountRow({
@@ -41,9 +41,9 @@ function AccountRow({
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-foreground">
         {icon}
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold">{label}</p>
-        {value ? <p className="mt-1 text-sm text-muted-foreground">{value}</p> : null}
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="font-semibold leading-tight">{label}</p>
+        {value ? <p className="text-sm leading-tight text-muted-foreground">{value}</p> : null}
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
@@ -59,10 +59,10 @@ export function ProfilePage() {
 
   const displayName = useMemo(() => {
     if (!profile) {
-      return 'Hello';
+      return 'Пользователь';
     }
 
-    return profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'Hello';
+    return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'Пользователь');
   }, [profile, user?.email]);
 
   if (loading) {
@@ -86,13 +86,13 @@ export function ProfilePage() {
         <div className="mx-auto max-w-3xl space-y-4">
           <Button type="button" variant="ghost" className="rounded-full" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
-            Back
+            Назад
           </Button>
-          <StateCard title="Sign in required" description="Sign in to manage your account, saved articles, and topic preferences." />
+          <StateCard title="Нужен вход" description="Войдите, чтобы управлять аккаунтом, сохранёнными материалами и темами." />
           <div className="flex gap-3">
-            <Button onClick={() => setAuthDialogOpen(true)}>Sign in</Button>
+            <Button onClick={() => setAuthDialogOpen(true)}>Войти</Button>
             <Button variant="outline" onClick={() => navigate('/')}>
-              Home
+              На главную
             </Button>
           </div>
           <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
@@ -104,20 +104,26 @@ export function ProfilePage() {
   return (
     <Container className="safe-pb py-6 sm:py-8">
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-            <span className="sr-only">Back</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+              <span className="sr-only">Назад</span>
+            </Button>
+            <h1 className="text-3xl font-extrabold">Аккаунт</h1>
+          </div>
+          <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/topic-preferences')}>
+            <Settings className="h-5 w-5" />
+            <span className="sr-only">Настройки тем</span>
           </Button>
-          <h1 className="text-3xl font-extrabold">Account</h1>
         </div>
 
         <Card className="overflow-hidden border-border/70 bg-card/85 shadow-[0_30px_80px_-46px_rgba(15,23,42,0.5)]">
           <CardContent className="flex items-center justify-between gap-4 p-6">
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">Good morning,</p>
+              <p className="text-sm text-muted-foreground">Здравствуйте,</p>
               <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
-              <p className="mt-2 break-all text-sm text-muted-foreground">{user.email ?? 'No email linked'}</p>
+              <p className="mt-2 break-all text-sm text-muted-foreground">{user.email ?? 'Email не привязан'}</p>
             </div>
             <Avatar className="h-16 w-16 rounded-full border-border/70 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.55)]">
               <AvatarImage src={profile.avatar_url ?? undefined} alt={displayName} />
@@ -130,22 +136,22 @@ export function ProfilePage() {
           <CardContent className="p-6">
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Yours</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ваше</p>
                 <div className="mt-3">
-                  <AccountRow icon={<Bookmark className="h-4 w-4" />} label="Saved articles" onClick={() => navigate('/saved-articles')} />
+                  <AccountRow icon={<Bookmark className="h-4 w-4" />} label="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
                 </div>
               </div>
 
               <Separator />
 
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Settings</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Настройки</p>
                 <div className="mt-3 space-y-1">
-                  <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Topic preferences" onClick={() => navigate('/topic-preferences')} />
+                  <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Настройки тем" onClick={() => navigate('/topic-preferences')} />
                   <AccountRow
                     icon={<MoonStar className="h-4 w-4" />}
-                    label="Dark mode"
-                    value={theme === 'dark' ? 'On' : 'Off'}
+                    label="Тёмная тема"
+                    value={theme === 'dark' ? 'Вкл' : 'Выкл'}
                     onClick={toggleTheme}
                   />
                 </div>
@@ -154,11 +160,11 @@ export function ProfilePage() {
               <Separator />
 
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Account</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Аккаунт</p>
                 <div className="mt-3">
                   <AccountRow
                     icon={<LogOut className="h-4 w-4" />}
-                    label={signOutBusy ? 'Logging out...' : 'Logout'}
+                    label={signOutBusy ? 'Выходим...' : 'Выйти'}
                     onClick={async () => {
                       if (signOutBusy) {
                         return;

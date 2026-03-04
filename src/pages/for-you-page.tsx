@@ -20,7 +20,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
         <p>{message}</p>
         <Button variant="outline" size="sm" onClick={onRetry} className="border-destructive/35 bg-transparent text-destructive hover:bg-destructive/10">
           <RefreshCw className="h-4 w-4" />
-          Retry
+          Повторить
         </Button>
       </div>
     </div>
@@ -62,12 +62,12 @@ export function ForYouPage() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">For You</p>
-              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Recommended reads picked for your interests</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
+              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Рекомендованные материалы по вашим интересам</h1>
             </div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-            This feed prioritizes stories from your preferred topics and filters out articles you already saved.
+            Эта лента в первую очередь показывает материалы по выбранным вами темам и убирает статьи, которые вы уже сохранили.
           </p>
         </div>
 
@@ -77,9 +77,9 @@ export function ForYouPage() {
           <FeedSkeleton />
         ) : posts.length === 0 ? (
           <EmptyState
-            title="No recommendations yet"
-            description="Pick topics or save articles to help us shape this feed around what matters to you."
-            actionLabel="Retry"
+            title="Пока нет рекомендаций"
+            description="Выберите темы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."
+            actionLabel="Повторить"
             onReset={retry}
           />
         ) : (

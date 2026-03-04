@@ -29,7 +29,7 @@ function InlineError({
         <p>{message}</p>
         {onAction ? (
           <button type="button" onClick={onAction} className="font-semibold text-destructive transition hover:opacity-80">
-            {actionLabel ?? 'Retry'}
+            {actionLabel ?? 'Повторить'}
           </button>
         ) : null}
       </div>
@@ -126,7 +126,7 @@ export function TopicPreferencesOnboardingPage() {
       })
       .catch((nextError) => {
         if (!controller.signal.aborted) {
-          setLoadError(nextError instanceof Error ? nextError.message : 'Failed to prepare topic onboarding.');
+          setLoadError(nextError instanceof Error ? nextError.message : 'Не удалось подготовить экран выбора тем.');
         }
       })
       .finally(() => {
@@ -168,7 +168,7 @@ export function TopicPreferencesOnboardingPage() {
       await setMyTopics(selectedIds);
       setStep('confirm');
     } catch (nextError) {
-      setSaveError(nextError instanceof Error ? nextError.message : 'Failed to save topic preferences.');
+      setSaveError(nextError instanceof Error ? nextError.message : 'Не удалось сохранить выбранные темы.');
     } finally {
       setSaving(false);
     }
@@ -188,17 +188,17 @@ export function TopicPreferencesOnboardingPage() {
               className="flex flex-1 flex-col"
             >
               <div className="rounded-[2rem] border border-border/70 bg-card/80 p-6 shadow-[0_32px_80px_-42px_rgba(15,23,42,0.7)] backdrop-blur sm:p-8">
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Topic preferences</p>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Настройка тем</p>
                 <h1 className="mt-4 max-w-xl font-['Source_Serif_4'] text-4xl font-bold leading-tight text-balance sm:text-5xl">
-                  Pick What Matters to You
+                  Выберите то, что важно вам
                 </h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                  Choose the topics you want to follow first. We&apos;ll tailor your feed and future alerts around the signals you care about most.
+                  Сначала выберите темы, за которыми хотите следить. Мы настроим вашу ленту и будущие уведомления под то, что для вас действительно важно.
                 </p>
               </div>
 
               <div className="mt-6 space-y-4">
-                {loadError ? <InlineError message={loadError} actionLabel="Retry" onAction={() => setRetryToken((current) => current + 1)} /> : null}
+                {loadError ? <InlineError message={loadError} actionLabel="Повторить" onAction={() => setRetryToken((current) => current + 1)} /> : null}
 
                 <motion.div layout className="flex flex-wrap gap-3">
                   {bootstrapping
@@ -236,7 +236,7 @@ export function TopicPreferencesOnboardingPage() {
                         <div className="mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-background/88 p-4 shadow-[0_-20px_60px_-42px_rgba(15,23,42,0.9)]">
                           <div className="pointer-events-auto">
                             <Button className="h-14 w-full text-base" onClick={handleSave} disabled={saving || bootstrapping || Boolean(loadError)}>
-                              {saving ? 'Saving...' : 'Save & Continue'}
+                              {saving ? 'Сохраняем...' : 'Сохранить и продолжить'}
                             </Button>
                             {saveError ? <p className="mt-3 text-sm text-destructive">{saveError}</p> : null}
                             <button
@@ -245,7 +245,7 @@ export function TopicPreferencesOnboardingPage() {
                               className="mt-4 w-full text-center text-sm font-semibold text-muted-foreground transition hover:text-foreground"
                               disabled={saving}
                             >
-                              Skip
+                              Пропустить
                             </button>
                           </div>
                         </div>
@@ -261,7 +261,7 @@ export function TopicPreferencesOnboardingPage() {
                     className="text-sm font-semibold text-muted-foreground transition hover:text-foreground"
                     disabled={saving || bootstrapping}
                   >
-                    Skip
+                    Пропустить
                   </button>
                 </div>
               </div>
@@ -278,16 +278,16 @@ export function TopicPreferencesOnboardingPage() {
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setStep('pick')}>
                   <ArrowLeft className="h-5 w-5" />
-                  <span className="sr-only">Back</span>
+                  <span className="sr-only">Назад</span>
                 </Button>
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Topic preferences</p>
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Настройка тем</p>
               </div>
 
               <div className="mt-6 rounded-[2rem] border border-border/70 bg-card/80 p-6 shadow-[0_32px_80px_-42px_rgba(15,23,42,0.7)] backdrop-blur sm:p-8">
                 <h1 className="max-w-2xl font-['Source_Serif_4'] text-4xl font-bold leading-tight text-balance sm:text-5xl">
-                  Get only the Alerts You Actually Want
+                  Получайте только те уведомления, которые действительно нужны
                 </h1>
-                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-primary/90">Here are your picks!</p>
+                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-primary/90">Вот что вы выбрали</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {selectedTopics.map((topic) => (
                     <span
@@ -300,7 +300,7 @@ export function TopicPreferencesOnboardingPage() {
                   ))}
                 </div>
                 <p className="mt-6 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                  We&apos;ll send you real-time updates for the beats you picked, so your home view stays focused and your notifications stay worth opening.
+                  Мы будем отправлять обновления в реальном времени по выбранным темам, чтобы главная оставалась сфокусированной, а уведомления были полезными.
                 </p>
               </div>
 
@@ -320,14 +320,14 @@ export function TopicPreferencesOnboardingPage() {
                     <div className="mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-background/88 p-4 shadow-[0_-20px_60px_-42px_rgba(15,23,42,0.9)]">
                       <div className="pointer-events-auto">
                         <Button className="h-14 w-full text-base" onClick={finishOnboarding}>
-                          Yes, Keep Me Posted
+                          Да, держите в курсе
                         </Button>
                         <button
                           type="button"
                           onClick={finishOnboarding}
                           className="mt-4 w-full text-center text-sm font-semibold text-muted-foreground transition hover:text-foreground"
                         >
-                          Not now
+                          Не сейчас
                         </button>
                       </div>
                     </div>

@@ -190,20 +190,28 @@ export async function recordPostView(userId: string, postId: string) {
   }
 }
 
+export function normalizeHandle(name: string | null | undefined) {
+  if (!name) {
+    return '';
+  }
+
+  return name.startsWith('@') ? name.slice(1) : name;
+}
+
 export function getProfileDisplayName(profile: Profile | null, fallbackEmail?: string | null) {
   if (profile?.handle) {
-    return `@${profile.handle}`;
+    return normalizeHandle(profile.handle);
   }
 
   if (profile?.username) {
-    return `@${profile.username}`;
+    return normalizeHandle(profile.username);
   }
 
   if (fallbackEmail) {
-    return `@${fallbackEmail.split('@')[0]}`;
+    return normalizeHandle(fallbackEmail.split('@')[0]);
   }
 
-  return '@reader';
+  return 'reader';
 }
 
 export function getProfileSubtitle(profile: Profile | null) {

@@ -28,7 +28,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p>{message}</p>
         <Button type="button" variant="outline" size="sm" onClick={onRetry} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
-          Retry
+          Повторить
         </Button>
       </div>
     </div>
@@ -87,7 +87,7 @@ export function PostPage() {
       return '';
     }
 
-    return new Date(post.created_at).toLocaleDateString('en-US', {
+    return new Date(post.created_at).toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -135,7 +135,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load this story.');
+          setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить материал.');
         }
       } finally {
         if (!ignore) {
@@ -174,7 +174,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setLatestPosts([]);
-          setLatestError(loadError instanceof Error ? loadError.message : 'Failed to load latest news.');
+          setLatestError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить последние новости.');
         }
       } finally {
         if (!ignore) {
@@ -231,9 +231,9 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            Назад
           </Button>
-          <InlineError message={error ?? 'Failed to load this story.'} onRetry={retry} />
+          <InlineError message={error ?? 'Не удалось загрузить материал.'} onRetry={retry} />
         </div>
       </Container>
     );
@@ -260,12 +260,12 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
+            Назад
           </Button>
 
           <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Link to="/" className="transition hover:text-foreground">
-              News
+              Новости
             </Link>
             {topic ? (
               <>
@@ -289,7 +289,7 @@ export function PostPage() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                  {topic?.name ?? 'News'}
+                  {topic?.name ?? 'Новости'}
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
@@ -311,7 +311,7 @@ export function PostPage() {
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <Clock3 className="h-4 w-4" />
-                  {readingTime} min read
+                  {readingTime} мин чтения
                 </span>
                 <span>{createdAtLabel}</span>
               </div>
@@ -320,9 +320,9 @@ export function PostPage() {
             </div>
 
             <div className="rounded-[1.5rem] border border-border/70 bg-background/60 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI author</p>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI-автор</p>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-                This story was assembled with AI assistance and formatted for fast reading. Review the source details and context before acting on the information.
+                Этот материал подготовлен с помощью ИИ и адаптирован для быстрого чтения. Перед тем как опираться на информацию, проверьте источники и контекст.
               </p>
             </div>
 
@@ -347,8 +347,8 @@ export function PostPage() {
 
         <section className="space-y-5">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">More</p>
-            <h2 className="text-3xl font-extrabold">Latest News</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ещё</p>
+            <h2 className="text-3xl font-extrabold">Последние новости</h2>
           </div>
 
           {latestError ? <InlineError message={latestError} onRetry={retry} /> : null}
@@ -356,7 +356,7 @@ export function PostPage() {
           {latestLoading ? (
             <FeedSkeleton />
           ) : latestPosts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No more stories yet.</p>
+            <p className="text-sm text-muted-foreground">Пока больше материалов нет.</p>
           ) : (
             <div className="grid gap-5">
               {latestPosts.map((latestPost, index) => (

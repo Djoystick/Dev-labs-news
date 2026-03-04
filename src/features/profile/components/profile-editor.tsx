@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { updateProfileDetails } from '@/features/profile/api';
+import { normalizeHandle, updateProfileDetails } from '@/features/profile/api';
 import { uploadAvatar } from '@/features/profile/storage';
 import { normalizeOptionalProfileText, profileFormSchema, type ProfileFormValues } from '@/features/profile/validation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -172,7 +172,7 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
         <div className="grid gap-4 rounded-[1.25rem] border border-border/70 bg-secondary/40 p-4 text-sm sm:grid-cols-2">
           <div>
             <p className="font-semibold text-muted-foreground">Telegram username</p>
-            <p className="mt-1 break-all">{profile.username ? `@${profile.username}` : 'Не указан'}</p>
+            <p className="mt-1 break-all">{profile.username ? normalizeHandle(profile.username) : 'Не указан'}</p>
           </div>
           <div>
             <p className="font-semibold text-muted-foreground">Email</p>

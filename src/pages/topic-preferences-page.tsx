@@ -12,7 +12,7 @@ import type { Topic } from '@/types/db';
 const chipSkeletonWidths = ['w-28', 'w-36', 'w-32', 'w-40', 'w-24', 'w-44', 'w-28', 'w-36'];
 
 function InlineError({
-  actionLabel = 'Retry',
+  actionLabel = 'Повторить',
   message,
   onAction,
 }: {
@@ -101,7 +101,7 @@ export function TopicPreferencesPage() {
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setLoadError(error instanceof Error ? error.message : 'Failed to load topic preferences.');
+          setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить настройки тем.');
         }
       })
       .finally(() => {
@@ -138,7 +138,7 @@ export function TopicPreferencesPage() {
       await setMyTopics(selectedIds);
       void navigate('/profile', { replace: true });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save topic preferences.');
+      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить настройки тем.');
     } finally {
       setSaving(false);
     }
@@ -149,17 +149,17 @@ export function TopicPreferencesPage() {
       <Container className="safe-pb safe-pt flex min-h-full max-w-3xl flex-col pb-36 pt-6 sm:pb-40 sm:pt-8">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Account</p>
-            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Topic preferences</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Аккаунт</p>
+            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Настройки тем</h1>
           </div>
           <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/profile')}>
             <X className="h-5 w-5" />
-            <span className="sr-only">Cancel</span>
+            <span className="sr-only">Отмена</span>
           </Button>
         </div>
 
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-          Update the topics that shape your recommendations and future alerts.
+          Обновите темы, которые влияют на ваши рекомендации и будущие уведомления.
         </p>
 
         <div className="mt-6 space-y-4">
@@ -173,9 +173,9 @@ export function TopicPreferencesPage() {
         </div>
 
         <div className="mt-8">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Selected</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Выбрано</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : 'Pick at least one topic to save your preferences.'}
+            {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : 'Выберите хотя бы одну тему, чтобы сохранить настройки.'}
           </p>
         </div>
 
@@ -186,7 +186,7 @@ export function TopicPreferencesPage() {
           >
             <div className="mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-background/88 p-4 shadow-[0_-20px_60px_-42px_rgba(15,23,42,0.9)]">
               <Button className="h-14 w-full text-base" onClick={handleSave} disabled={saving || bootstrapping || Boolean(loadError) || selectedIds.length === 0}>
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? 'Сохраняем...' : 'Сохранить'}
               </Button>
               {saveError ? <p className="mt-3 text-sm text-destructive">{saveError}</p> : null}
               <button
@@ -195,7 +195,7 @@ export function TopicPreferencesPage() {
                 className="mt-4 w-full text-center text-sm font-semibold text-muted-foreground transition hover:text-foreground"
                 disabled={saving}
               >
-                Cancel
+                Отмена
               </button>
             </div>
           </div>

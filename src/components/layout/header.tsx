@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { PencilLine, SlidersHorizontal } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
@@ -16,10 +16,12 @@ export function Header() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [topicsDialogOpen, setTopicsDialogOpen] = useState(false);
   const location = useLocation();
-  const { isAuthed, loading } = useAuth();
+  const navigate = useNavigate();
+  const { isAuthed, loading, profile } = useAuth();
   const { enabledTopicCount, resetTopicFilters, setTopicEnabled, topicFilters } = useReadingPreferences();
   const isFeedRoute = location.pathname === '/';
   const hasFilteredTopics = enabledTopicCount !== TOPIC_LABELS.length;
+  const canWritePosts = profile?.role === 'admin' || profile?.role === 'editor';
 
   useEffect(() => {
     if (!isFeedRoute) {
@@ -49,7 +51,7 @@ export function Header() {
                 type="button"
                 variant="outline"
                 size="icon"
-                aria-label="Открыть фильтры тем"
+                aria-label="Открыть фильтр тем"
                 className="relative h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]"
                 onClick={() => setTopicsDialogOpen(true)}
               >
@@ -64,12 +66,22 @@ export function Header() {
                 ) : null}
               </Button>
             ) : null}
+            {isFeedRoute && canWritePosts ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 shrink-0 rounded-full border-border/70 bg-background/80 px-3 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]"
+                onClick={() => navigate('/admin/new')}
+              >
+                <PencilLine className="h-4 w-4" />
+                <span className="hidden sm:inline">Написать</span>
+              </Button>
+            ) : null}
             <ThemeToggle className="h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]" />
             {loading ? (
               <div className="h-9 w-9 rounded-full bg-secondary sm:w-20" aria-hidden />
-            ) : isAuthed ? (
-              null
-            ) : (
+            ) : isAuthed ? null : (
               <Button onClick={() => setAuthDialogOpen(true)} size="sm" variant="secondary" className="h-9 shrink-0 rounded-full px-3">
                 <span className="hidden sm:inline">Войти</span>
                 <span className="sm:hidden">Вход</span>
