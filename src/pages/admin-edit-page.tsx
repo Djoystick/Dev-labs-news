@@ -21,7 +21,7 @@ export function AdminEditPage() {
 
     async function loadPostForEdit() {
       if (!id) {
-        setError('Post id is missing.');
+        setError('Отсутствует идентификатор новости.');
         setIsLoading(false);
         return;
       }
@@ -35,10 +35,10 @@ export function AdminEditPage() {
         if (!ignore) {
           setPost(loadedPost);
         }
-      } catch (loadError) {
+      } catch {
         if (!ignore) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load the post.');
+          setError('Не удалось загрузить новость.');
         }
       } finally {
         if (!ignore) {
@@ -64,7 +64,7 @@ export function AdminEditPage() {
               <Skeleton className="h-[680px] w-full rounded-[1.75rem]" />
             </div>
           ) : error || !post ? (
-            <StateCard title="Post unavailable" description={error ?? 'The post could not be loaded for editing.'} />
+            <StateCard title="Новость недоступна" description={error ?? 'Не удалось загрузить новость для редактирования.'} />
           ) : (
             <PostForm mode="edit" post={post} userId={user.id} />
           )}

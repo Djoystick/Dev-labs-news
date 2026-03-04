@@ -4,11 +4,8 @@ import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-rea
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { AppLink } from '@/components/ui/app-link';
-import { listTopics } from '@/features/topics/api';
-import { createPost, deletePost, updatePost, type PostMutationInput } from '@/features/posts/api';
-import { uploadPostImage } from '@/features/posts/storage';
-import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,9 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { StateCard } from '@/components/ui/state-card';
+import { Textarea } from '@/components/ui/textarea';
+import { createPost, deletePost, updatePost, type PostMutationInput } from '@/features/posts/api';
+import { uploadPostImage } from '@/features/posts/storage';
+import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
+import { listTopics } from '@/features/topics/api';
 import type { Post, Topic } from '@/types/db';
 
 type PostFormProps = {
@@ -73,9 +73,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         if (!ignore) {
           setTopics(data);
         }
-      } catch (error) {
+      } catch {
         if (!ignore) {
-          setTopicsError(error instanceof Error ? error.message : 'Failed to load topics.');
+          setTopicsError('Не удалось загрузить темы.');
           setTopics([]);
         }
       } finally {
@@ -93,7 +93,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }, []);
 
   const coverUrl = form.watch('cover_url');
-  const submitLabel = mode === 'create' ? 'Create post' : 'Save changes';
+  const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
@@ -104,15 +104,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         shouldDirty: true,
         shouldValidate: true,
       });
-      toast.success('Cover uploaded.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to upload cover.');
+      toast.success('Обложка загружена.');
+    } catch {
+      toast.error('Не удалось загрузить обложку.');
     } finally {
       setIsUploadingCover(false);
     }
   };
 
-  const pageTitle = useMemo(() => (mode === 'create' ? 'New post' : 'Edit post'), [mode]);
+  const pageTitle = useMemo(() => (mode === 'create' ? 'Новая новость' : 'Редактирование новости'), [mode]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -136,7 +136,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }
 
   if (topicsError) {
-    return <StateCard title="Topics unavailable" description={topicsError} />;
+    return <StateCard title="Темы недоступны" description={topicsError} />;
   }
 
   return (
@@ -150,11 +150,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <AppLink to={`/post/${post.id}`}>Open published view</AppLink>
+                  <AppLink to={`/post/${post.id}`}>Открыть опубликованную версию</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
-                <AppLink to="/">Back to feed</AppLink>
+                <AppLink to="/">Назад к ленте</AppLink>
               </Button>
             </div>
           </div>
@@ -177,15 +177,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 };
 
                 const nextPost = mode === 'create' ? await createPost(payload) : await updatePost(post!.id, payload);
-                toast.success(mode === 'create' ? 'Post created.' : 'Post updated.');
+                toast.success(mode === 'create' ? 'Новость опубликована.' : 'Новость сохранена.');
                 navigate(`/post/${nextPost.id}`);
               } catch (error) {
                 if (import.meta.env.DEV) {
                   console.error('[PostForm] submit failed', error);
                 }
 
-                setSubmitError(error instanceof Error ? error.message : 'Failed to save the post.');
-                toast.error(error instanceof Error ? error.message : 'Failed to save the post.');
+                setSubmitError('Не удалось сохранить новость.');
+                toast.error('Не удалось сохранить новость.');
               } finally {
                 setIsSubmitting(false);
               }
@@ -195,21 +195,21 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" placeholder="Ship useful engineering stories" {...form.register('title')} />
+                  <Label htmlFor="title">Заголовок</Label>
+                  <Input id="title" placeholder="Введите заголовок" {...form.register('title')} />
                   {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="excerpt">Excerpt</Label>
-                  <Textarea id="excerpt" placeholder="A concise summary for cards and previews." className="min-h-[120px]" {...form.register('excerpt')} />
+                  <Label htmlFor="excerpt">Анонс</Label>
+                  <Textarea id="excerpt" placeholder="Короткое описание для карточек и превью." className="min-h-[120px]" {...form.register('excerpt')} />
                   {form.formState.errors.excerpt ? <p className="text-sm text-destructive">{form.formState.errors.excerpt.message}</p> : null}
                 </div>
               </div>
 
               <div className="space-y-5 rounded-[1.5rem] border border-border/70 bg-background/70 p-5">
                 <div className="space-y-2">
-                  <Label htmlFor="topic_id">Topic</Label>
+                  <Label htmlFor="topic_id">Тема</Label>
                   <Select
                     id="topic_id"
                     value={form.watch('topic_id')}
@@ -220,7 +220,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                       });
                     }}
                   >
-                    <option value="">Select topic</option>
+                    <option value="">Выберите тему</option>
                     {topics.map((topic) => (
                       <option key={topic.id} value={topic.id}>
                         {topic.name}
@@ -232,7 +232,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="cover-upload">Cover image</Label>
+                    <Label htmlFor="cover-upload">Обложка</Label>
                     <input
                       id="cover-upload"
                       accept="image/*"
@@ -249,7 +249,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     <Button asChild type="button" variant="outline" size="sm" disabled={isUploadingCover}>
                       <label htmlFor="cover-upload" className="cursor-pointer">
                         {isUploadingCover ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                        Upload cover
+                        Загрузить
                       </label>
                     </Button>
                   </div>
@@ -259,10 +259,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     </div>
                   ) : (
                     <div className="rounded-[1.25rem] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                      Upload a cover to create a stronger card preview on the feed.
+                      Загрузите обложку, чтобы карточка новости выглядела лучше в ленте.
                     </div>
                   )}
-                  <Input value={coverUrl ?? ''} readOnly placeholder="Cover URL will appear here after upload" />
+                  <Input value={coverUrl ?? ''} readOnly placeholder="URL обложки появится после загрузки" />
                   {form.formState.errors.cover_url ? <p className="text-sm text-destructive">{form.formState.errors.cover_url.message}</p> : null}
                 </div>
               </div>
@@ -270,7 +270,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <Label>Content</Label>
+                <Label>Текст</Label>
                 <p className="text-xs text-muted-foreground">Markdown</p>
               </div>
               <RichTextMarkdownEditor
@@ -282,7 +282,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   });
                 }}
                 minHeight={320}
-                placeholder="Write the story in a touch-friendly editor. Markdown is still saved under the hood."
+                placeholder="Введите текст новости в визуальном редакторе. Сохранение выполняется в markdown."
               />
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
@@ -293,7 +293,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 {mode === 'edit' && post ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    Удалить
                   </Button>
                 ) : null}
                 <Button type="submit" disabled={isSubmitting || isUploadingCover}>
@@ -309,19 +309,19 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete post?</DialogTitle>
-            <DialogDescription>Пост будет удалён без возможности восстановления.</DialogDescription>
+            <DialogTitle>Удалить новость?</DialogTitle>
+            <DialogDescription>Новость будет удалена без возможности восстановления.</DialogDescription>
           </DialogHeader>
           <div className="rounded-2xl bg-destructive/10 p-4 text-sm leading-6 text-destructive">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4" />
-              Permanent action
+              Необратимое действие
             </div>
-            Запись будет удалена сразу. Загруженные изображения останутся в storage.
+            Новость будет удалена сразу. Загруженные изображения останутся в storage.
           </div>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
+              Отмена
             </Button>
             <Button
               type="button"
@@ -336,15 +336,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 try {
                   await deletePost(post.id);
-                  toast.success('Post deleted.');
+                  toast.success('Новость удалена.');
                   navigate('/');
                 } catch (error) {
                   if (import.meta.env.DEV) {
                     console.error('[PostForm] delete failed', error);
                   }
 
-                  setSubmitError(error instanceof Error ? error.message : 'Failed to delete the post.');
-                  toast.error(error instanceof Error ? error.message : 'Failed to delete the post.');
+                  setSubmitError('Не удалось удалить новость.');
+                  toast.error('Не удалось удалить новость.');
                 } finally {
                   setIsSubmitting(false);
                   setIsDeleteDialogOpen(false);
@@ -353,7 +353,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               disabled={isSubmitting}
             >
               {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Delete post
+              Удалить новость
             </Button>
           </div>
         </DialogContent>

@@ -290,7 +290,7 @@ function EditorToolbar() {
   );
 
   const toggleLink = useCallback(() => {
-    const url = window.prompt('Enter URL');
+    const url = window.prompt('Введите URL');
 
     if (url === null) {
       return;
