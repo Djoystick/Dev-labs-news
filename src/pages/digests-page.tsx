@@ -1,183 +1,716 @@
-import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import type { AppLayoutContext } from '@/App';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronRight, Search, Sparkles } from 'lucide-react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from '@/components/layout/container';
-import { StateCard } from '@/components/ui/state-card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTopicPosts } from '@/features/discover/hooks';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
-import { getVisiblePosts } from '@/features/topics/model';
+import { fetchMyTopicIds, fetchTopics } from '@/features/topics/api';
 import { cn } from '@/lib/utils';
-import { useReadingPreferences } from '@/providers/preferences-provider';
-import type { Post } from '@/types/db';
+import { useAuth } from '@/providers/auth-provider';
+import type { Post, Topic } from '@/types/db';
 
-type DigestsTab = 'top' | 'recent';
+const initialTopicCount = 4;
+const sectionPostsLimit = 5;
+const modalPostsLimit = 30;
+const pillsBarHeight = 84;
+const pillActiveClass = 'border-transparent bg-primary text-primary-foreground shadow-lg shadow-primary/20';
 
-const digestLimit = 20;
-const popularityMetricKeys = ['views', 'score', 'popularity', 'rank', 'read_count'] as const;
-const editorialFlagKeys = ['is_editorial', 'editorial', 'is_featured', 'featured', 'is_pinned', 'pinned'] as const;
+type TopicPostsMap = Record<string, Post[]>;
 
-function getTimestamp(value: string) {
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
+function isAbortLikeError(error: unknown) {
+  if (!error) {
+    return false;
+  }
+
+  if (error instanceof DOMException) {
+    return error.name === 'AbortError';
+  }
+
+  if (error instanceof Error) {
+    return error.name === 'AbortError' || error.message.includes('AbortError');
+  }
+
+  return String(error).includes('AbortError');
 }
 
-function getNumericPopularityMetric(post: Post) {
-  const candidate = post as Post & Partial<Record<(typeof popularityMetricKeys)[number], unknown>>;
+function InlineError({
+  actionLabel = 'Retry',
+  message,
+  onAction,
+}: {
+  actionLabel?: string;
+  message: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p>{message}</p>
+        <Button type="button" variant="outline" size="sm" onClick={onAction} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
+          {actionLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-  for (const key of popularityMetricKeys) {
-    const value = candidate[key];
+function SectionSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/80 p-4">
+        <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
+        <div className="mt-4 space-y-3">
+          <Skeleton className="h-4 w-20 rounded-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-5 w-5/6" />
+          <Skeleton className="h-5 w-2/3" />
+        </div>
+      </div>
+      <div className="flex gap-4 overflow-hidden">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="min-w-[240px] overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/80 p-4 sm:min-w-[300px]">
+            <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
+            <div className="mt-4 space-y-3">
+              <Skeleton className="h-4 w-16 rounded-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
+function TopicSeeAllModal({
+  onOpenChange,
+  open,
+  topic,
+}: {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  topic: Topic | null;
+}) {
+  const { data, error, isLoading, retry } = useTopicPosts(topic?.id ?? '', modalPostsLimit, open && Boolean(topic?.id));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[calc(100svh-2rem)] max-w-5xl overflow-hidden p-0">
+        <div className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden">
+          <div className="border-b border-border/70 px-6 py-5">
+            <DialogHeader className="pr-10">
+              <DialogTitle>{topic?.name ?? 'Topic'}</DialogTitle>
+              <DialogDescription>Latest stories from this topic.</DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="overflow-y-auto px-6 py-5">
+            {error ? <InlineError message={error} onAction={retry} /> : null}
+            {isLoading ? (
+              <FeedSkeleton />
+            ) : data.length === 0 ? (
+              <EmptyState title="No stories yet" description="There are no posts in this topic right now." actionLabel="Retry" onReset={retry} />
+            ) : (
+              <div className="grid gap-5">
+                {data.map((post, index) => (
+                  <PostCard key={`${post.id}-modal`} post={post} index={index} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AllTopicsSheet({
+  activeTopicId,
+  onOpenChange,
+  onRetry,
+  open,
+  topics,
+}: {
+  activeTopicId: string | null;
+  onOpenChange: (open: boolean) => void;
+  onRetry: () => void;
+  open: boolean;
+  topics: Topic[];
+}) {
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(activeTopicId);
+
+  useEffect(() => {
+    if (!open) {
+      return;
     }
-  }
 
-  return null;
+    setSelectedTopicId(activeTopicId ?? topics[0]?.id ?? null);
+  }, [activeTopicId, open, topics]);
+
+  const { data, error, isLoading, retry } = useTopicPosts(selectedTopicId ?? '', modalPostsLimit, open && Boolean(selectedTopicId));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="inset-x-0 bottom-0 top-auto z-[100] w-full max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-b-none rounded-t-[2rem] border-x-0 border-b-0 border-t border-border/70 p-0">
+        <div className="max-h-[85svh] overflow-hidden">
+          <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
+            <DialogHeader className="pr-10 text-left">
+              <DialogTitle className="text-2xl">All topics</DialogTitle>
+              <DialogDescription>Browse stories by topic without leaving Discover.</DialogDescription>
+            </DialogHeader>
+
+            {topics.length === 0 ? (
+              <div className="mt-6 rounded-[1.5rem] border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center">
+                <p className="text-sm text-muted-foreground">No topics</p>
+                <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="no-scrollbar mt-6 overflow-x-auto pb-2">
+                  <div className="flex min-w-max gap-3">
+                    {topics.map((topic) => (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => setSelectedTopicId(topic.id)}
+                        className={cn(
+                          'inline-flex min-h-12 items-center justify-between rounded-full border px-4 py-3 text-left text-sm font-semibold transition',
+                          selectedTopicId === topic.id ? pillActiveClass : 'border-border/70 bg-card/70 text-foreground hover:bg-secondary/80',
+                        )}
+                      >
+                        <span className="truncate">{topic.name}</span>
+                        <span className={cn('text-xs', selectedTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'\u2713'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  {error ? <InlineError message={error} onAction={retry} /> : null}
+                  {isLoading ? (
+                    <FeedSkeleton />
+                  ) : data.length === 0 ? (
+                    <EmptyState title="No stories yet" description="There are no posts in this topic right now." actionLabel="Retry" onReset={retry} />
+                  ) : (
+                    <div className="grid gap-5">
+                      {data.map((post, index) => (
+                        <PostCard key={`${post.id}-sheet`} post={post} index={index} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
-function hasEditorialPriority(post: Post) {
-  const candidate = post as Post & Partial<Record<(typeof editorialFlagKeys)[number], unknown>>;
+function TopicSection({
+  enabled,
+  onData,
+  onOpenTopic,
+  onRegister,
+  topic,
+}: {
+  enabled: boolean;
+  onData: (topicId: string, posts: Post[]) => void;
+  onOpenTopic: (topic: Topic) => void;
+  onRegister: (topicId: string, element: HTMLElement | null) => void;
+  topic: Topic;
+}) {
+  const { data, error, isLoading, retry } = useTopicPosts(topic.id, sectionPostsLimit, enabled);
 
-  return editorialFlagKeys.some((key) => candidate[key] === true);
-}
+  useEffect(() => {
+    if (data.length > 0) {
+      onData(topic.id, data);
+    }
+  }, [data, onData, topic.id]);
 
-function getTopScore(post: Post) {
-  const popularityMetric = getNumericPopularityMetric(post);
+  const featuredPost = data[0] ?? null;
+  const railPosts = data.slice(1);
 
-  if (popularityMetric !== null) {
-    return popularityMetric;
-  }
+  return (
+    <section
+      ref={(node) => onRegister(topic.id, node)}
+      data-topic-id={topic.id}
+      className="scroll-mt-24 space-y-4 rounded-[2rem] border border-border/70 bg-card/55 p-5 shadow-[0_28px_80px_-48px_rgba(15,23,42,0.45)] sm:p-6"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Topic</p>
+          <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">{topic.name}</h2>
+        </div>
+        <Button type="button" variant="ghost" className="shrink-0 px-0 text-primary hover:bg-transparent" onClick={() => onOpenTopic(topic)}>
+          See all
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-  // Fallback heuristic: prefer fresher posts, then slightly boost richer presentation/content.
-  return getTimestamp(post.created_at) + post.content.length * 0.1 + (post.cover_url ? 10_000 : 0);
+      {error ? <InlineError message={error} onAction={retry} /> : null}
+
+      {isLoading && data.length === 0 ? (
+        <SectionSkeleton />
+      ) : data.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No stories yet.</p>
+      ) : (
+        <div className="space-y-5">
+          {featuredPost ? <PostCard post={featuredPost} index={0} /> : null}
+          <div className="no-scrollbar overflow-x-auto pb-2">
+            <div className="flex snap-x gap-4">
+              {railPosts.map((post, index) => (
+                <div key={post.id} className="min-w-[260px] snap-start sm:min-w-[300px]">
+                  <PostCard post={post} index={index + 1} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 
 export function DigestsPage() {
-  const [activeTab, setActiveTab] = useState<DigestsTab>('top');
-  const { isLoading, posts, postsError, retryPosts } = useOutletContext<AppLayoutContext>();
-  const { resetTopicFilters, topicFilters } = useReadingPreferences();
+  const { user } = useAuth();
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topicIdsByUser, setTopicIdsByUser] = useState<string[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(true);
+  const [topicsError, setTopicsError] = useState<string | null>(null);
+  const [topicsRetryToken, setTopicsRetryToken] = useState(0);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [visibleTopicIds, setVisibleTopicIds] = useState<Record<string, true>>({});
+  const [loadedPostsByTopic, setLoadedPostsByTopic] = useState<TopicPostsMap>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery.trim().toLowerCase());
+  const [seeAllTopic, setSeeAllTopic] = useState<Topic | null>(null);
+  const [allTopicsOpen, setAllTopicsOpen] = useState(false);
+  const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const suppressUntilRef = useRef(0);
+  const scheduleRafRef = useRef<number | null>(null);
 
-  const visiblePosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
-  const topPosts = useMemo(
-    () =>
-      [...visiblePosts]
-        .sort((left, right) => {
-          const scoreDiff = getTopScore(right) - getTopScore(left);
+  useEffect(() => {
+    let cancelled = false;
+    setTopicsLoading(true);
+    setTopicsError(null);
 
-          if (scoreDiff !== 0) {
-            return scoreDiff;
-          }
+    void fetchTopics(undefined, { force: topicsRetryToken > 0 })
+      .then((nextTopics) => {
+        if (cancelled) {
+          return;
+        }
 
-          return getTimestamp(right.created_at) - getTimestamp(left.created_at);
-        })
-        .slice(0, digestLimit),
-    [visiblePosts],
+        setTopics(nextTopics);
+      })
+      .catch((error) => {
+        if (cancelled || isAbortLikeError(error)) {
+          return;
+        }
+
+        setTopics([]);
+        setTopicsError('Failed to load topics.');
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTopicsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topicsRetryToken]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setTopicIdsByUser([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void fetchMyTopicIds(user.id, controller.signal)
+      .then((preferredTopicIds) => {
+        if (!controller.signal.aborted) {
+          setTopicIdsByUser(preferredTopicIds);
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted || isAbortLikeError(error)) {
+          return;
+        }
+
+        setTopicIdsByUser([]);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [user?.id]);
+
+  const topicsOrdered = useMemo(() => {
+    const preferredSet = new Set(topicIdsByUser);
+    const preferredTopics = topics.filter((topic) => preferredSet.has(topic.id));
+    const otherTopics = topics.filter((topic) => !preferredSet.has(topic.id));
+    return [...preferredTopics, ...otherTopics];
+  }, [topicIdsByUser, topics]);
+
+  useEffect(() => {
+    if (topicsOrdered.length === 0) {
+      setActiveTopicId(null);
+      return;
+    }
+
+    if (!activeTopicId || !topicsOrdered.some((topic) => topic.id === activeTopicId)) {
+      setActiveTopicId(topicsOrdered[0].id);
+    }
+  }, [activeTopicId, topicsOrdered]);
+
+  useEffect(() => {
+    if (topicsOrdered.length === 0) {
+      return;
+    }
+
+    setVisibleTopicIds((current) => {
+      const next = { ...current };
+
+      topicsOrdered.slice(0, initialTopicCount).forEach((topic) => {
+        next[topic.id] = true;
+      });
+
+      return next;
+    });
+  }, [topicsOrdered]);
+
+  useEffect(() => {
+    if (topicsOrdered.length === 0) {
+      return;
+    }
+
+    const elements = topicsOrdered
+      .map((topic) => sectionRefs.current.get(topic.id))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    if (elements.length === 0) {
+      return;
+    }
+
+    const preloadObserver = new IntersectionObserver(
+      (entries) => {
+        setVisibleTopicIds((current) => {
+          let changed = false;
+          const next = { ...current };
+
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) {
+              return;
+            }
+
+            const topicId = entry.target.getAttribute('data-topic-id');
+
+            if (topicId && !next[topicId]) {
+              next[topicId] = true;
+              changed = true;
+            }
+          });
+
+          return changed ? next : current;
+        });
+      },
+      {
+        rootMargin: '240px 0px',
+        threshold: 0.01,
+      },
+    );
+
+    elements.forEach((element) => {
+      preloadObserver.observe(element);
+    });
+
+    return () => {
+      preloadObserver.disconnect();
+    };
+  }, [topicsOrdered]);
+
+  const computeActive = useCallback(() => {
+    if (Date.now() < suppressUntilRef.current) {
+      return;
+    }
+
+    const anchorY = pillsBarHeight + 12;
+    let bestAboveDiff = Number.NEGATIVE_INFINITY;
+    let bestAboveTopicId: string | null = null;
+    let bestBelowDiff = Number.POSITIVE_INFINITY;
+    let bestBelowTopicId: string | null = null;
+
+    sectionRefs.current.forEach((element, topicId) => {
+      if (!element || !element.dataset.topicId) {
+        return;
+      }
+
+      const diff = element.getBoundingClientRect().top - anchorY;
+
+      if (diff <= 0) {
+        if (diff > bestAboveDiff) {
+          bestAboveDiff = diff;
+          bestAboveTopicId = topicId;
+        }
+        return;
+      }
+
+      if (diff < bestBelowDiff) {
+        bestBelowDiff = diff;
+        bestBelowTopicId = topicId;
+      }
+    });
+
+    const candidateTopicId = bestAboveTopicId ?? bestBelowTopicId;
+
+    if (!candidateTopicId) {
+      return;
+    }
+
+    setActiveTopicId((current) => (current === candidateTopicId ? current : candidateTopicId));
+  }, []);
+
+  const scheduleCompute = useCallback(() => {
+    if (scheduleRafRef.current !== null) {
+      return;
+    }
+
+    scheduleRafRef.current = requestAnimationFrame(() => {
+      scheduleRafRef.current = null;
+      computeActive();
+    });
+  }, [computeActive]);
+
+  useEffect(() => {
+    if (topicsOrdered.length === 0) {
+      return;
+    }
+
+    const scrollEl = document.getElementById('app-scroll');
+    const target = scrollEl ?? window;
+    const onScroll = () => scheduleCompute();
+    const onResize = () => scheduleCompute();
+
+    scheduleCompute();
+    if (target instanceof Window) {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    } else {
+      target.addEventListener('scroll', onScroll, { passive: true });
+    }
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      if (scheduleRafRef.current !== null) {
+        cancelAnimationFrame(scheduleRafRef.current);
+        scheduleRafRef.current = null;
+      }
+
+      if (target instanceof Window) {
+        window.removeEventListener('scroll', onScroll);
+      } else {
+        target.removeEventListener('scroll', onScroll);
+      }
+      window.removeEventListener('resize', onResize);
+    };
+  }, [scheduleCompute, computeActive, topicsOrdered.length]);
+
+  const handleRegisterSection = useCallback(
+    (topicId: string, element: HTMLElement | null) => {
+      const currentElement = sectionRefs.current.get(topicId) ?? null;
+
+      if (!element) {
+        if (currentElement) {
+          sectionRefs.current.delete(topicId);
+        }
+        return;
+      }
+
+      if (currentElement !== element) {
+        sectionRefs.current.set(topicId, element);
+        scheduleCompute();
+      }
+    },
+    [scheduleCompute],
   );
-  const recentPosts = useMemo(
-    () =>
-      [...visiblePosts]
-        .sort((left, right) => {
-          const editorialDiff = Number(hasEditorialPriority(right)) - Number(hasEditorialPriority(left));
 
-          if (editorialDiff !== 0) {
-            return editorialDiff;
-          }
+  const scrollToTopic = (topicId: string) => {
+    setVisibleTopicIds((current) => ({ ...current, [topicId]: true }));
+    suppressUntilRef.current = Date.now() + 600;
+    setActiveTopicId(topicId);
+    sectionRefs.current.get(topicId)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
 
-          return getTimestamp(right.created_at) - getTimestamp(left.created_at);
-        })
-        .slice(0, digestLimit),
-    [visiblePosts],
-  );
-  const activePosts = activeTab === 'top' ? topPosts : recentPosts;
-  const hasBackendPosts = posts.length > 0;
-  const isFiltersOnlyEmpty = hasBackendPosts && visiblePosts.length === 0;
+  const handleSectionData = (topicId: string, posts: Post[]) => {
+    setLoadedPostsByTopic((current) => {
+      const previousPosts = current[topicId];
+
+      if (previousPosts === posts) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [topicId]: posts,
+      };
+    });
+  };
+
+  const searchResults = useMemo(() => {
+    if (!deferredQuery) {
+      return [];
+    }
+
+    const deduped = new Map<string, Post>();
+
+    Object.values(loadedPostsByTopic)
+      .flat()
+      .forEach((post) => {
+        if (!deduped.has(post.id)) {
+          deduped.set(post.id, post);
+        }
+      });
+
+    return [...deduped.values()].filter((post) => post.title.toLowerCase().includes(deferredQuery));
+  }, [deferredQuery, loadedPostsByTopic]);
 
   return (
-    <Container className="safe-pb py-6 sm:py-8">
-      <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-6 sm:mb-8">
-        <div className="rounded-[2rem] border border-border/70 bg-card/80 p-5 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.48)] backdrop-blur sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Сводки</p>
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <div className="space-y-3">
-              <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">Сводки</h1>
-              <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-                Подборки строятся только из уже загруженных материалов и автоматически учитывают выбранные темы.
-              </p>
+    <>
+      <Container className="safe-pb py-6 sm:py-8">
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
+          <div className="rounded-[2rem] border border-border/70 bg-card/80 p-5 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.48)] backdrop-blur sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Discover</p>
+                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Discover</h1>
+              </div>
             </div>
-            <span className="rounded-full border border-border bg-background/75 px-4 py-2 text-sm font-semibold text-muted-foreground">
-              {visiblePosts.length} из {posts.length} материалов
-            </span>
           </div>
 
-          <div className="mt-6 flex rounded-[1.5rem] border border-border/70 bg-background/70 p-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveTab('top')}
-              className={cn(
-                'min-h-11 flex-1 rounded-[1.1rem] px-4 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
-                activeTab === 'top' ? 'bg-secondary/80 text-foreground' : 'text-muted-foreground hover:bg-secondary/50',
-              )}
-              aria-pressed={activeTab === 'top'}
-            >
-              <span className="block text-base font-extrabold">Top</span>
-              <span
-                className={cn('mt-1 block h-0.5 w-14 rounded-full transition-colors duration-200', activeTab === 'top' ? 'bg-primary' : 'bg-transparent')}
-                aria-hidden={activeTab !== 'top'}
-              />
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('recent')}
-              className={cn(
-                'min-h-11 flex-1 rounded-[1.1rem] px-4 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background',
-                activeTab === 'recent' ? 'bg-secondary/80 text-foreground' : 'text-muted-foreground hover:bg-secondary/50',
-              )}
-              aria-pressed={activeTab === 'recent'}
-            >
-              <span className="block text-base font-extrabold">Recent</span>
-              <span
-                className={cn('mt-1 block h-0.5 w-14 rounded-full transition-colors duration-200', activeTab === 'recent' ? 'bg-primary' : 'bg-transparent')}
-                aria-hidden={activeTab !== 'recent'}
-              />
-            </button>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-12 rounded-[1.25rem] border-border/70 bg-background/80 pl-11"
+              placeholder="Search for content"
+            />
           </div>
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            {activeTab === 'top'
-              ? 'Самое читаемое: популярность из доступных полей, а при их отсутствии аккуратная эвристика по свежести и наполненности.'
-              : 'Рекомендации: сначала отмеченные редакцией материалы, затем самые новые публикации.'}
-          </p>
-        </div>
-      </motion.section>
-
-      {isLoading && posts.length === 0 ? (
-        <FeedSkeleton />
-      ) : postsError && posts.length === 0 ? (
-        <StateCard title="Не удалось загрузить материалы" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
-      ) : posts.length === 0 ? (
-        <EmptyState title="Пока нет материалов" description="Как только материалы появятся, здесь сформируются свежие сводки." onReset={retryPosts} actionLabel="Обновить" />
-      ) : isFiltersOnlyEmpty ? (
-        <EmptyState
-          title="По выбранным темам материалов нет"
-          description="Сбросьте фильтры тем, чтобы снова увидеть подборки."
-          onReset={resetTopicFilters}
-          actionLabel="Сбросить"
-        />
-      ) : (
-        <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.3 }}>
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-extrabold">{activeTab === 'top' ? 'Самое читаемое' : 'Рекомендации'}</h2>
-            <span className="text-sm text-muted-foreground">{activePosts.length} карточек</span>
-          </div>
-          <div className="grid gap-5">
-            {activePosts.map((post, index) => (
-              <PostCard key={`${activeTab}-${post.id}`} post={post} index={index} />
-            ))}
-          </div>
+          {topicsError ? <InlineError message={topicsError} onAction={() => setTopicsRetryToken((current) => current + 1)} actionLabel="Retry" /> : null}
         </motion.section>
-      )}
-    </Container>
+      </Container>
+
+      <div className="fixed inset-x-0 top-0 z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <Container className="py-3">
+          <div className="flex items-center gap-3">
+            <div className="no-scrollbar flex-1 overflow-x-auto">
+              <div className="flex min-w-max gap-3">
+                {topicsLoading
+                  ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-11 w-28 rounded-full" />)
+                  : topicsOrdered.map((topic) => (
+                      <button
+                        key={topic.id}
+                        type="button"
+                        onClick={() => scrollToTopic(topic.id)}
+                        className={cn(
+                          'rounded-full border px-4 py-2.5 text-sm font-semibold transition',
+                          activeTopicId === topic.id ? pillActiveClass : 'border-border/70 bg-card/70 text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+                        )}
+                      >
+                        {topic.name}
+                      </button>
+                    ))}
+              </div>
+            </div>
+
+            <Button type="button" variant="outline" className="shrink-0 rounded-full" onClick={() => setAllTopicsOpen(true)}>
+              All topics
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </Container>
+      </div>
+
+      <div style={{ paddingTop: pillsBarHeight }}>
+        <Container className="safe-pb py-4 sm:py-6">
+          {topicsLoading ? (
+            <div className="space-y-6">
+              <SectionSkeleton />
+              <SectionSkeleton />
+            </div>
+          ) : deferredQuery ? (
+            <AnimatePresence mode="wait">
+              <motion.div key="search-results" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-extrabold">Search results</h2>
+                  <span className="text-sm text-muted-foreground">{searchResults.length} matches</span>
+                </div>
+                {searchResults.length === 0 ? (
+                  <EmptyState
+                    title="No matching stories"
+                    description="We only search within the topic stories that are already loaded on this screen. Scroll through a few sections or try another query."
+                    actionLabel="Clear search"
+                    onReset={() => setSearchQuery('')}
+                  />
+                ) : (
+                  <div className="grid gap-5">
+                    {searchResults.map((post, index) => (
+                      <PostCard key={`${post.id}-search`} post={post} index={index} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          ) : !topicsError && topics.length === 0 ? (
+            <EmptyState
+              title="No topics yet"
+              description="Topics will appear here as soon as the editorial catalog is filled."
+              actionLabel="Try again"
+              onReset={() => setTopicsRetryToken((current) => current + 1)}
+            />
+          ) : (
+            <div className="space-y-6">
+              {topicsOrdered.map((topic) => (
+                <TopicSection
+                  key={topic.id}
+                  topic={topic}
+                  enabled={Boolean(visibleTopicIds[topic.id])}
+                  onData={handleSectionData}
+                  onOpenTopic={setSeeAllTopic}
+                  onRegister={handleRegisterSection}
+                />
+              ))}
+            </div>
+          )}
+        </Container>
+      </div>
+
+      <TopicSeeAllModal topic={seeAllTopic} open={seeAllTopic !== null} onOpenChange={(open) => !open && setSeeAllTopic(null)} />
+      <AllTopicsSheet
+        topics={topicsOrdered}
+        activeTopicId={activeTopicId}
+        open={allTopicsOpen}
+        onOpenChange={setAllTopicsOpen}
+        onRetry={() => setTopicsRetryToken((current) => current + 1)}
+      />
+    </>
   );
 }
