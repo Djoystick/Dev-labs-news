@@ -176,9 +176,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   topic_id: values.topic_id,
                 };
 
-                const nextPost = mode === 'create' ? await createPost(payload) : await updatePost(post!.id, payload);
+                if (mode === 'create') {
+                  await createPost(payload);
+                } else {
+                  await updatePost(post!.id, payload);
+                }
                 toast.success(mode === 'create' ? 'Новость опубликована.' : 'Новость сохранена.');
-                navigate(`/post/${nextPost.id}`);
+                navigate('/', { replace: true });
               } catch (error) {
                 if (import.meta.env.DEV) {
                   console.error('[PostForm] submit failed', error);
