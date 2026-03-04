@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { OnboardingGate } from '@/app/OnboardingGate';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePostFeed } from '@/features/posts/hooks';
 import type { Post, PostSort, Topic } from '@/types/db';
@@ -26,12 +27,20 @@ export type AppLayoutContext = {
   retryTopics: () => void;
 };
 
-export function App() {
+function AppContent() {
   const feed = usePostFeed();
 
   return (
     <AppShell>
       <Outlet context={{ ...feed } satisfies AppLayoutContext} />
     </AppShell>
+  );
+}
+
+export function App() {
+  return (
+    <OnboardingGate>
+      <AppContent />
+    </OnboardingGate>
   );
 }

@@ -8,6 +8,12 @@ export type Topic = {
   created_at: string;
 };
 
+export type UserTopicPreferenceRow = {
+  user_id: string;
+  topic_id: string;
+  created_at: string;
+};
+
 export type PostRow = {
   id: string;
   topic_id: string;
@@ -83,6 +89,20 @@ export type Database = {
           id?: string;
           slug?: string;
           name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_topic_preferences: {
+        Row: UserTopicPreferenceRow;
+        Insert: {
+          user_id: string;
+          topic_id: string;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          topic_id?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -241,6 +261,12 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      set_my_topics: {
+        Args: {
+          topic_ids: string[];
+        };
+        Returns: number;
+      };
       set_profile_role_by_handle: {
         Args: {
           p_handle: string;

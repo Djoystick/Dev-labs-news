@@ -11,6 +11,9 @@ const PostPage = lazy(() => import('@/pages/post-page').then((module) => ({ defa
 const ProfilePage = lazy(() => import('@/pages/profile-page').then((module) => ({ default: module.ProfilePage })));
 const AdminNewPage = lazy(() => import('@/pages/admin-new-page').then((module) => ({ default: module.AdminNewPage })));
 const AdminEditPage = lazy(() => import('@/pages/admin-edit-page').then((module) => ({ default: module.AdminEditPage })));
+const TopicPreferencesOnboardingPage = lazy(() =>
+  import('@/pages/onboarding/TopicPreferencesOnboarding').then((module) => ({ default: module.TopicPreferencesOnboardingPage })),
+);
 
 function RouteFallback() {
   return (
@@ -45,4 +48,5 @@ export const router = createBrowserRouter([
       { path: 'admin/edit/:id', element: withSuspense(AdminEditPage) },
     ],
   },
+  { path: '/onboarding/topics', element: withSuspense(TopicPreferencesOnboardingPage) },
 ]);

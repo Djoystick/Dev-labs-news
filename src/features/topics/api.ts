@@ -1,10 +1,10 @@
 import { getSupabaseClient } from '@/lib/supabase';
-import type { Topic } from '@/types/db';
+import type { Topic, UserTopicPreferenceRow } from '@/types/db';
 
 let cachedTopics: Topic[] | null = null;
 let topicsRequest: Promise<Topic[]> | null = null;
 
-export async function listTopics(signal?: AbortSignal, options?: { force?: boolean }) {
+export async function fetchTopics(signal?: AbortSignal, options?: { force?: boolean }) {
   if (cachedTopics && !options?.force) {
     return cachedTopics;
   }
@@ -14,8 +14,35 @@ export async function listTopics(signal?: AbortSignal, options?: { force?: boole
   }
 
   topicsRequest = (async () => {
+    const supabase = getSupabaseClient();
+    let query = supabase.from('topics').select('id, slug, name, created_at').order('name', { ascending: true });
+
+    if (signal) {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      topicsRequest = null;
+      throw new Error(`Failed to load topics. ${error.message}`);
+    }
+
+    cachedTopics = (data ?? []) as Topic[];
+    topicsRequest = null;
+    return cachedTopics;
+  })();
+
+  return topicsRequest;
+}
+
+export async function listTopics(signal?: AbortSignal, options?: { force?: boolean }) {
+  return fetchTopics(signal, options);
+}
+
+export async function fetchMyTopicIds(userId: string, signal?: AbortSignal) {
   const supabase = getSupabaseClient();
-  let query = supabase.from('topics').select('id, slug, name, created_at').order('name', { ascending: true });
+  let query = supabase.from('user_topic_preferences').select('topic_id').eq('user_id', userId);
 
   if (signal) {
     query = query.abortSignal(signal);
@@ -24,16 +51,21 @@ export async function listTopics(signal?: AbortSignal, options?: { force?: boole
   const { data, error } = await query;
 
   if (error) {
-      topicsRequest = null;
-      throw new Error(`Failed to load topics. ${error.message}`);
+    throw new Error(`Failed to load topic preferences. ${error.message}`);
   }
 
-    cachedTopics = (data ?? []) as Topic[];
-    topicsRequest = null;
-    return cachedTopics;
-  })();
+  return (data ?? []).map((item) => (item as Pick<UserTopicPreferenceRow, 'topic_id'>).topic_id);
+}
 
-  return topicsRequest;
+export async function setMyTopics(topicIds: string[]) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('set_my_topics', { topic_ids: topicIds });
+
+  if (error) {
+    throw new Error(`Failed to save topic preferences. ${error.message}`);
+  }
+
+  return Number(data ?? 0);
 }
 
 export function clearTopicsCache() {
