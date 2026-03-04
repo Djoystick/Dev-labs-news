@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { OnboardingGate } from '@/app/OnboardingGate';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePostFeed } from '@/features/posts/hooks';
@@ -28,13 +28,17 @@ export type AppLayoutContext = {
 };
 
 function AppContent() {
+  const location = useLocation();
   const feed = usePostFeed();
+  const isOnboardingRoute = location.pathname.startsWith('/onboarding');
 
-  return (
-    <AppShell>
-      <Outlet context={{ ...feed } satisfies AppLayoutContext} />
-    </AppShell>
-  );
+  const content = <Outlet context={{ ...feed } satisfies AppLayoutContext} />;
+
+  if (isOnboardingRoute) {
+    return content;
+  }
+
+  return <AppShell>{content}</AppShell>;
 }
 
 export function App() {
