@@ -17,8 +17,8 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { StateCard } from '@/components/ui/state-card';
-import { MarkdownEditor } from '@/features/posts/components/markdown-editor';
 import type { Post, Topic } from '@/types/db';
 
 type PostFormProps = {
@@ -94,12 +94,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const coverUrl = form.watch('cover_url');
   const submitLabel = mode === 'create' ? 'Create post' : 'Save changes';
-
-  const handleInlineImageUpload = async (file: File) => {
-    const { publicUrl } = await uploadPostImage(file, 'inline');
-    toast.success('Inline image uploaded.');
-    return publicUrl;
-  };
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
@@ -279,16 +273,16 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 <Label>Content</Label>
                 <p className="text-xs text-muted-foreground">Markdown</p>
               </div>
-              <MarkdownEditor
-                editorKey={`${mode}-${post?.id ?? 'new'}`}
-                markdown={form.watch('content')}
+              <RichTextMarkdownEditor
+                value={form.watch('content')}
                 onChange={(value) => {
                   form.setValue('content', value, {
                     shouldDirty: true,
                     shouldValidate: true,
                   });
                 }}
-                onUploadImage={handleInlineImageUpload}
+                minHeight={320}
+                placeholder="Write the story in a touch-friendly editor. Markdown is still saved under the hood."
               />
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
