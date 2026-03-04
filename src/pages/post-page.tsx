@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowUp, ChevronRight, Clock3, Home, PencilLine } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Clock3, PencilLine } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,13 +8,65 @@ import { Container } from '@/components/layout/container';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StateCard } from '@/components/ui/state-card';
+import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
+import { PostCard } from '@/features/posts/components/post-card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
 import { recordPostView } from '@/features/profile/api';
-import { getPost } from '@/features/posts/api';
+import { getPost, getPosts } from '@/features/posts/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
+
+function getReadingTime(content: string) {
+  const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(wordCount / 200));
+}
+
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-[1.5rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p>{message}</p>
+        <Button type="button" variant="outline" size="sm" onClick={onRetry} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
+          Retry
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <Container className="safe-pb py-6 sm:py-8">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-24 rounded-full" />
+          <Skeleton className="h-5 w-40 rounded-full" />
+        </div>
+        <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)]">
+          <Skeleton className="aspect-[16/8] w-full" />
+          <div className="space-y-5 p-6 sm:p-8 lg:p-10">
+            <Skeleton className="h-4 w-28 rounded-full" />
+            <Skeleton className="h-14 w-full rounded-2xl" />
+            <Skeleton className="h-8 w-5/6 rounded-2xl" />
+            <div className="flex gap-3">
+              <Skeleton className="h-5 w-28 rounded-full" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-28 w-full rounded-[1.5rem]" />
+            <div className="space-y-3">
+              <Skeleton className="h-5 w-full rounded-full" />
+              <Skeleton className="h-5 w-11/12 rounded-full" />
+              <Skeleton className="h-5 w-10/12 rounded-full" />
+              <Skeleton className="h-5 w-9/12 rounded-full" />
+            </div>
+          </div>
+        </div>
+        <FeedSkeleton />
+      </div>
+    </Container>
+  );
+}
 
 export function PostPage() {
   const { id } = useParams();
@@ -23,26 +75,41 @@ export function PostPage() {
   const { isAdmin, user } = useAuth();
   const { motionEnabled, textSizeClassName, textWidthClassName } = useReadingPreferences();
   const [post, setPost] = useState<Post | null>(null);
+  const [latestPosts, setLatestPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [latestLoading, setLatestLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [latestError, setLatestError] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+
+  const createdAtLabel = useMemo(() => {
+    if (!post) {
+      return '';
+    }
+
+    return new Date(post.created_at).toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }, [post]);
+
+  const readingTime = useMemo(() => (post ? getReadingTime(post.content) : 1), [post]);
+
+  const retry = useCallback(() => {
+    setRetryToken((current) => current + 1);
+  }, []);
 
   useEffect(() => {
+    const scrollEl = document.getElementById('app-scroll');
+
+    if (scrollEl instanceof HTMLElement) {
+      scrollEl.scrollTo({ top: 0, behavior: motionEnabled ? 'smooth' : 'auto' });
+      return;
+    }
+
     window.scrollTo({ top: 0, behavior: motionEnabled ? 'smooth' : 'auto' });
   }, [id, motionEnabled]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 600);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -50,7 +117,8 @@ export function PostPage() {
 
     async function loadPost() {
       if (!id) {
-        setError('Не найден идентификатор поста.');
+        setPost(null);
+        setError('Post not found.');
         setIsLoading(false);
         return;
       }
@@ -65,9 +133,9 @@ export function PostPage() {
           setPost(loadedPost);
         }
       } catch (loadError) {
-        if (!ignore) {
+        if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить материал.');
+          setError(loadError instanceof Error ? loadError.message : 'Failed to load this story.');
         }
       } finally {
         if (!ignore) {
@@ -82,7 +150,46 @@ export function PostPage() {
       ignore = true;
       controller.abort();
     };
-  }, [id]);
+  }, [id, retryToken]);
+
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+
+    async function loadLatest() {
+      setLatestLoading(true);
+      setLatestError(null);
+
+      try {
+        const response = await getPosts({
+          page: 1,
+          pageSize: 6,
+          signal: controller.signal,
+          sort: 'newest',
+        });
+
+        if (!ignore) {
+          setLatestPosts(response.items.filter((item) => item.id !== id).slice(0, 5));
+        }
+      } catch (loadError) {
+        if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
+          setLatestPosts([]);
+          setLatestError(loadError instanceof Error ? loadError.message : 'Failed to load latest news.');
+        }
+      } finally {
+        if (!ignore) {
+          setLatestLoading(false);
+        }
+      }
+    }
+
+    void loadLatest();
+
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [id, retryToken]);
 
   useEffect(() => {
     if (!post?.id || !user?.id) {
@@ -103,47 +210,19 @@ export function PostPage() {
   }, [post?.id, user?.id]);
 
   if (isLoading) {
-    return (
-      <Container className="safe-pb py-10">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <Skeleton className="h-10 w-28 rounded-full" />
-          <Skeleton className="h-5 w-40 rounded-full" />
-        </div>
-        <div className="mx-auto max-w-4xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 p-6 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)]">
-          <Skeleton className="aspect-[16/7] w-full rounded-[1.5rem]" />
-          <div className="mt-8 space-y-4">
-            <Skeleton className="h-5 w-28 rounded-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-4/5" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-5/6" />
-            <Skeleton className="h-6 w-3/4" />
-          </div>
-        </div>
-      </Container>
-    );
+    return <DetailSkeleton />;
   }
 
   if (error || !post) {
     return (
-      <Container className="safe-pb py-10">
-        <StateCard title="Материал недоступен" description={error ?? 'Запрошенный материал не удалось загрузить.'} />
-      </Container>
-    );
-  }
-
-  const topic = post.topic;
-  const canGoBack = location.key !== 'default';
-  const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
-
-  return (
-    <Container className="safe-pb py-8 sm:py-10">
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <Container className="safe-pb py-6 sm:py-8">
+        <div className="mx-auto max-w-3xl space-y-4">
           <Button
+            type="button"
             variant="ghost"
+            className="w-fit rounded-full"
             onClick={() => {
-              if (canGoBack) {
+              if (location.key !== 'default') {
                 navigate(-1);
                 return;
               }
@@ -152,81 +231,141 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            Back
           </Button>
-          <Button asChild variant="outline">
-            <AppLink to="/">
-              <Home className="h-4 w-4" />
-              Главная
-            </AppLink>
+          <InlineError message={error ?? 'Failed to load this story.'} onRetry={retry} />
+        </div>
+      </Container>
+    );
+  }
+
+  const topic = post.topic;
+  const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
+
+  return (
+    <Container className="safe-pb py-6 sm:py-8">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-full"
+            onClick={() => {
+              if (location.key !== 'default') {
+                navigate(-1);
+                return;
+              }
+
+              navigate('/');
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
-          <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
-          {isAdmin ? (
-            <Button asChild variant="outline">
-              <AppLink to={`/admin/edit/${post.id}`}>
-                <PencilLine className="h-4 w-4" />
-                Редактировать
-              </AppLink>
-            </Button>
-          ) : null}
-        </div>
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock3 className="h-3.5 w-3.5" />
-          {new Date(post.created_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })}
-        </span>
-      </motion.div>
 
-      <motion.nav initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link to="/" className="transition hover:text-foreground">
-          Темы
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <Link to={topicHref} className="font-medium text-foreground transition hover:text-primary">
-          {topic?.name ?? 'Новости'}
-        </Link>
-      </motion.nav>
+          <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Link to="/" className="transition hover:text-foreground">
+              News
+            </Link>
+            {topic ? (
+              <>
+                <span>/</span>
+                <Link to={topicHref} className="transition hover:text-foreground">
+                  {topic.name}
+                </Link>
+              </>
+            ) : null}
+          </nav>
+        </motion.div>
 
-      <motion.article
-        initial={{ opacity: 0, y: 22 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className={`mx-auto overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur ${textWidthClassName}`}
-      >
-        {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/7] w-full object-cover" /> : null}
-        <div className="p-6 sm:p-8 lg:p-10">
-          <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
-          <h1 className="mt-5 max-w-3xl font-['Source_Serif_4'] text-4xl font-bold leading-tight sm:text-5xl">{post.title}</h1>
-          {post.excerpt ? <p className="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
-          <div className={`prose prose-slate mt-10 max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:rounded-[1.25rem] prose-pre:bg-slate-950 prose-img:rounded-[1.25rem] dark:prose-invert ${textSizeClassName}`}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
-                code: ({ className, children, ...props }) => (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                ),
-                img: ({ alt, src }) => <img alt={alt ?? ''} src={src ?? ''} loading="lazy" />,
-              }}
-            >
-              {post.content}
-            </ReactMarkdown>
-          </div>
-        </div>
-      </motion.article>
-
-      {showScrollTop ? (
-        <Button
-          type="button"
-          size="icon"
-          className="fixed bottom-[calc(var(--app-bottom-bar-height)+1rem)] right-4 z-40 h-11 w-11 rounded-full shadow-[0_20px_36px_-24px_rgba(15,23,42,0.7)] md:bottom-6"
-          onClick={() => window.scrollTo({ top: 0, behavior: motionEnabled ? 'smooth' : 'auto' })}
-          aria-label="Наверх"
+        <motion.article
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur"
         >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-      ) : null}
+          {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/8] w-full object-cover" /> : null}
+          <div className="space-y-8 p-6 sm:p-8 lg:p-10">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+                  {topic?.name ?? 'News'}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
+                  {isAdmin ? (
+                    <Button asChild size="sm" variant="outline">
+                      <AppLink to={`/admin/edit/${post.id}`}>
+                        <PencilLine className="h-4 w-4" />
+                        {'\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c'}
+                      </AppLink>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              <h1 className="max-w-4xl font-['Source_Serif_4'] text-4xl font-bold leading-tight text-balance sm:text-5xl">
+                {post.title}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <Clock3 className="h-4 w-4" />
+                  {readingTime} min read
+                </span>
+                <span>{createdAtLabel}</span>
+              </div>
+
+              {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
+            </div>
+
+            <div className="rounded-[1.5rem] border border-border/70 bg-background/60 p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI author</p>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
+                This story was assembled with AI assistance and formatted for fast reading. Review the source details and context before acting on the information.
+              </p>
+            </div>
+
+            <div className={`prose prose-slate max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:rounded-[1.25rem] prose-pre:bg-slate-950 prose-img:rounded-[1.25rem] dark:prose-invert ${textSizeClassName} ${textWidthClassName}`}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+                  code: ({ className, children, ...props }) => (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  ),
+                  img: ({ alt, src }) => <img alt={alt ?? ''} src={src ?? ''} loading="lazy" />,
+                }}
+              >
+                {post.content?.trim() || post.excerpt || ''}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </motion.article>
+
+        <section className="space-y-5">
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">More</p>
+            <h2 className="text-3xl font-extrabold">Latest News</h2>
+          </div>
+
+          {latestError ? <InlineError message={latestError} onRetry={retry} /> : null}
+
+          {latestLoading ? (
+            <FeedSkeleton />
+          ) : latestPosts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No more stories yet.</p>
+          ) : (
+            <div className="grid gap-5">
+              {latestPosts.map((latestPost, index) => (
+                <PostCard key={latestPost.id} post={latestPost} index={index} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </Container>
   );
 }

@@ -1,5 +1,5 @@
-import { ArrowUpRight, Clock3 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ArrowUpRight, Clock3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
@@ -39,14 +39,14 @@ export function PostCard({ post, index }: { post: Post; index: number }) {
           <CardContent className="space-y-4 p-6">
             <div className="flex items-center justify-between gap-3">
               <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                {post.topic?.name ?? 'Новости'}
+                {post.topic?.name ?? 'News'}
               </span>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Clock3 className="h-3.5 w-3.5" />
                   {new Date(post.created_at).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })}
                 </span>
-                <span>{readingTime} мин</span>
+                <span>{readingTime} min</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -60,12 +60,12 @@ export function PostCard({ post, index }: { post: Post; index: number }) {
           <div className="flex items-center gap-2">
             {isAdmin ? (
               <Button asChild size="sm" variant="outline">
-                <AppLink to={`/admin/edit/${post.id}`}>Редактировать</AppLink>
+                <AppLink to={`/admin/edit/${post.id}`}>{'\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c'}</AppLink>
               </Button>
             ) : null}
             <Button asChild size="sm" variant={isAdmin ? 'ghost' : 'outline'}>
               <AppLink to={`/post/${post.id}`} onClick={handleOpen}>
-                Читать
+                {'\u0427\u0438\u0442\u0430\u0442\u044c'}
                 <ArrowUpRight className="h-4 w-4" />
               </AppLink>
             </Button>
