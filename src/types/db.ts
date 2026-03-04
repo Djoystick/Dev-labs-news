@@ -261,6 +261,12 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_recommended_posts: {
+        Args: {
+          p_limit: number;
+        };
+        Returns: PostRow[];
+      };
       set_my_topics: {
         Args: {
           topic_ids: string[];

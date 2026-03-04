@@ -1,12 +1,12 @@
-import { FileStack, Home, Shuffle, UserRound } from 'lucide-react';
+import { FileStack, Home, Sparkles, UserRound } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const items = [
-  { href: '/', icon: Home, label: 'Лента' },
-  { href: '/digests', icon: FileStack, label: 'Сводки' },
-  { href: '/random', icon: Shuffle, label: 'Случайная' },
-  { href: '/profile', icon: UserRound, label: 'Профиль' },
+  { href: '/', icon: Home, label: '\u041b\u0435\u043d\u0442\u0430' },
+  { href: '/for-you', icon: Sparkles, label: '\u0414\u043b\u044f \u0442\u0435\u0431\u044f' },
+  { href: '/digests', icon: FileStack, label: '\u0421\u0432\u043e\u0434\u043a\u0438' },
+  { href: '/profile', icon: UserRound, label: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c' },
 ] as const;
 
 export function BottomBar() {
