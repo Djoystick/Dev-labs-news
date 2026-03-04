@@ -9,6 +9,7 @@ const DigestsPage = lazy(() => import('@/pages/digests-page').then((module) => (
 const RandomPage = lazy(() => import('@/pages/random-page').then((module) => ({ default: module.RandomPage })));
 const ForYouPage = lazy(() => import('@/pages/for-you-page').then((module) => ({ default: module.ForYouPage })));
 const PostPage = lazy(() => import('@/pages/post-page').then((module) => ({ default: module.PostPage })));
+const MyPostsPage = lazy(() => import('@/pages/my-posts-page').then((module) => ({ default: module.MyPostsPage })));
 const ProfilePage = lazy(() => import('@/pages/profile-page').then((module) => ({ default: module.ProfilePage })));
 const SavedArticlesPage = lazy(() => import('@/pages/saved-articles-page').then((module) => ({ default: module.SavedArticlesPage })));
 const TopicPreferencesPage = lazy(() => import('@/pages/topic-preferences-page').then((module) => ({ default: module.TopicPreferencesPage })));
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: 'digests', element: withSuspense(DigestsPage) },
       { path: 'random', element: withSuspense(RandomPage) },
       { path: 'post/:id', element: withSuspense(PostPage) },
+      { path: 'my-posts', element: withSuspense(MyPostsPage) },
       { path: 'profile', element: withSuspense(ProfilePage) },
       { path: 'saved-articles', element: withSuspense(SavedArticlesPage) },
       { path: 'topic-preferences', element: withSuspense(TopicPreferencesPage) },

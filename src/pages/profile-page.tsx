@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, ChevronRight, LogOut, MoonStar, Settings, Settings2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronRight, FilePenLine, LogOut, MoonStar, Settings, Settings2 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -74,6 +74,7 @@ export function ProfilePage() {
   }, [profile, telegramUser, user?.email]);
 
   const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
+  const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
 
   if (loading) {
     return (
@@ -147,8 +148,9 @@ export function ProfilePage() {
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ваше</p>
-                <div className="mt-3">
+                <div className="mt-3 space-y-1">
                   <AccountRow icon={<Bookmark className="h-4 w-4" />} label="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
+                  {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
                 </div>
               </div>
 

@@ -55,7 +55,7 @@ export function AdminEditPage() {
   }, [id]);
 
   return (
-    <AdminGuard>
+    <AdminGuard allowEditor>
       {user ? (
         <Container className="safe-pb py-10">
           {isLoading ? (

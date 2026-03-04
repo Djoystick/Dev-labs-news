@@ -19,6 +19,7 @@ import { createPost, deletePost, updatePost, type PostMutationInput } from '@/fe
 import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { listTopics } from '@/features/topics/api';
+import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
 type PostFormProps = {
@@ -37,6 +38,7 @@ const emptyValues: PostFormValues = {
 
 export function PostForm({ mode, post, userId }: PostFormProps) {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
   const [topicsError, setTopicsError] = useState<string | null>(null);
@@ -94,6 +96,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const coverUrl = form.watch('cover_url');
   const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
+
+  const canDeletePost = profile?.role === 'admin';
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
@@ -294,7 +298,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">{mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}</div>
               <div className="flex flex-wrap gap-3">
-                {mode === 'edit' && post ? (
+                {mode === 'edit' && post && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                     Удалить
@@ -310,7 +314,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog open={canDeletePost ? isDeleteDialogOpen : false} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Удалить новость?</DialogTitle>
