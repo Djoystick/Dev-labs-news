@@ -22,12 +22,12 @@ import {
   $getSelection,
   $isElementNode,
   $isRangeSelection,
-  ElementNode,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
   UNDO_COMMAND,
   type LexicalEditor,
+  type ElementNode,
   COMMAND_PRIORITY_LOW,
 } from 'lexical';
 import { cn } from '@/lib/utils';
@@ -84,47 +84,55 @@ function ToolbarButton({ active = false, children, label, onClick }: ToolbarButt
 }
 
 function getToolbarState(editor: LexicalEditor): ToolbarState {
-  return editor.getEditorState().read(() => {
-    const selection = $getSelection();
+  try {
+    return editor.getEditorState().read(() => {
+      const selection = $getSelection();
 
-    if (!$isRangeSelection(selection)) {
-      return defaultToolbarState;
+      if (!$isRangeSelection(selection)) {
+        return defaultToolbarState;
+      }
+
+      const anchorNode = selection.anchor.getNode();
+      const topLevelElement = anchorNode.getTopLevelElementOrThrow();
+
+      let block: ToolbarState['block'] = 'paragraph';
+
+      if ($isHeadingNode(topLevelElement)) {
+        block = topLevelElement.getTag() === 'h1' ? 'h1' : topLevelElement.getTag() === 'h2' ? 'h2' : 'paragraph';
+      } else if (topLevelElement.getType() === 'quote') {
+        block = 'quote';
+      } else if (topLevelElement.getType() === 'list') {
+        const listType = (topLevelElement as ListNode).getListType();
+        block = listType === 'bullet' ? 'bullet' : 'number';
+      } else if (topLevelElement.getType() === 'code') {
+        block = 'code';
+      }
+
+      const node = selection.getNodes()[0];
+      const parent = node?.getParent();
+      const link = node?.getType() === 'link' || parent?.getType() === 'link';
+
+      return {
+        block,
+        bold: selection.hasFormat('bold'),
+        code: selection.hasFormat('code'),
+        italic: selection.hasFormat('italic'),
+        link: Boolean(link),
+      };
+    });
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[RichTextMarkdownEditor] failed to read toolbar state', error);
     }
 
-    const anchorNode = selection.anchor.getNode();
-    const topLevelElement = anchorNode.getTopLevelElementOrThrow();
-
-    let block: ToolbarState['block'] = 'paragraph';
-
-    if ($isHeadingNode(topLevelElement)) {
-      block = topLevelElement.getTag() === 'h1' ? 'h1' : topLevelElement.getTag() === 'h2' ? 'h2' : 'paragraph';
-    } else if (topLevelElement.getType() === 'quote') {
-      block = 'quote';
-    } else if (topLevelElement.getType() === 'list') {
-      const listType = (topLevelElement as ListNode).getListType();
-      block = listType === 'bullet' ? 'bullet' : 'number';
-    } else if (topLevelElement.getType() === 'code') {
-      block = 'code';
-    }
-
-    const node = selection.getNodes()[0];
-    const parent = node?.getParent();
-    const link = node?.getType() === 'link' || parent?.getType() === 'link';
-
-    return {
-      block,
-      bold: selection.hasFormat('bold'),
-      code: selection.hasFormat('code'),
-      italic: selection.hasFormat('italic'),
-      link: Boolean(link),
-    };
-  });
+    return defaultToolbarState;
+  }
 }
 
 function MarkdownSyncPlugin({ value, onChange }: Pick<Props, 'value' | 'onChange'>) {
   const [editor] = useLexicalComposerContext();
-  const lastImportedMarkdownRef = useRef(value);
-  const lastEmittedMarkdownRef = useRef(value);
+  const lastImportedMarkdownRef = useRef<string | null>(null);
+  const lastEmittedMarkdownRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (value === lastImportedMarkdownRef.current) {
@@ -186,7 +194,7 @@ function EditorToolbar() {
   }, [editor]);
 
   const replaceSelectedBlocks = useCallback(
-    (createBlock: () => ElementNode, options?: { asPlainText?: boolean }) => {
+    (createBlock: () => ElementNode) => {
       editor.update(() => {
         const selection = $getSelection();
 
@@ -214,9 +222,7 @@ function EditorToolbar() {
         for (const block of blocks) {
           const replacement = createBlock();
 
-          if (options?.asPlainText) {
-            replacement.append($createTextNode(block.getTextContent()));
-          } else if ($isElementNode(block)) {
+          if ($isElementNode(block)) {
             replacement.append(...block.getChildren());
           } else {
             const textContent = block.getTextContent();
@@ -245,7 +251,7 @@ function EditorToolbar() {
   }, [replaceSelectedBlocks]);
 
   const setCodeBlock = useCallback(() => {
-    replaceSelectedBlocks(() => $createCodeNode(), { asPlainText: true });
+    replaceSelectedBlocks(() => $createCodeNode());
   }, [replaceSelectedBlocks]);
 
   const setParagraph = useCallback(() => {
@@ -360,25 +366,6 @@ function EditorToolbar() {
   );
 }
 
-function InitialContentPlugin({ value }: Pick<Props, 'value'>) {
-  const [editor] = useLexicalComposerContext();
-
-  useEffect(() => {
-    editor.update(() => {
-      const root = $getRoot();
-      root.clear();
-
-      if (value.trim()) {
-        $convertFromMarkdownString(value, TRANSFORMERS);
-      } else {
-        root.append($createParagraphNode());
-      }
-    });
-  }, [editor, value]);
-
-  return null;
-}
-
 export function RichTextMarkdownEditor({
   value,
   onChange,
@@ -423,7 +410,6 @@ export function RichTextMarkdownEditor({
   return (
     <div className={cn('overflow-hidden rounded-[1.5rem] border border-border bg-card/80 shadow-sm', className)}>
       <LexicalComposer initialConfig={initialConfig}>
-        <InitialContentPlugin value={value} />
         <EditorToolbar />
         <div className="relative bg-background/50">
           <RichTextPlugin

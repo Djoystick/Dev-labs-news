@@ -13,6 +13,7 @@ import { normalizeHandle, updateProfileDetails } from '@/features/profile/api';
 import { uploadAvatar } from '@/features/profile/storage';
 import { normalizeOptionalProfileText, profileFormSchema, type ProfileFormValues } from '@/features/profile/validation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import type { Profile } from '@/types/db';
 
 function getInitials(value: string | null | undefined) {
@@ -57,6 +58,9 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const isMobile = useIsMobile();
+  const telegramUser = useMemo(() => getTelegramUser(), []);
+  const telegramDisplayName = useMemo(() => getTelegramDisplayName(telegramUser), [telegramUser]);
+  const telegramAvatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser), [telegramUser]);
   const form = useForm<ProfileFormValues>({
     defaultValues: {
       avatar_url: profile.avatar_url ?? '',
@@ -77,13 +81,14 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
   }, [form, profile]);
 
   const avatarUrl = form.watch('avatar_url');
-  const previewName = form.watch('full_name') || form.watch('handle') || userEmail || 'Reader';
+  const previewName = form.watch('full_name') || telegramDisplayName || form.watch('handle') || userEmail || 'Reader';
+  const previewAvatarUrl = avatarUrl || telegramAvatarUrl;
 
   const content = (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Avatar className="h-20 w-20">
-          <AvatarImage src={avatarUrl || undefined} alt={previewName} />
+          <AvatarImage src={previewAvatarUrl || undefined} alt={previewName} />
           <AvatarFallback className="text-lg">{getInitials(previewName)}</AvatarFallback>
         </Avatar>
         <div className="space-y-2">
@@ -171,7 +176,7 @@ export function ProfileEditor({ onOpenChange, onSaved, open, profile, userEmail 
         </div>
         <div className="grid gap-4 rounded-[1.25rem] border border-border/70 bg-secondary/40 p-4 text-sm sm:grid-cols-2">
           <div>
-            <p className="font-semibold text-muted-foreground">Telegram username</p>
+            <p className="font-semibold text-muted-foreground">Telegram</p>
             <p className="mt-1 break-all">{profile.username ? normalizeHandle(profile.username) : 'Не указан'}</p>
           </div>
           <div>

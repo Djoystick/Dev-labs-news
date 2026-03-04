@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
+import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
 
@@ -56,14 +57,23 @@ export function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
+  const telegramUser = useMemo(() => getTelegramUser(), []);
 
   const displayName = useMemo(() => {
+    const telegramName = getTelegramDisplayName(telegramUser);
+
+    if (telegramName) {
+      return telegramName;
+    }
+
     if (!profile) {
       return 'Пользователь';
     }
 
     return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'Пользователь');
-  }, [profile, user?.email]);
+  }, [profile, telegramUser, user?.email]);
+
+  const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
 
   if (loading) {
     return (
@@ -126,7 +136,7 @@ export function ProfilePage() {
               <p className="mt-2 break-all text-sm text-muted-foreground">{user.email ?? 'Email не привязан'}</p>
             </div>
             <Avatar className="h-16 w-16 rounded-full border-border/70 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.55)]">
-              <AvatarImage src={profile.avatar_url ?? undefined} alt={displayName} />
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
               <AvatarFallback className="text-xl">{getInitial(displayName)}</AvatarFallback>
             </Avatar>
           </CardContent>
