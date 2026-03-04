@@ -43,6 +43,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<PostFormValues>({
     defaultValues: emptyValues,
@@ -119,6 +120,18 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const pageTitle = useMemo(() => (mode === 'create' ? 'New post' : 'Edit post'), [mode]);
 
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.debug('[PostForm] context', {
+      mode,
+      roleSource: 'AdminGuard -> profile.role',
+      userId,
+    });
+  }, [mode, userId]);
+
   if (topicsLoading) {
     return (
       <div className="space-y-5">
@@ -157,6 +170,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             className="space-y-8"
             onSubmit={form.handleSubmit(async (values) => {
               setIsSubmitting(true);
+              setSubmitError(null);
 
               try {
                 const payload: PostMutationInput = {
@@ -172,12 +186,18 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 toast.success(mode === 'create' ? 'Post created.' : 'Post updated.');
                 navigate(`/post/${nextPost.id}`);
               } catch (error) {
+                if (import.meta.env.DEV) {
+                  console.error('[PostForm] submit failed', error);
+                }
+
+                setSubmitError(error instanceof Error ? error.message : 'Failed to save the post.');
                 toast.error(error instanceof Error ? error.message : 'Failed to save the post.');
               } finally {
                 setIsSubmitting(false);
               }
             })}
           >
+            {submitError ? <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -318,12 +338,18 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 }
 
                 setIsSubmitting(true);
+                setSubmitError(null);
 
                 try {
                   await deletePost(post.id);
                   toast.success('Post deleted.');
                   navigate('/');
                 } catch (error) {
+                  if (import.meta.env.DEV) {
+                    console.error('[PostForm] delete failed', error);
+                  }
+
+                  setSubmitError(error instanceof Error ? error.message : 'Failed to delete the post.');
                   toast.error(error instanceof Error ? error.message : 'Failed to delete the post.');
                 } finally {
                   setIsSubmitting(false);

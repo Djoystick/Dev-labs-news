@@ -4,6 +4,20 @@ import type { Post, PostSort } from '@/types/db';
 
 const postsUpdatedEventName = 'dev-labs:posts-updated';
 
+function logSupabaseMutationError(scope: string, error: { code?: string; details?: string | null; hint?: string | null; message: string; status?: number }) {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  console.error(`[posts-api:${scope}] supabase error`, {
+    code: error.code,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+    message: error.message,
+    status: error.status ?? null,
+  });
+}
+
 type GetPostsParams = {
   page: number;
   pageSize: number;
@@ -141,6 +155,7 @@ export async function createPost(input: PostMutationInput) {
   const { data, error } = await supabase.from('posts').insert(payload).select(postSelect).single();
 
   if (error) {
+    logSupabaseMutationError('create', error);
     throw new Error(`Failed to create the post. ${error.message}`);
   }
 
@@ -159,6 +174,7 @@ export async function updatePost(id: string, input: PostMutationInput) {
   const { data, error } = await supabase.from('posts').update(payload).eq('id', id).select(postSelect).single();
 
   if (error) {
+    logSupabaseMutationError('update', error);
     throw new Error(`Failed to update the post. ${error.message}`);
   }
 
@@ -171,6 +187,7 @@ export async function deletePost(id: string) {
   const { error } = await supabase.from('posts').delete().eq('id', id);
 
   if (error) {
+    logSupabaseMutationError('delete', error);
     throw new Error(`Failed to delete the post. ${error.message}`);
   }
 

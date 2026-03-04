@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { Container } from '@/components/layout/container';
 import { AppLink } from '@/components/ui/app-link';
@@ -15,10 +15,23 @@ type AdminGuardProps = {
 export function AdminGuard({ allowEditor = false, children }: AdminGuardProps) {
   const { isAdmin, isAuthed, loading, profile } = useAuth();
   const hasAccess = isAdmin || (allowEditor && profile?.role === 'editor');
-  const accessTitle = allowEditor ? 'Нет доступа к редакторской странице' : 'Нет доступа к административной странице';
-  const accessDescription = allowEditor
-    ? 'Страница доступна редакторам и администраторам.'
-    : 'Страница доступна только администраторам.';
+  const accessTitle = allowEditor ? 'Editor access required' : 'Admin access required';
+  const accessDescription = allowEditor ? 'This page is available to editors and admins.' : 'This page is available only to admins.';
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.debug('[AdminGuard] role check', {
+      allowEditor,
+      hasAccess,
+      isAdmin,
+      isAuthed,
+      profileRole: profile?.role ?? null,
+      source: 'profile.role',
+    });
+  }, [allowEditor, hasAccess, isAdmin, isAuthed, profile?.role]);
 
   if (loading) {
     return (
@@ -37,7 +50,7 @@ export function AdminGuard({ allowEditor = false, children }: AdminGuardProps) {
         <StateCard title={accessTitle} description={accessDescription} icon={<ShieldAlert className="h-5 w-5" />} />
         <div className="mt-6 flex justify-center">
           <Button asChild variant="outline">
-            <AppLink to="/">Вернуться в ленту</AppLink>
+            <AppLink to="/">Back to feed</AppLink>
           </Button>
         </div>
       </Container>
