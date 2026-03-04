@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FilePenLine } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminGuard } from '@/components/auth/admin-guard';
 import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,27 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function getAppScrollContainer() {
+  return document.getElementById('app-scroll') as HTMLElement | null;
+}
+
+function getCurrentScrollY() {
+  const container = getAppScrollContainer();
+  return container?.scrollTop ?? window.scrollY;
+}
+
+function restoreScrollPosition(scrollY: number) {
+  const nextY = Math.max(0, scrollY);
+  const container = getAppScrollContainer();
+
+  if (container) {
+    container.scrollTop = nextY;
+    return;
+  }
+
+  window.scrollTo({ top: nextY, behavior: 'auto' });
+}
+
 function MyPostsSkeleton() {
   return (
     <div className="space-y-3">
@@ -60,6 +81,7 @@ function MyPostsSkeleton() {
 
 export function MyPostsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,6 +146,31 @@ export function MyPostsPage() {
     return `Всего публикаций: ${posts.length}`;
   }, [posts.length]);
 
+  const restoreScrollY = useMemo(() => {
+    const state = location.state as { restoreScrollY?: unknown } | null;
+
+    if (!state || typeof state.restoreScrollY !== 'number' || !Number.isFinite(state.restoreScrollY)) {
+      return null;
+    }
+
+    return state.restoreScrollY;
+  }, [location.state]);
+
+  useEffect(() => {
+    if (restoreScrollY === null || isLoading) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      restoreScrollPosition(restoreScrollY);
+      navigate('.', { replace: true, state: null });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [isLoading, navigate, restoreScrollY]);
+
   return (
     <AdminGuard allowEditor>
       <Container className="safe-pb py-6 sm:py-8">
@@ -162,7 +209,20 @@ export function MyPostsPage() {
                         {typeof post.is_published === 'boolean' ? ` • ${post.is_published ? 'Опубликовано' : 'Черновик'}` : ''}
                       </p>
                     </div>
-                    <Button type="button" size="sm" variant="outline" className="shrink-0 rounded-full" onClick={() => navigate(`/admin/edit/${post.id}`)}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 rounded-full"
+                      onClick={() =>
+                        navigate(`/admin/edit/${post.id}`, {
+                          state: {
+                            returnTo: '/my-posts',
+                            returnScrollY: getCurrentScrollY(),
+                          },
+                        })
+                      }
+                    >
                       <FilePenLine className="h-4 w-4" />
                       Редактировать
                     </Button>

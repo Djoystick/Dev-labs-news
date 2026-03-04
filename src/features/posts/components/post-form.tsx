@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { AppLink } from '@/components/ui/app-link';
@@ -28,6 +28,11 @@ type PostFormProps = {
   userId: string;
 };
 
+type ReturnState = {
+  returnTo?: string;
+  returnScrollY?: number;
+};
+
 const emptyValues: PostFormValues = {
   content: '',
   cover_url: '',
@@ -38,6 +43,7 @@ const emptyValues: PostFormValues = {
 
 export function PostForm({ mode, post, userId }: PostFormProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useAuth();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
@@ -98,6 +104,19 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
 
   const canDeletePost = profile?.role === 'admin';
+  const returnState = useMemo(() => {
+    const state = location.state as ReturnState | null;
+
+    if (!state || typeof state !== 'object') {
+      return null;
+    }
+
+    const returnScrollY = typeof state.returnScrollY === 'number' && Number.isFinite(state.returnScrollY) ? Math.max(0, state.returnScrollY) : 0;
+    return {
+      returnScrollY,
+      returnTo: state.returnTo,
+    };
+  }, [location.state]);
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
@@ -182,9 +201,24 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 if (mode === 'create') {
                   await createPost(payload);
-                } else {
-                  await updatePost(post!.id, payload);
+                  toast.success('Новость опубликована.');
+                  navigate('/', { replace: true });
+                  return;
                 }
+
+                await updatePost(post!.id, payload);
+                toast.success('Новость сохранена.');
+
+                if (returnState?.returnTo === '/my-posts') {
+                  navigate('/my-posts', {
+                    replace: true,
+                    state: { restoreScrollY: returnState.returnScrollY ?? 0 },
+                  });
+                  return;
+                }
+
+                navigate('/', { replace: true });
+                return;
                 toast.success(mode === 'create' ? 'Новость опубликована.' : 'Новость сохранена.');
                 navigate('/', { replace: true });
               } catch (error) {
@@ -345,7 +379,14 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 try {
                   await deletePost(post.id);
                   toast.success('Новость удалена.');
-                  navigate('/');
+                  if (returnState?.returnTo === '/my-posts') {
+                    navigate('/my-posts', {
+                      replace: true,
+                      state: { restoreScrollY: Math.max(0, (returnState.returnScrollY ?? 0) - 120) },
+                    });
+                  } else {
+                    navigate('/');
+                  }
                 } catch (error) {
                   if (import.meta.env.DEV) {
                     console.error('[PostForm] delete failed', error);
