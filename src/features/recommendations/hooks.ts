@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { subscribeToPostsUpdated } from '@/features/posts/api';
 import { getRecommendedPosts } from '@/features/recommendations/api';
 import type { Post } from '@/types/db';
 
@@ -47,6 +48,8 @@ export function useRecommendedPosts(limit = 20) {
       controller.abort();
     };
   }, [limit, reloadToken]);
+
+  useEffect(() => subscribeToPostsUpdated(() => setReloadToken((currentToken) => currentToken + 1)), []);
 
   return {
     data,

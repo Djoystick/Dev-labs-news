@@ -2,6 +2,8 @@ import { getStoredProfileId } from '@/lib/auth-storage';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Post, PostSort } from '@/types/db';
 
+const postsUpdatedEventName = 'dev-labs:posts-updated';
+
 type GetPostsParams = {
   page: number;
   pageSize: number;
@@ -27,6 +29,27 @@ export type PostMutationInput = {
   title: string;
   topic_id: string;
 };
+
+export function notifyPostsUpdated() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(postsUpdatedEventName));
+}
+
+export function subscribeToPostsUpdated(onUpdate: () => void) {
+  if (typeof window === 'undefined') {
+    return () => undefined;
+  }
+
+  const handler = () => onUpdate();
+  window.addEventListener(postsUpdatedEventName, handler);
+
+  return () => {
+    window.removeEventListener(postsUpdatedEventName, handler);
+  };
+}
 
 function escapeIlike(value: string) {
   return value.replace(/%/g, '\\%').replace(/_/g, '\\_').replace(/,/g, ' ');
@@ -121,6 +144,7 @@ export async function createPost(input: PostMutationInput) {
     throw new Error(`Failed to create the post. ${error.message}`);
   }
 
+  notifyPostsUpdated();
   return data as Post;
 }
 
@@ -138,6 +162,7 @@ export async function updatePost(id: string, input: PostMutationInput) {
     throw new Error(`Failed to update the post. ${error.message}`);
   }
 
+  notifyPostsUpdated();
   return data as Post;
 }
 
@@ -148,4 +173,6 @@ export async function deletePost(id: string) {
   if (error) {
     throw new Error(`Failed to delete the post. ${error.message}`);
   }
+
+  notifyPostsUpdated();
 }

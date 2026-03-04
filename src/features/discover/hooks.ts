@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchPostsByTopic } from '@/features/discover/api';
+import { subscribeToPostsUpdated } from '@/features/posts/api';
 import type { Post } from '@/types/db';
 
 type TopicPostsCacheEntry = {
@@ -69,6 +70,17 @@ export function useTopicPosts(topicId: string, limit: number, enabled: boolean) 
       controller.abort();
     };
   }, [cacheKey, enabled, limit, reloadToken, topicId]);
+
+  useEffect(() => {
+    if (!enabled || !topicId) {
+      return;
+    }
+
+    return subscribeToPostsUpdated(() => {
+      topicPostsCache.delete(cacheKey);
+      setReloadToken((current) => current + 1);
+    });
+  }, [cacheKey, enabled, topicId]);
 
   return {
     data,

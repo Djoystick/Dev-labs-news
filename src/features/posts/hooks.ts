@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { getPosts } from '@/features/posts/api';
+import { getPosts, subscribeToPostsUpdated } from '@/features/posts/api';
 import { clearTopicsCache, listTopics } from '@/features/topics/api';
 import { saveFeedState } from '@/lib/feed-state';
 import type { Post, PostSort, Topic } from '@/types/db';
@@ -207,6 +207,15 @@ export function usePostFeed() {
       controller.abort();
     };
   }, [activeTopic, isTopicsLoading, normalizedQuery, page, postsReloadToken, selectedTopicId, sort]);
+
+  useEffect(() => {
+    return subscribeToPostsUpdated(() => {
+      setHasMore(true);
+      setPostsError(null);
+      setPageState({ filterKey, page: 1 });
+      setPostsReloadToken((currentToken) => currentToken + 1);
+    });
+  }, [filterKey]);
 
   const topicOptions = useMemo(
     () =>
