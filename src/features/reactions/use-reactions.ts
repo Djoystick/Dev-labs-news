@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { getSupabaseClient } from '@/lib/supabase';
 import { fetchReactionSummaries, toggleReaction, type ReactionSummary, type ReactionValue } from '@/features/reactions/api';
 
 const summariesCache = new Map<string, ReactionSummary>();
@@ -132,13 +131,6 @@ export function useReactions(postIds: string[]) {
   }, [normalizedIds, tick]);
 
   const toggle = useCallback(async (postId: string, value: -1 | 1) => {
-    const supabase = getSupabaseClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast.error('Войдите, чтобы поставить реакцию');
-      return;
-    }
-
     const previous = ensureSummary(postId);
     const optimistic = applyOptimistic(previous, value);
     summariesCache.set(postId, optimistic);

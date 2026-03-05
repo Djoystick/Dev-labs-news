@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
 import { exchangeTelegramAuth, fetchOwnProfile } from '@/features/auth/api';
 import { clearStoredAuthState, getStoredAuthState, setStoredAuthState } from '@/lib/auth-storage';
 import { hasSupabaseEnv } from '@/lib/env';
+import { getSupabaseClient } from '@/lib/supabase';
 import { getTelegramInitData } from '@/lib/telegram';
-import type { Profile } from '@/types/db';
+import type { Profile, UserRole } from '@/types/db';
 
 export type AuthUser = {
   email: string | null;
@@ -11,11 +13,14 @@ export type AuthUser = {
 };
 
 type AuthContextValue = {
+  authReady: boolean;
   isAdmin: boolean;
   isAuthed: boolean;
   loading: boolean;
   profile: Profile | null;
   refreshProfile: () => Promise<Profile | null>;
+  role: UserRole | null;
+  session: Session | null;
   signInWithTelegram: () => Promise<void>;
   signOut: () => Promise<void>;
   token: string | null;
@@ -24,32 +29,77 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function toAuthUser(profile: Profile | null): AuthUser | null {
-  if (!profile) {
+function parseJwtExp(token: string): number | null {
+  const payload = token.split('.')[1];
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized)) as { exp?: number };
+    return typeof decoded.exp === 'number' ? decoded.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildSessionFromToken(token: string, authUser: User): Session {
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = parseJwtExp(token) ?? now + 60 * 60 * 24;
+  const expiresIn = Math.max(1, expiresAt - now);
+
+  return {
+    access_token: token,
+    expires_at: expiresAt,
+    expires_in: expiresIn,
+    refresh_token: '',
+    token_type: 'bearer',
+    user: authUser,
+  };
+}
+
+function buildSessionFromProfile(token: string, profileId: string): Session {
+  return buildSessionFromToken(token, {
+    app_metadata: {},
+    aud: 'authenticated',
+    created_at: new Date().toISOString(),
+    id: profileId,
+    role: 'authenticated',
+    user_metadata: {},
+  } as User);
+}
+
+function toAuthUser(session: Session | null): AuthUser | null {
+  const authUser = session?.user;
+
+  if (!authUser) {
     return null;
   }
 
   return {
-    email: null,
-    id: profile.id,
+    email: authUser.email ?? null,
+    id: authUser.id,
   };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   const applyAuthState = (nextToken: string | null, nextProfile: Profile | null) => {
     setToken(nextToken);
     setProfile(nextProfile);
-    setUser(toAuthUser(nextProfile));
   };
 
   const refreshProfile = async () => {
     if (!token || !profile?.id) {
       applyAuthState(null, null);
+      setSession(null);
       return null;
     }
 
@@ -58,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextProfile) {
       clearStoredAuthState();
       applyAuthState(null, null);
+      setSession(null);
       return null;
     }
 
@@ -68,79 +119,149 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hasSupabaseEnv()) {
-      setLoading(false);
+      setSession(null);
       applyAuthState(null, null);
+      setAuthReady(true);
+      setLoading(false);
       return;
     }
 
+    const supabase = getSupabaseClient();
     const storedAuth = getStoredAuthState();
-
     if (storedAuth) {
       applyAuthState(storedAuth.token, storedAuth.profile);
+    } else {
+      applyAuthState(null, null);
     }
 
     let active = true;
-    const initData = getTelegramInitData().trim();
 
-    if (!initData) {
+    const hydrateSessionFromToken = async (authToken: string) => {
+      const { data, error } = await supabase.auth.getUser(authToken);
+
+      if (error || !data.user) {
+        return null;
+      }
+
+      return buildSessionFromToken(authToken, data.user);
+    };
+
+    const bootstrapAuth = async () => {
+      setLoading(true);
+      setAuthReady(false);
+
+      let nextSession: Session | null = null;
+
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+
+      nextSession = currentSession ?? null;
+
+      if (!nextSession && storedAuth?.token) {
+        nextSession = await hydrateSessionFromToken(storedAuth.token);
+        if (!nextSession && storedAuth.profile.id) {
+          nextSession = buildSessionFromProfile(storedAuth.token, storedAuth.profile.id);
+        }
+      }
+
+      const initData = getTelegramInitData().trim();
+
+      if (!nextSession && initData) {
+        try {
+          const result = await exchangeTelegramAuth(initData);
+          const nextProfile = result.profile as Profile;
+          setStoredAuthState({ profile: nextProfile, token: result.token });
+
+          if (active) {
+            applyAuthState(result.token, nextProfile);
+          }
+
+          nextSession = await hydrateSessionFromToken(result.token);
+          if (!nextSession) {
+            nextSession = buildSessionFromProfile(result.token, nextProfile.id);
+          }
+        } catch {
+          // no-op: keep existing stored auth state
+        }
+      }
+
+      if (!active) {
+        return;
+      }
+
+      setSession(nextSession);
+      setAuthReady(true);
       setLoading(false);
-      return;
-    }
+    };
 
-    setLoading(true);
+    void bootstrapAuth();
 
-    void exchangeTelegramAuth(initData)
-      .then((result) => {
-        if (!active) {
-          return;
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!active) {
+        return;
+      }
 
-        const nextProfile = result.profile as Profile;
-        setStoredAuthState({ profile: nextProfile, token: result.token });
-        applyAuthState(result.token, nextProfile);
-      })
-      .catch(() => {
-        if (!active && !storedAuth) {
-          return;
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+      setSession(nextSession);
+      setAuthReady(true);
+    });
 
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      isAdmin: profile?.role === 'admin',
-      isAuthed: Boolean(token && profile),
-      loading,
-      profile,
-      refreshProfile,
-      signInWithTelegram: async () => {
-        setLoading(true);
-        try {
-          const result = await exchangeTelegramAuth();
-          const nextProfile = result.profile as Profile;
-          setStoredAuthState({ profile: nextProfile, token: result.token });
-          applyAuthState(result.token, nextProfile);
-        } finally {
-          setLoading(false);
-        }
-      },
-      signOut: async () => {
-        clearStoredAuthState();
-        applyAuthState(null, null);
-      },
-      token,
-      user,
-    }),
-    [loading, profile, token, user],
+    () => {
+      const user = toAuthUser(session);
+      const isAuthed = authReady && Boolean(session?.user);
+
+      return {
+        authReady,
+        isAdmin: profile?.role === 'admin',
+        isAuthed,
+        loading: loading || !authReady,
+        profile,
+        refreshProfile,
+        role: profile?.role ?? null,
+        session,
+        signInWithTelegram: async () => {
+          const supabase = getSupabaseClient();
+          setLoading(true);
+          setAuthReady(false);
+
+          try {
+            const result = await exchangeTelegramAuth();
+            const nextProfile = result.profile as Profile;
+            setStoredAuthState({ profile: nextProfile, token: result.token });
+            applyAuthState(result.token, nextProfile);
+
+            const { data, error } = await supabase.auth.getUser(result.token);
+            const nextSession = !error && data.user
+              ? buildSessionFromToken(result.token, data.user)
+              : buildSessionFromProfile(result.token, nextProfile.id);
+            setSession(nextSession);
+          } finally {
+            setAuthReady(true);
+            setLoading(false);
+          }
+        },
+        signOut: async () => {
+          const supabase = getSupabaseClient();
+          await supabase.auth.signOut();
+          clearStoredAuthState();
+          setSession(null);
+          applyAuthState(null, null);
+          setAuthReady(true);
+        },
+        token,
+        user,
+      };
+    },
+    [authReady, loading, profile, session, token],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

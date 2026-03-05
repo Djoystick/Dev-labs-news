@@ -20,8 +20,9 @@ const emptySummary: ReactionSummary = {
 };
 
 export function PostReactions({ postId, summary, disabled = false, onToggle }: PostReactionsProps) {
-  const { isAuthed } = useAuth();
+  const { authReady, isAuthed } = useAuth();
   const current = summary ?? { ...emptySummary, post_id: postId };
+  const isDisabled = disabled || !authReady;
 
   const stopTapPropagation = (event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -31,6 +32,10 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
   const handleToggle = (event: MouseEvent<HTMLButtonElement>, value: -1 | 1) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!authReady) {
+      return;
+    }
 
     if (!isAuthed) {
       toast.error('Войдите, чтобы поставить реакцию');
@@ -46,13 +51,13 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
         type="button"
         aria-label="Лайк"
         aria-pressed={current.my_reaction === 1}
-        disabled={disabled}
+        disabled={isDisabled}
         onPointerDown={stopTapPropagation}
         onClick={(event) => handleToggle(event, 1)}
         className={cn(
           'inline-flex items-center gap-1 text-xs transition',
           current.my_reaction === 1 ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-          disabled && 'cursor-not-allowed opacity-60',
+          isDisabled && 'cursor-not-allowed opacity-60',
         )}
       >
         <ThumbsUp className="h-3.5 w-3.5" />
@@ -63,13 +68,13 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
         type="button"
         aria-label="Дизлайк"
         aria-pressed={current.my_reaction === -1}
-        disabled={disabled}
+        disabled={isDisabled}
         onPointerDown={stopTapPropagation}
         onClick={(event) => handleToggle(event, -1)}
         className={cn(
           'inline-flex items-center gap-1 text-xs transition',
           current.my_reaction === -1 ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-          disabled && 'cursor-not-allowed opacity-60',
+          isDisabled && 'cursor-not-allowed opacity-60',
         )}
       >
         <ThumbsDown className="h-3.5 w-3.5" />
