@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuthorHandles } from '@/features/profiles/use-author-handles';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
+import type { ReactionSummary } from '@/features/reactions/api';
 import { normalizeHandle } from '@/lib/author-label';
 import { markFeedReturnIntent, saveFeedState } from '@/lib/feed-state';
 import { useAuth } from '@/providers/auth-provider';
@@ -16,7 +18,19 @@ function getReadingTime(content: string) {
   return Math.max(1, Math.round(wordCount / 200));
 }
 
-export function PostCard({ post, index }: { post: Post; index: number }) {
+export function PostCard({
+  post,
+  index,
+  reactionSummary,
+  reactionsDisabled = false,
+  onToggleReaction,
+}: {
+  post: Post;
+  index: number;
+  reactionSummary?: ReactionSummary | null;
+  reactionsDisabled?: boolean;
+  onToggleReaction?: (postId: string, value: -1 | 1) => void;
+}) {
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
@@ -61,7 +75,12 @@ export function PostCard({ post, index }: { post: Post; index: number }) {
           </CardContent>
         </Link>
         <div className="flex items-center justify-between gap-2 border-t border-border/70 px-6 py-4 text-sm font-semibold text-primary">
-          <BookmarkButton postId={post.id} size="sm" variant="ghost" showLabel className="h-8 px-2.5 text-foreground" />
+          <div className="flex items-center gap-3">
+            {onToggleReaction ? (
+              <PostReactions postId={post.id} summary={reactionSummary} disabled={reactionsDisabled} onToggle={onToggleReaction} />
+            ) : null}
+            <BookmarkButton postId={post.id} size="sm" variant="ghost" showLabel className="h-8 px-2.5 text-foreground" />
+          </div>
           <div className="flex items-center gap-2">
             {isAdmin ? (
               <Button asChild size="sm" variant="outline">

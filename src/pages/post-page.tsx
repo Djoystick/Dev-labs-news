@@ -13,6 +13,8 @@ import { PostCard } from '@/features/posts/components/post-card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
 import { recordPostView } from '@/features/profile/api';
 import { getPost, getPosts } from '@/features/posts/api';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
+import { useReactions } from '@/features/reactions/use-reactions';
 import { useAuth } from '@/providers/auth-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
@@ -81,6 +83,18 @@ export function PostPage() {
   const [error, setError] = useState<string | null>(null);
   const [latestError, setLatestError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+
+  const reactionIds = useMemo(() => {
+    const ids: string[] = [];
+    if (post?.id) {
+      ids.push(post.id);
+    }
+    latestPosts.forEach((latestPost) => {
+      ids.push(latestPost.id);
+    });
+    return [...new Set(ids)];
+  }, [latestPosts, post?.id]);
+  const { summariesById, toggle, isPending } = useReactions(reactionIds);
 
   const createdAtLabel = useMemo(() => {
     if (!post) {
@@ -278,12 +292,7 @@ export function PostPage() {
           </nav>
         </motion.div>
 
-        <motion.article
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="overflow-hidden"
-        >
+        <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="overflow-hidden">
           {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/8] w-full object-cover" /> : null}
           <div className="space-y-8 p-6 sm:p-8 lg:p-10">
             <div className="space-y-4">
@@ -297,16 +306,14 @@ export function PostPage() {
                     <Button asChild size="sm" variant="outline">
                       <AppLink to={`/admin/edit/${post.id}`}>
                         <PencilLine className="h-4 w-4" />
-                        {'\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c'}
+                        Редактировать
                       </AppLink>
                     </Button>
                   ) : null}
                 </div>
               </div>
 
-              <h1 className="max-w-4xl font-['Source_Serif_4'] text-4xl font-bold leading-tight text-balance sm:text-5xl">
-                {post.title}
-              </h1>
+              <h1 className="max-w-4xl font-['Source_Serif_4'] text-4xl font-bold leading-tight text-balance sm:text-5xl">{post.title}</h1>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
@@ -315,6 +322,8 @@ export function PostPage() {
                 </span>
                 <span>{createdAtLabel}</span>
               </div>
+
+              <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
 
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
             </div>
@@ -360,7 +369,14 @@ export function PostPage() {
           ) : (
             <div className="grid gap-5">
               {latestPosts.map((latestPost, index) => (
-                <PostCard key={latestPost.id} post={latestPost} index={index} />
+                <PostCard
+                  key={latestPost.id}
+                  post={latestPost}
+                  index={index}
+                  reactionSummary={summariesById.get(latestPost.id)}
+                  reactionsDisabled={isPending(latestPost.id)}
+                  onToggleReaction={toggle}
+                />
               ))}
             </div>
           )}

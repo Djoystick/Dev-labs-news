@@ -270,6 +270,17 @@ export type Database = {
           handle: string;
         }>;
       };
+      get_post_reaction_summaries: {
+        Args: {
+          p_post_ids: string[];
+        };
+        Returns: Array<{
+          post_id: string;
+          likes: number;
+          dislikes: number;
+          my_reaction: number;
+        }>;
+      };
       get_recommended_posts: {
         Args: {
           p_limit: number;
@@ -288,6 +299,18 @@ export type Database = {
           p_role: UserRole;
         };
         Returns: Profile;
+      };
+      toggle_post_reaction: {
+        Args: {
+          p_post_id: string;
+          p_value: number;
+        };
+        Returns: Array<{
+          post_id: string;
+          likes: number;
+          dislikes: number;
+          my_reaction: number;
+        }>;
       };
     };
     Enums: Record<string, never>;

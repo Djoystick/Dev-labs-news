@@ -1,6 +1,8 @@
 import type { Post } from '@/types/db';
 import { normalizeHandle } from '@/lib/author-label';
 import { useAuthorHandles } from '@/features/profiles/use-author-handles';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
+import type { ReactionSummary } from '@/features/reactions/api';
 
 function getReadingTime(content: string) {
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
@@ -33,9 +35,15 @@ function getRelativeTime(createdAt: string) {
 export function FeedRow({
   post,
   onOpen,
+  reactionSummary,
+  reactionsDisabled = false,
+  onToggleReaction,
 }: {
   post: Post;
   onOpen: (post: Post) => void;
+  reactionSummary?: ReactionSummary | null;
+  reactionsDisabled?: boolean;
+  onToggleReaction?: (postId: string, value: -1 | 1) => void;
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
   const source = post.topic?.name ?? 'Источник';
@@ -43,11 +51,7 @@ export function FeedRow({
   const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(post)}
-      className="w-full px-0 py-4 text-left transition active:bg-secondary/10"
-    >
+    <button type="button" onClick={() => onOpen(post)} className="w-full px-0 py-4 text-left transition active:bg-secondary/10">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-muted-foreground">{source}</p>
@@ -57,6 +61,11 @@ export function FeedRow({
             {readingTime ? ` • ${readingTime} мин чтения` : ''}
             {` • ${authorLabel}`}
           </p>
+          {onToggleReaction ? (
+            <div className="mt-2">
+              <PostReactions postId={post.id} summary={reactionSummary} disabled={reactionsDisabled} onToggle={onToggleReaction} />
+            </div>
+          ) : null}
         </div>
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
           {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}

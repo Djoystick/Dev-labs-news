@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { RefreshCw, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/features/posts/components/empty-state';
-import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
-import { PostCard } from '@/features/posts/components/post-card';
+import { FeedRow } from '@/features/posts/components/FeedRow';
+import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
 
@@ -23,6 +23,27 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
           Повторить
         </Button>
       </div>
+    </div>
+  );
+}
+
+function FeedRowsSkeleton() {
+  return (
+    <div>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="py-4">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3 w-28 animate-pulse rounded bg-secondary" />
+              <div className="h-6 w-full animate-pulse rounded bg-secondary" />
+              <div className="h-6 w-4/5 animate-pulse rounded bg-secondary" />
+              <div className="h-3 w-32 animate-pulse rounded bg-secondary" />
+            </div>
+            <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-secondary sm:h-24 sm:w-24" />
+          </div>
+          <div className="mt-4 h-px bg-border/60" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -49,9 +70,12 @@ function attachTopics(posts: Post[], topics: Array<Topic & { count: number }>) {
 }
 
 export function ForYouPage() {
+  const navigate = useNavigate();
   const { topics } = useOutletContext<AppLayoutContext>();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const posts = useMemo(() => attachTopics(data, topics), [data, topics]);
+  const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
+  const { summariesById, toggle, isPending } = useReactions(postIds);
 
   return (
     <Container className="safe-pb py-6 sm:py-8">
@@ -74,7 +98,7 @@ export function ForYouPage() {
         {error ? <InlineError message={error} onRetry={retry} /> : null}
 
         {isLoading ? (
-          <FeedSkeleton />
+          <FeedRowsSkeleton />
         ) : posts.length === 0 ? (
           <EmptyState
             title="Пока нет рекомендаций"
@@ -83,9 +107,16 @@ export function ForYouPage() {
             onReset={retry}
           />
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {posts.map((post, index) => (
-              <PostCard key={post.id} post={post} index={index} />
+          <div>
+            {posts.map((post) => (
+              <FeedRow
+                key={post.id}
+                post={post}
+                onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
+                reactionSummary={summariesById.get(post.id)}
+                reactionsDisabled={isPending(post.id)}
+                onToggleReaction={toggle}
+              />
             ))}
           </div>
         )}

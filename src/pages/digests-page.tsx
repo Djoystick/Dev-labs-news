@@ -10,6 +10,8 @@ import { useTopicPosts } from '@/features/discover/hooks';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { PostCard } from '@/features/posts/components/post-card';
+import { useReactions } from '@/features/reactions/use-reactions';
+import type { ReactionSummary } from '@/features/reactions/api';
 import { fetchMyTopicIds, fetchTopics } from '@/features/topics/api';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -98,6 +100,8 @@ function TopicSeeAllModal({
   topic: Topic | null;
 }) {
   const { data, error, isLoading, retry } = useTopicPosts(topic?.id ?? '', modalPostsLimit, open && Boolean(topic?.id));
+  const postIds = useMemo(() => data.map((post) => post.id), [data]);
+  const { summariesById, toggle, isPending } = useReactions(postIds);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -118,7 +122,14 @@ function TopicSeeAllModal({
             ) : (
               <div className="grid gap-5">
                 {data.map((post, index) => (
-                  <PostCard key={`${post.id}-modal`} post={post} index={index} />
+                  <PostCard
+                    key={`${post.id}-modal`}
+                    post={post}
+                    index={index}
+                    reactionSummary={summariesById.get(post.id)}
+                    reactionsDisabled={isPending(post.id)}
+                    onToggleReaction={toggle}
+                  />
                 ))}
               </div>
             )}
@@ -153,6 +164,8 @@ function AllTopicsSheet({
   }, [activeTopicId, open, topics]);
 
   const { data, error, isLoading, retry } = useTopicPosts(selectedTopicId ?? '', modalPostsLimit, open && Boolean(selectedTopicId));
+  const postIds = useMemo(() => data.map((post) => post.id), [data]);
+  const { summariesById, toggle, isPending } = useReactions(postIds);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -201,7 +214,14 @@ function AllTopicsSheet({
                   ) : (
                     <div className="grid gap-5">
                       {data.map((post, index) => (
-                        <PostCard key={`${post.id}-sheet`} post={post} index={index} />
+                        <PostCard
+                          key={`${post.id}-sheet`}
+                          post={post}
+                          index={index}
+                          reactionSummary={summariesById.get(post.id)}
+                          reactionsDisabled={isPending(post.id)}
+                          onToggleReaction={toggle}
+                        />
                       ))}
                     </div>
                   )}
@@ -217,15 +237,21 @@ function AllTopicsSheet({
 
 function TopicSection({
   enabled,
+  reactionSummariesById,
+  isReactionPending,
   onData,
   onOpenTopic,
   onRegister,
+  onToggleReaction,
   topic,
 }: {
   enabled: boolean;
+  reactionSummariesById: Map<string, ReactionSummary>;
+  isReactionPending: (postId: string) => boolean;
   onData: (topicId: string, posts: Post[]) => void;
   onOpenTopic: (topic: Topic) => void;
   onRegister: (topicId: string, element: HTMLElement | null) => void;
+  onToggleReaction: (postId: string, value: -1 | 1) => void;
   topic: Topic;
 }) {
   const { data, error, isLoading, retry } = useTopicPosts(topic.id, sectionPostsLimit, enabled);
@@ -264,12 +290,26 @@ function TopicSection({
         <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
         <div className="space-y-5">
-          {featuredPost ? <PostCard post={featuredPost} index={0} /> : null}
+          {featuredPost ? (
+            <PostCard
+              post={featuredPost}
+              index={0}
+              reactionSummary={reactionSummariesById.get(featuredPost.id)}
+              reactionsDisabled={isReactionPending(featuredPost.id)}
+              onToggleReaction={onToggleReaction}
+            />
+          ) : null}
           <div className="no-scrollbar overflow-x-auto pb-2">
             <div className="flex snap-x gap-4">
               {railPosts.map((post, index) => (
                 <div key={post.id} className="min-w-[260px] snap-start sm:min-w-[300px]">
-                  <PostCard post={post} index={index + 1} />
+                  <PostCard
+                    post={post}
+                    index={index + 1}
+                    reactionSummary={reactionSummariesById.get(post.id)}
+                    reactionsDisabled={isReactionPending(post.id)}
+                    onToggleReaction={onToggleReaction}
+                  />
                 </div>
               ))}
             </div>
@@ -587,6 +627,12 @@ export function DigestsPage() {
 
     return [...deduped.values()].filter((post) => post.title.toLowerCase().includes(deferredQuery));
   }, [deferredQuery, loadedPostsByTopic]);
+  const digestPostIds = useMemo(
+    () =>
+      [...new Set(Object.values(loadedPostsByTopic).flat().map((post) => post.id))],
+    [loadedPostsByTopic],
+  );
+  const { summariesById, toggle, isPending } = useReactions(digestPostIds);
 
   return (
     <>
@@ -673,7 +719,14 @@ export function DigestsPage() {
                 ) : (
                   <div className="grid gap-5">
                     {searchResults.map((post, index) => (
-                      <PostCard key={`${post.id}-search`} post={post} index={index} />
+                      <PostCard
+                        key={`${post.id}-search`}
+                        post={post}
+                        index={index}
+                        reactionSummary={summariesById.get(post.id)}
+                        reactionsDisabled={isPending(post.id)}
+                        onToggleReaction={toggle}
+                      />
                     ))}
                   </div>
                 )}
@@ -693,9 +746,12 @@ export function DigestsPage() {
                   key={topic.id}
                   topic={topic}
                   enabled={Boolean(visibleTopicIds[topic.id])}
+                  reactionSummariesById={summariesById}
+                  isReactionPending={isPending}
                   onData={handleSectionData}
                   onOpenTopic={setSeeAllTopic}
                   onRegister={handleRegisterSection}
+                  onToggleReaction={toggle}
                 />
               ))}
             </div>

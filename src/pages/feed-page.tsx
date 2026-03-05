@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
+import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
@@ -60,6 +62,8 @@ export function FeedPage() {
   const { topicFilters } = useReadingPreferences();
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const filteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
+  const filteredPostIds = useMemo(() => filteredPosts.map((post) => post.id), [filteredPosts]);
+  const { summariesById, toggle, isPending } = useReactions(filteredPostIds);
   const hasBackendPosts = posts.length > 0;
   const isFiltersOnlyEmpty = hasBackendPosts && filteredPosts.length === 0;
 
@@ -113,7 +117,14 @@ export function FeedPage() {
               {isRefreshing ? <FeedRowsSkeleton /> : null}
               <div>
                 {filteredPosts.map((post) => (
-                  <FeedRow key={post.id} post={post} onOpen={setOpenPost} />
+                  <FeedRow
+                    key={post.id}
+                    post={post}
+                    onOpen={setOpenPost}
+                    reactionSummary={summariesById.get(post.id)}
+                    reactionsDisabled={isPending(post.id)}
+                    onToggleReaction={toggle}
+                  />
                 ))}
               </div>
 
@@ -147,6 +158,9 @@ export function FeedPage() {
                 {new Date(openPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}
                 {openPost.content?.trim() ? ` • ${getReadingTime(openPost.content)} мин чтения` : ''}
               </p>
+              <div className="mt-2">
+                <PostReactions postId={openPost.id} summary={summariesById.get(openPost.id)} disabled={isPending(openPost.id)} onToggle={toggle} />
+              </div>
               {openPost.cover_url ? (
                 <div className="mt-4 overflow-hidden rounded-xl bg-secondary">
                   <img src={openPost.cover_url} alt="" loading="lazy" className="max-h-[220px] w-full object-cover" />

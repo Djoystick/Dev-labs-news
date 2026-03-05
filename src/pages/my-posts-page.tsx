@@ -5,6 +5,8 @@ import { AdminGuard } from '@/components/auth/admin-guard';
 import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
+import { useReactions } from '@/features/reactions/use-reactions';
 import { normalizeHandle } from '@/lib/author-label';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
@@ -90,6 +92,8 @@ export function MyPostsPage() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const isAdmin = profile?.role === 'admin';
+  const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
+  const { summariesById, toggle, isPending } = useReactions(postIds);
 
   const loadPosts = useCallback(async () => {
     if (!user?.id) {
@@ -214,6 +218,9 @@ export function MyPostsPage() {
                         {` • ${normalizeHandle(undefined) ?? 'Автор'}`}
                         {typeof post.is_published === 'boolean' ? ` • ${post.is_published ? 'Опубликовано' : 'Черновик'}` : ''}
                       </p>
+                      <div className="mt-2">
+                        <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
+                      </div>
                     </div>
                     <Button
                       type="button"
