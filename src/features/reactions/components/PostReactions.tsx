@@ -1,3 +1,4 @@
+import type { MouseEvent, PointerEvent } from 'react';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReactionSummary } from '@/features/reactions/api';
@@ -19,6 +20,17 @@ const emptySummary: ReactionSummary = {
 export function PostReactions({ postId, summary, disabled = false, onToggle }: PostReactionsProps) {
   const current = summary ?? { ...emptySummary, post_id: postId };
 
+  const stopTapPropagation = (event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleToggle = (event: MouseEvent<HTMLButtonElement>, value: -1 | 1) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onToggle(postId, value);
+  };
+
   return (
     <div className="flex items-center gap-3">
       <button
@@ -26,7 +38,8 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
         aria-label="Лайк"
         aria-pressed={current.my_reaction === 1}
         disabled={disabled}
-        onClick={() => onToggle(postId, 1)}
+        onPointerDown={stopTapPropagation}
+        onClick={(event) => handleToggle(event, 1)}
         className={cn(
           'inline-flex items-center gap-1 text-xs transition',
           current.my_reaction === 1 ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
@@ -42,7 +55,8 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
         aria-label="Дизлайк"
         aria-pressed={current.my_reaction === -1}
         disabled={disabled}
-        onClick={() => onToggle(postId, -1)}
+        onPointerDown={stopTapPropagation}
+        onClick={(event) => handleToggle(event, -1)}
         className={cn(
           'inline-flex items-center gap-1 text-xs transition',
           current.my_reaction === -1 ? 'text-primary' : 'text-muted-foreground hover:text-foreground',

@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react';
 import type { Post } from '@/types/db';
 import { normalizeHandle } from '@/lib/author-label';
 import { useAuthorHandles } from '@/features/profiles/use-author-handles';
@@ -50,8 +51,21 @@ export function FeedRow({
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
   const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpen(post);
+    }
+  };
+
   return (
-    <button type="button" onClick={() => onOpen(post)} className="w-full px-0 py-4 text-left transition active:bg-secondary/10">
+    <div
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      onClick={() => onOpen(post)}
+      className="w-full cursor-pointer px-0 py-4 text-left transition active:bg-secondary/10"
+    >
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-muted-foreground">{source}</p>
@@ -72,6 +86,6 @@ export function FeedRow({
         </div>
       </div>
       <div className="mt-4 h-px bg-border/60" />
-    </button>
+    </div>
   );
 }
