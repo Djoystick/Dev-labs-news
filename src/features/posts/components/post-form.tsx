@@ -7,14 +7,12 @@ import { toast } from 'sonner';
 import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
-import { Textarea } from '@/components/ui/textarea';
 import { createPost, deletePost, updatePost, type PostMutationInput } from '@/features/posts/api';
 import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
@@ -78,7 +76,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
       try {
         const data = await listTopics();
-
         if (!ignore) {
           setTopics(data);
         }
@@ -95,7 +92,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     }
 
     void loadTopics();
-
     return () => {
       ignore = true;
     };
@@ -103,11 +99,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const coverUrl = form.watch('cover_url');
   const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
-
   const canDeletePost = profile?.role === 'admin';
+
   const returnState = useMemo(() => {
     const state = location.state as ReturnState | null;
-
     if (!state || typeof state !== 'object') {
       return null;
     }
@@ -121,7 +116,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
-
     try {
       const { publicUrl } = await uploadPostImage(file, 'covers');
       form.setValue('cover_url', publicUrl, {
@@ -170,12 +164,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   return (
     <>
-      <Card className="mx-auto max-w-5xl overflow-hidden">
-        <CardHeader className="border-b border-border/70 bg-secondary/40">
+      <div className="mx-auto max-w-5xl">
+        <div className="border-b border-border/60 pb-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle className="mt-2 text-3xl">{pageTitle}</CardTitle>
-            </div>
+            <h1 className="mt-2 text-3xl font-bold">{pageTitle}</h1>
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
@@ -187,8 +179,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               </Button>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
+        </div>
+
+        <div className="pt-6">
           <form
             className="space-y-8"
             onSubmit={form.handleSubmit(async (values) => {
@@ -224,9 +217,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 }
 
                 navigate('/', { replace: true });
-                return;
-                toast.success(mode === 'create' ? 'Новость опубликована.' : 'Новость сохранена.');
-                navigate('/', { replace: true });
               } catch (error) {
                 if (import.meta.env.DEV) {
                   console.error('[PostForm] submit failed', error);
@@ -242,6 +232,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             {submitError ? <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
             {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
             {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Разделы не найдены. Проверьте миграции." /> : null}
+
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -249,15 +240,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   <Input id="title" placeholder="Введите заголовок" {...form.register('title')} />
                   {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="excerpt">Анонс</Label>
-                  <Textarea id="excerpt" placeholder="Короткое описание для карточек и превью." className="min-h-[120px]" {...form.register('excerpt')} />
-                  {form.formState.errors.excerpt ? <p className="text-sm text-destructive">{form.formState.errors.excerpt.message}</p> : null}
-                </div>
               </div>
 
-              <div className="space-y-5 rounded-[1.5rem] border border-border/70 bg-background/70 p-5">
+              <div className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="topic_id">Раздел</Label>
                   <Select
@@ -290,7 +275,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                       type="file"
                       onChange={(event) => {
                         const file = event.target.files?.[0];
-
                         if (file) {
                           void handleCoverUpload(file);
                         }
@@ -338,7 +322,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-muted-foreground">{mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}</div>
+              <div className="text-sm text-muted-foreground">
+                {mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}
+              </div>
               <div className="flex flex-wrap gap-3">
                 {mode === 'edit' && post && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
@@ -353,8 +339,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               </div>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog open={canDeletePost ? isDeleteDialogOpen : false} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>

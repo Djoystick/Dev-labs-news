@@ -15,7 +15,7 @@ const defaultLimit = 20;
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-[1.75rem] border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive shadow-[0_20px_48px_-36px_rgba(239,68,68,0.55)]">
+    <div className="border-y border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p>{message}</p>
         <Button variant="outline" size="sm" onClick={onRetry} className="border-destructive/35 bg-transparent text-destructive hover:bg-destructive/10">
@@ -56,7 +56,7 @@ export function ForYouPage() {
   return (
     <Container className="safe-pb py-6 sm:py-8">
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
-        <div className="rounded-[2rem] border border-border/70 bg-card/80 p-5 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.48)] backdrop-blur sm:p-6">
+        <div className="border-b border-border/60 pb-5 sm:pb-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/14 text-primary">
               <Sparkles className="h-5 w-5" />

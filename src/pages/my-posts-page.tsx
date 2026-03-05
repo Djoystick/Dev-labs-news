@@ -64,7 +64,7 @@ function MyPostsSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="rounded-[1.25rem] border border-border/70 p-4">
+        <div key={index} className="p-4">
           <div className="flex items-start gap-4">
             <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-secondary sm:h-24 sm:w-24" />
             <div className="min-w-0 flex-1 space-y-2">
@@ -199,7 +199,7 @@ export function MyPostsPage() {
           {!isLoading && !error && posts.length === 0 ? <StateCard title="Пока нет публикаций" description="Создайте первую новость, она появится здесь." /> : null}
 
           {!isLoading && !error && posts.length > 0 ? (
-            <div className="rounded-[1.5rem] border border-border/70 bg-card/85">
+            <div className="divide-y divide-border/60">
               {posts.map((post, index) => (
                 <div key={post.id} className="p-4 sm:p-5">
                   <div className="flex items-start gap-4">

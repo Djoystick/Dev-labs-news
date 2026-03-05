@@ -43,7 +43,7 @@ function DetailSkeleton() {
           <Skeleton className="h-10 w-24 rounded-full" />
           <Skeleton className="h-5 w-40 rounded-full" />
         </div>
-        <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)]">
+        <div className="overflow-hidden">
           <Skeleton className="aspect-[16/8] w-full" />
           <div className="space-y-5 p-6 sm:p-8 lg:p-10">
             <Skeleton className="h-4 w-28 rounded-full" />
@@ -282,7 +282,7 @@ export function PostPage() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 shadow-[0_30px_80px_-45px_rgba(15,23,42,0.55)] backdrop-blur"
+          className="overflow-hidden"
         >
           {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/8] w-full object-cover" /> : null}
           <div className="space-y-8 p-6 sm:p-8 lg:p-10">
@@ -319,7 +319,7 @@ export function PostPage() {
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
             </div>
 
-            <div className="rounded-[1.5rem] border border-border/70 bg-background/60 p-5">
+            <div className="border-y border-border/60 py-5">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI-автор</p>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
                 Этот материал подготовлен с помощью ИИ и адаптирован для быстрого чтения. Перед тем как опираться на информацию, проверьте источники и контекст.

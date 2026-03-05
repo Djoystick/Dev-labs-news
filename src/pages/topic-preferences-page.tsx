@@ -12,15 +12,7 @@ import type { Topic } from '@/types/db';
 
 const chipSkeletonWidths = ['w-28', 'w-36', 'w-32', 'w-40', 'w-24', 'w-44', 'w-28', 'w-36'];
 
-function InlineError({
-  actionLabel = 'Повторить',
-  message,
-  onAction,
-}: {
-  actionLabel?: string;
-  message: string;
-  onAction: () => void;
-}) {
+function InlineError({ actionLabel = 'Повторить', message, onAction }: { actionLabel?: string; message: string; onAction: () => void }) {
   return (
     <div className="rounded-[1.5rem] border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -33,15 +25,7 @@ function InlineError({
   );
 }
 
-function TopicChip({
-  onClick,
-  selected,
-  topic,
-}: {
-  onClick: () => void;
-  selected: boolean;
-  topic: Topic;
-}) {
+function TopicChip({ onClick, selected, topic }: { onClick: () => void; selected: boolean; topic: Topic }) {
   return (
     <button
       type="button"
@@ -185,7 +169,7 @@ export function TopicPreferencesPage() {
             className="fixed inset-x-0 bottom-0 z-30 bg-[linear-gradient(180deg,transparent_0%,hsl(220_30%_8%_/_0.82)_26%,hsl(220_30%_8%)_100%)] px-4 pt-8 backdrop-blur-xl"
             style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
           >
-            <div className="mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-background/88 p-4 shadow-[0_-20px_60px_-42px_rgba(15,23,42,0.9)]">
+            <div className="mx-auto max-w-3xl p-4">
               <Button className="h-14 w-full text-base" onClick={handleSave} disabled={saving || bootstrapping || Boolean(loadError) || selectedIds.length === 0}>
                 {saving ? 'Сохраняем...' : 'Сохранить'}
               </Button>

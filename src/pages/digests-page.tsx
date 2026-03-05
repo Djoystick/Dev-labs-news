@@ -63,7 +63,7 @@ function InlineError({
 function SectionSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/80 p-4">
+      <div className="overflow-hidden p-4">
         <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
         <div className="mt-4 space-y-3">
           <Skeleton className="h-4 w-20 rounded-full" />
@@ -74,7 +74,7 @@ function SectionSkeleton() {
       </div>
       <div className="flex gap-4 overflow-hidden">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="min-w-[240px] overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/80 p-4 sm:min-w-[300px]">
+          <div key={index} className="min-w-[240px] overflow-hidden p-4 sm:min-w-[300px]">
             <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
             <div className="mt-4 space-y-3">
               <Skeleton className="h-4 w-16 rounded-full" />
@@ -243,7 +243,7 @@ function TopicSection({
     <section
       ref={(node) => onRegister(topic.id, node)}
       data-topic-id={topic.id}
-      className="scroll-mt-24 space-y-4 rounded-[2rem] border border-border/70 bg-card/55 p-5 shadow-[0_28px_80px_-48px_rgba(15,23,42,0.45)] sm:p-6"
+      className="scroll-mt-24 space-y-4 border-b border-border/60 p-5 sm:p-6"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -592,7 +592,7 @@ export function DigestsPage() {
     <>
       <Container className="safe-pb py-6 sm:py-8">
         <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
-          <div className="rounded-[2rem] border border-border/70 bg-card/80 p-5 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.48)] backdrop-blur sm:p-6">
+          <div className="border-b border-border/60 pb-5 sm:pb-6">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
                 <Sparkles className="h-5 w-5" />

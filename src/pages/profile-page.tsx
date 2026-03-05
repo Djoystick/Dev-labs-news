@@ -5,7 +5,6 @@ import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Container } from '@/components/layout/container';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
@@ -131,8 +130,7 @@ export function ProfilePage() {
           </Button>
         </div>
 
-        <Card className="overflow-hidden border-border/70 bg-card/85 shadow-[0_30px_80px_-46px_rgba(15,23,42,0.5)]">
-          <CardContent className="flex items-center justify-between gap-4 p-6">
+        <div className="flex items-center justify-between gap-4 py-2">
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Здравствуйте,</p>
               <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
@@ -147,11 +145,9 @@ export function ProfilePage() {
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
               <AvatarFallback className="text-xl">{getInitial(displayName)}</AvatarFallback>
             </Avatar>
-          </CardContent>
-        </Card>
+        </div>
 
-        <Card className="border-border/70 bg-card/85">
-          <CardContent className="p-6">
+        <div className="border-t border-border/60 pt-5">
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ваше</p>
@@ -201,8 +197,7 @@ export function ProfilePage() {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </Container>
   );
