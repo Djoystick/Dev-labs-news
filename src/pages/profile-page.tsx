@@ -75,6 +75,8 @@ export function ProfilePage() {
 
   const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
+  const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
+  const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Читатель';
 
   if (loading) {
     return (
@@ -134,7 +136,12 @@ export function ProfilePage() {
             <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Здравствуйте,</p>
               <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
-              <p className="mt-2 break-all text-sm text-muted-foreground">{user.email ?? 'Email не привязан'}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {isTeamMember ? (
+                  <span className="rounded-full border border-primary/30 bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">DevLabs Team</span>
+                ) : null}
+                <span className="rounded-full border border-border/70 bg-secondary/60 px-3 py-1 text-xs font-semibold text-foreground">{roleLabel}</span>
+              </div>
             </div>
             <Avatar className="h-16 w-16 rounded-full border-border/70 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.55)]">
               <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />

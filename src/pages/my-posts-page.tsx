@@ -19,18 +19,19 @@ type MyPost = {
   is_published?: boolean | null;
 };
 
+type MyPostsSelectBuilder = {
+  order: (
+    column: string,
+    options: { ascending: boolean },
+  ) => Promise<{
+    data: MyPost[] | null;
+    error: { message: string } | null;
+  }>;
+  eq: (column: string, value: string) => MyPostsSelectBuilder;
+};
+
 type MyPostsQueryBuilder = {
-  select: (columns: string) => {
-    eq: (column: string, value: string) => {
-      order: (
-        column: string,
-        options: { ascending: boolean },
-      ) => Promise<{
-        data: MyPost[] | null;
-        error: { message: string } | null;
-      }>;
-    };
-  };
+  select: (columns: string) => MyPostsSelectBuilder;
 };
 
 function formatDate(value: string) {
@@ -82,11 +83,12 @@ function MyPostsSkeleton() {
 export function MyPostsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [posts, setPosts] = useState<MyPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const isAdmin = profile?.role === 'admin';
 
   const loadPosts = useCallback(async () => {
     if (!user?.id) {
@@ -101,17 +103,19 @@ export function MyPostsPage() {
 
     const supabase = getSupabaseClient();
     const postsTable = supabase.from('posts') as unknown as MyPostsQueryBuilder;
-    const { data, error: queryError } = await postsTable
-      .select('id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false });
+    const baseQuery = postsTable.select('id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published');
+    const { data, error: queryError } = isAdmin
+      ? await baseQuery.order('created_at', { ascending: false })
+      : await baseQuery.eq('author_id', user.id).order('created_at', { ascending: false });
 
     if (queryError) {
       throw new Error(`Failed to load posts. ${queryError.message}`);
     }
 
     setPosts(data ?? []);
-  }, [user?.id]);
+  }, [isAdmin, user?.id]);
+
+  const pageTitle = isAdmin ? 'Все публикации' : 'Мои публикации';
 
   useEffect(() => {
     let cancelled = false;
@@ -140,11 +144,11 @@ export function MyPostsPage() {
 
   const pageDescription = useMemo(() => {
     if (posts.length === 0) {
-      return 'Публикации, созданные вами.';
+      return isAdmin ? 'Публикации всех авторов отображаются здесь.' : 'Публикации, созданные вами.';
     }
 
     return `Всего публикаций: ${posts.length}`;
-  }, [posts.length]);
+  }, [isAdmin, posts.length]);
 
   const restoreScrollY = useMemo(() => {
     const state = location.state as { restoreScrollY?: unknown } | null;
@@ -176,7 +180,7 @@ export function MyPostsPage() {
       <Container className="safe-pb py-6 sm:py-8">
         <div className="mx-auto max-w-4xl space-y-5">
           <div>
-            <h1 className="text-3xl font-extrabold">Мои публикации</h1>
+            <h1 className="text-3xl font-extrabold">{pageTitle}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{pageDescription}</p>
           </div>
 
