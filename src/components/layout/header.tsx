@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PencilLine, SlidersHorizontal } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import logoUrl from '@/assets/brand/logo.svg';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { Container } from '@/components/layout/container';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
@@ -78,12 +79,10 @@ export function Header() {
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <AppLink to="/" aria-label="На главную" className="group min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary shadow-inner shadow-primary/10">
-                  <span className="text-[11px] font-extrabold uppercase tracking-[0.22em]">DL</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[10px] font-bold uppercase tracking-[0.24em] text-primary transition group-hover:text-primary/80">DEV-LABS NEWS</p>
-                </div>
+                <img src={logoUrl} alt="Dev-labs News" className="h-8 w-8 shrink-0" loading="eager" decoding="async" />
+                <span className="truncate whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[0.24em] text-primary transition group-hover:text-primary/80">
+                  DEV-LABS NEWS
+                </span>
               </div>
             </AppLink>
           </div>
