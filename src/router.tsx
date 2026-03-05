@@ -15,6 +15,10 @@ const SavedArticlesPage = lazy(() => import('@/pages/saved-articles-page').then(
 const TopicPreferencesPage = lazy(() => import('@/pages/topic-preferences-page').then((module) => ({ default: module.TopicPreferencesPage })));
 const AdminNewPage = lazy(() => import('@/pages/admin-new-page').then((module) => ({ default: module.AdminNewPage })));
 const AdminEditPage = lazy(() => import('@/pages/admin-edit-page').then((module) => ({ default: module.AdminEditPage })));
+const AdminUsersPage = lazy(() => import('@/pages/admin-users-page').then((module) => ({ default: module.AdminUsersPage })));
+const AdminPublicationRulesPage = lazy(() =>
+  import('@/pages/admin-publication-rules-page').then((module) => ({ default: module.AdminPublicationRulesPage })),
+);
 const TopicPreferencesOnboardingPage = lazy(() =>
   import('@/pages/onboarding/TopicPreferencesOnboarding').then((module) => ({ default: module.TopicPreferencesOnboardingPage })),
 );
@@ -54,6 +58,8 @@ export const router = createBrowserRouter([
       { path: 'topic-preferences', element: withSuspense(TopicPreferencesPage) },
       { path: 'admin/new', element: withSuspense(AdminNewPage) },
       { path: 'admin/edit/:id', element: withSuspense(AdminEditPage) },
+      { path: 'admin/users', element: withSuspense(AdminUsersPage) },
+      { path: 'admin/publication-rules', element: withSuspense(AdminPublicationRulesPage) },
     ],
   },
   { path: '/onboarding/topics', element: withSuspense(TopicPreferencesOnboardingPage) },
