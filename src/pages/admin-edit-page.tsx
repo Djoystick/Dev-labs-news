@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { AdminGuard } from '@/components/auth/admin-guard';
-import { Container } from '@/components/layout/container';
+import { FlatPage } from '@/components/layout/flat';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getPost } from '@/features/posts/api';
 import { PostForm } from '@/features/posts/components/post-form';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post } from '@/types/db';
-import { useParams } from 'react-router-dom';
 
 export function AdminEditPage() {
   const { id } = useParams();
@@ -21,7 +21,7 @@ export function AdminEditPage() {
 
     async function loadPostForEdit() {
       if (!id) {
-        setError('Отсутствует идентификатор новости.');
+        setError('РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РЅРѕРІРѕСЃС‚Рё.');
         setIsLoading(false);
         return;
       }
@@ -38,7 +38,7 @@ export function AdminEditPage() {
       } catch {
         if (!ignore) {
           setPost(null);
-          setError('Не удалось загрузить новость.');
+          setError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
         }
       } finally {
         if (!ignore) {
@@ -57,18 +57,18 @@ export function AdminEditPage() {
   return (
     <AdminGuard allowEditor>
       {user ? (
-        <Container className="safe-pb py-10">
+        <FlatPage className="safe-pb py-6 sm:py-8">
           {isLoading ? (
-            <div className="mx-auto max-w-5xl space-y-4">
-              <Skeleton className="h-14 w-40 rounded-full" />
-              <Skeleton className="h-[680px] w-full rounded-[1.75rem]" />
+            <div className="space-y-4">
+              <Skeleton className="h-14 w-40" />
+              <Skeleton className="h-[680px] w-full" />
             </div>
           ) : error || !post ? (
-            <StateCard title="Новость недоступна" description={error ?? 'Не удалось загрузить новость для редактирования.'} />
+            <StateCard title="РќРѕРІРѕСЃС‚СЊ РЅРµРґРѕСЃС‚СѓРїРЅР°" description={error ?? 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ.'} />
           ) : (
             <PostForm mode="edit" post={post} userId={user.id} />
           )}
-        </Container>
+        </FlatPage>
       ) : null}
     </AdminGuard>
   );

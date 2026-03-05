@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
-import { Container } from '@/components/layout/container';
+import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ function getReadingTime(content: string) {
 
 function FeedRowsSkeleton() {
   return (
-    <div>
+    <div className="divide-y divide-border/60">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="py-4">
           <div className="flex items-start gap-4">
@@ -37,7 +37,6 @@ function FeedRowsSkeleton() {
             </div>
             <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-secondary sm:h-24 sm:w-24" />
           </div>
-          <div className="mt-4 h-px bg-border/60" />
         </div>
       ))}
     </div>
@@ -69,12 +68,12 @@ export function FeedPage() {
 
   return (
     <>
-      <Container className="safe-pb py-4 sm:py-6">
-        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="mb-5 space-y-4">
+      <FlatPage className="safe-pb py-4 sm:py-6">
+        <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="mb-5 space-y-4 border-b border-border/60 pb-4">
           <div>
-            <h1 className="text-3xl font-extrabold sm:text-4xl">Лента</h1>
+            <h1 className="text-3xl font-extrabold sm:text-4xl">Р›РµРЅС‚Р°</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedTopic.name} • {filteredPosts.length} из {resultsCount}
+              {selectedTopic.name} вЂў {filteredPosts.length} РёР· {resultsCount}
             </p>
           </div>
 
@@ -85,7 +84,7 @@ export function FeedPage() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11"
-              placeholder="Найти по заголовку или содержанию"
+              placeholder="РќР°Р№С‚Рё РїРѕ Р·Р°РіРѕР»РѕРІРєСѓ РёР»Рё СЃРѕРґРµСЂР¶Р°РЅРёСЋ"
             />
           </div>
         </motion.section>
@@ -97,25 +96,25 @@ export function FeedPage() {
             </motion.div>
           ) : postsError && posts.length === 0 ? (
             <motion.div key="error" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              <StateCard title="Не удалось загрузить материалы" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
+              <StateCard title="РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р»С‹" description={postsError} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" onAction={retryPosts} />
             </motion.div>
           ) : posts.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              <EmptyState onReset={retryPosts} actionLabel="Повторить" description="Материалы пока не найдены. Попробуйте обновить ленту." title="Лента пока пуста" />
+              <EmptyState onReset={retryPosts} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" description="РњР°С‚РµСЂРёР°Р»С‹ РїРѕРєР° РЅРµ РЅР°Р№РґРµРЅС‹. РџРѕРїСЂРѕР±СѓР№С‚Рµ РѕР±РЅРѕРІРёС‚СЊ Р»РµРЅС‚Сѓ." title="Р›РµРЅС‚Р° РїРѕРєР° РїСѓСЃС‚Р°" />
             </motion.div>
           ) : isFiltersOnlyEmpty ? (
             <motion.div key="filtered-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
               <EmptyState
                 onReset={retryPosts}
-                actionLabel="Обновить"
-                description="По выбранным темам материалов нет. Измените фильтры тем через верхнюю панель."
-                title="Ничего не найдено"
+                actionLabel="РћР±РЅРѕРІРёС‚СЊ"
+                description="РџРѕ РІС‹Р±СЂР°РЅРЅС‹Рј С‚РµРјР°Рј РјР°С‚РµСЂРёР°Р»РѕРІ РЅРµС‚. РР·РјРµРЅРёС‚Рµ С„РёР»СЊС‚СЂС‹ С‚РµРј С‡РµСЂРµР· РІРµСЂС…РЅСЋСЋ РїР°РЅРµР»СЊ."
+                title="РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ"
               />
             </motion.div>
           ) : (
             <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {isRefreshing ? <FeedRowsSkeleton /> : null}
-              <div>
+              <div className="divide-y divide-border/60">
                 {filteredPosts.map((post) => (
                   <FeedRow
                     key={post.id}
@@ -134,42 +133,45 @@ export function FeedPage() {
                     <FeedRowsSkeleton />
                   </div>
                 ) : postsError ? (
-                  <StateCard title="Не удалось загрузить материалы" description={postsError} actionLabel="Повторить" onAction={retryPosts} />
+                  <StateCard title="РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р»С‹" description={postsError} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" onAction={retryPosts} />
                 ) : hasMore ? (
                   <Button variant="outline" onClick={loadMore}>
-                    Показать ещё
+                    РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘
                   </Button>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{query ? 'Все найденные материалы уже показаны.' : 'Это конец текущей подборки.'}</p>
+                  <p className="text-sm text-muted-foreground">{query ? 'Р’СЃРµ РЅР°Р№РґРµРЅРЅС‹Рµ РјР°С‚РµСЂРёР°Р»С‹ СѓР¶Рµ РїРѕРєР°Р·Р°РЅС‹.' : 'Р­С‚Рѕ РєРѕРЅРµС† С‚РµРєСѓС‰РµР№ РїРѕРґР±РѕСЂРєРё.'}</p>
                 )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-      </Container>
+      </FlatPage>
 
       <Dialog open={openPost !== null} onOpenChange={(open) => !open && setOpenPost(null)}>
         <DialogContent className="inset-x-0 bottom-0 top-auto z-[100] w-full max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-b-none rounded-t-[2rem] border-x-0 border-b-0 border-t border-border/70 p-0">
           {openPost ? (
             <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? 'Источник'}</p>
-              <h2 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">{openPost.title}</h2>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {new Date(openPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}
-                {openPost.content?.trim() ? ` • ${getReadingTime(openPost.content)} мин чтения` : ''}
-              </p>
-              <div className="mt-2">
-                <PostReactions postId={openPost.id} summary={summariesById.get(openPost.id)} disabled={isPending(openPost.id)} onToggle={toggle} />
-              </div>
-              {openPost.cover_url ? (
-                <div className="mt-4 overflow-hidden rounded-xl bg-secondary">
-                  <img src={openPost.cover_url} alt="" loading="lazy" className="max-h-[220px] w-full object-cover" />
+              <FlatSection className="pt-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? 'РСЃС‚РѕС‡РЅРёРє'}</p>
+                <h2 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">{openPost.title}</h2>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {new Date(openPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}
+                  {openPost.content?.trim() ? ` вЂў ${getReadingTime(openPost.content)} РјРёРЅ С‡С‚РµРЅРёСЏ` : ''}
+                </p>
+                <div className="mt-2">
+                  <PostReactions postId={openPost.id} summary={summariesById.get(openPost.id)} disabled={isPending(openPost.id)} onToggle={toggle} />
                 </div>
+              </FlatSection>
+              {openPost.cover_url ? (
+                <FlatSection>
+                  <img src={openPost.cover_url} alt="" loading="lazy" className="max-h-[220px] w-full object-cover" />
+                </FlatSection>
               ) : null}
-
-              <div className="prose prose-slate mt-5 max-w-none prose-img:rounded-xl prose-pre:rounded-xl dark:prose-invert">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{openPost.content?.trim() || openPost.excerpt || 'Текст новости отсутствует.'}</ReactMarkdown>
-              </div>
+              <FlatSection className="border-b-0 pb-0">
+                <div className="prose prose-slate max-w-none dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{openPost.content?.trim() || openPost.excerpt || 'РўРµРєСЃС‚ РЅРѕРІРѕСЃС‚Рё РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚.'}</ReactMarkdown>
+                </div>
+              </FlatSection>
             </div>
           ) : null}
         </DialogContent>

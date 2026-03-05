@@ -3,7 +3,7 @@ import { RefreshCw, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
-import { Container } from '@/components/layout/container';
+import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
@@ -20,7 +20,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
         <p>{message}</p>
         <Button variant="outline" size="sm" onClick={onRetry} className="border-destructive/35 bg-transparent text-destructive hover:bg-destructive/10">
           <RefreshCw className="h-4 w-4" />
-          Повторить
+          РџРѕРІС‚РѕСЂРёС‚СЊ
         </Button>
       </div>
     </div>
@@ -29,7 +29,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
 
 function FeedRowsSkeleton() {
   return (
-    <div>
+    <div className="divide-y divide-border/60">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} className="py-4">
           <div className="flex items-start gap-4">
@@ -41,7 +41,6 @@ function FeedRowsSkeleton() {
             </div>
             <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-secondary sm:h-24 sm:w-24" />
           </div>
-          <div className="mt-4 h-px bg-border/60" />
         </div>
       ))}
     </div>
@@ -78,22 +77,22 @@ export function ForYouPage() {
   const { summariesById, toggle, isPending } = useReactions(postIds);
 
   return (
-    <Container className="safe-pb py-6 sm:py-8">
+    <FlatPage className="safe-pb py-6 sm:py-8">
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
-        <div className="border-b border-border/60 pb-5 sm:pb-6">
+        <FlatSection className="pt-0 sm:pt-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/14 text-primary">
+            <div className="flex h-11 w-11 items-center justify-center text-primary">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
-              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Рекомендованные материалы по вашим интересам</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Р”Р»СЏ С‚РµР±СЏ</p>
+              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Recommended posts for your interests</h1>
             </div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-            Эта лента в первую очередь показывает материалы по выбранным вами темам и убирает статьи, которые вы уже сохранили.
+            Р­С‚Р° Р»РµРЅС‚Р° РІ РїРµСЂРІСѓСЋ РѕС‡РµСЂРµРґСЊ РїРѕРєР°Р·С‹РІР°РµС‚ РјР°С‚РµСЂРёР°Р»С‹ РїРѕ РІС‹Р±СЂР°РЅРЅС‹Рј РІР°РјРё С‚РµРјР°Рј Рё СѓР±РёСЂР°РµС‚ СЃС‚Р°С‚СЊРё, РєРѕС‚РѕСЂС‹Рµ РІС‹ СѓР¶Рµ СЃРѕС…СЂР°РЅРёР»Рё.
           </p>
-        </div>
+        </FlatSection>
 
         {error ? <InlineError message={error} onRetry={retry} /> : null}
 
@@ -101,13 +100,13 @@ export function ForYouPage() {
           <FeedRowsSkeleton />
         ) : posts.length === 0 ? (
           <EmptyState
-            title="Пока нет рекомендаций"
-            description="Выберите темы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."
-            actionLabel="Повторить"
+            title="РџРѕРєР° РЅРµС‚ СЂРµРєРѕРјРµРЅРґР°С†РёР№"
+            description="Р’С‹Р±РµСЂРёС‚Рµ С‚РµРјС‹ РёР»Рё СЃРѕС…СЂР°РЅРёС‚Рµ СЃС‚Р°С‚СЊРё, С‡С‚РѕР±С‹ РјС‹ Р»СѓС‡С€Рµ РЅР°СЃС‚СЂРѕРёР»Рё СЌС‚Сѓ Р»РµРЅС‚Сѓ РїРѕРґ РІР°С€Рё РёРЅС‚РµСЂРµСЃС‹."
+            actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ"
             onReset={retry}
           />
         ) : (
-          <div>
+          <div className="divide-y divide-border/60">
             {posts.map((post) => (
               <FeedRow
                 key={post.id}
@@ -121,6 +120,6 @@ export function ForYouPage() {
           </div>
         )}
       </motion.section>
-    </Container>
+    </FlatPage>
   );
 }

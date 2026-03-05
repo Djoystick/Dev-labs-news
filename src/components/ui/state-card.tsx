@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 type StateCardProps = {
@@ -11,24 +10,24 @@ type StateCardProps = {
   title: string;
 };
 
-export function StateCard({ actionLabel = 'Повторить', description, icon, onAction, title }: StateCardProps) {
+export function StateCard({ actionLabel = 'РџРѕРІС‚РѕСЂРёС‚СЊ', description, icon, onAction, title }: StateCardProps) {
   return (
-    <Card className="mx-auto max-w-2xl">
-      <CardHeader className="items-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+    <div className="border-y border-border/60 py-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground">
           {icon ?? <AlertTriangle className="h-5 w-5" />}
         </div>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-center">
-        <p className="mx-auto max-w-xl text-sm leading-6 text-muted-foreground">{description}</p>
-        {onAction ? (
-          <Button variant="secondary" className="mt-6" onClick={onAction}>
-            <RefreshCw className="h-4 w-4" />
-            {actionLabel}
-          </Button>
-        ) : null}
-      </CardContent>
-    </Card>
+        <div className="min-w-0">
+          <p className="font-semibold">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+          {onAction ? (
+            <Button variant="ghost" className="mt-3 h-8 px-2" onClick={onAction}>
+              <RefreshCw className="h-4 w-4" />
+              {actionLabel}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }

@@ -2,10 +2,9 @@ import { ArrowLeft, Bookmark, ChevronRight, FilePenLine, LogOut, MoonStar, Scrol
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
-import { Container } from '@/components/layout/container';
+import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
@@ -33,14 +32,8 @@ function AccountRow({
   value?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-4 rounded-[1.25rem] px-1 py-3 text-left transition hover:bg-secondary/50"
-    >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/80 text-foreground">
-        {icon}
-      </span>
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-4 py-3 text-left transition hover:bg-secondary/30">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center text-foreground">{icon}</span>
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="font-semibold leading-tight">{label}</p>
         {value ? <p className="truncate whitespace-nowrap text-sm leading-tight text-muted-foreground">{value}</p> : null}
@@ -66,154 +59,141 @@ export function ProfilePage() {
     }
 
     if (!profile) {
-      return 'Пользователь';
+      return 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ';
     }
 
-    return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'Пользователь');
+    return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ');
   }, [profile, telegramUser, user?.email]);
 
   const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
-  const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Читатель';
+  const roleLabel = profile?.role === 'admin' ? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ' : profile?.role === 'editor' ? 'Р РµРґР°РєС‚РѕСЂ' : 'Р§РёС‚Р°С‚РµР»СЊ';
 
   if (loading) {
     return (
-      <Container className="safe-pb py-6 sm:py-8">
-        <div className="mx-auto max-w-3xl space-y-5">
+      <FlatPage className="safe-pb py-6 sm:py-8">
+        <div className="space-y-5">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-full" />
             <Skeleton className="h-8 w-32 rounded-full" />
           </div>
-          <Skeleton className="h-44 w-full rounded-[2rem]" />
-          <Skeleton className="h-64 w-full rounded-[2rem]" />
+          <Skeleton className="h-44 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
-      </Container>
+      </FlatPage>
     );
   }
 
   if (!isAuthed || !user || !profile) {
     return (
-      <Container className="safe-pb py-6 sm:py-8">
-        <div className="mx-auto max-w-3xl space-y-4">
-          <Button type="button" variant="ghost" className="rounded-full" onClick={() => navigate(-1)}>
+      <FlatPage className="safe-pb py-6 sm:py-8">
+        <div className="space-y-4">
+          <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            РќР°Р·Р°Рґ
           </Button>
-          <StateCard title="Нужен вход" description="Войдите, чтобы управлять аккаунтом, сохранёнными материалами и разделами." />
+          <StateCard title="РќСѓР¶РµРЅ РІС…РѕРґ" description="Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ СѓРїСЂР°РІР»СЏС‚СЊ Р°РєРєР°СѓРЅС‚РѕРј, СЃРѕС…СЂР°РЅС‘РЅРЅС‹РјРё РјР°С‚РµСЂРёР°Р»Р°РјРё Рё СЂР°Р·РґРµР»Р°РјРё." />
           <div className="flex gap-3">
-            <Button onClick={() => setAuthDialogOpen(true)}>Войти</Button>
+            <Button onClick={() => setAuthDialogOpen(true)}>Р’РѕР№С‚Рё</Button>
             <Button variant="outline" onClick={() => navigate('/')}>
-              На главную
+              РќР° РіР»Р°РІРЅСѓСЋ
             </Button>
           </div>
           <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
         </div>
-      </Container>
+      </FlatPage>
     );
   }
 
   return (
-    <Container className="safe-pb py-6 sm:py-8">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">Назад</span>
+    <FlatPage className="safe-pb py-6 sm:py-8">
+      <div className="space-y-2">
+        <FlatSection className="pt-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="h-5 w-5" />
+                <span className="sr-only">РќР°Р·Р°Рґ</span>
+              </Button>
+              <h1 className="text-3xl font-extrabold">РђРєРєР°СѓРЅС‚</h1>
+            </div>
+            <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/topic-preferences')}>
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">РќР°СЃС‚СЂРѕР№РєРё СЂР°Р·РґРµР»РѕРІ</span>
             </Button>
-            <h1 className="text-3xl font-extrabold">Аккаунт</h1>
           </div>
-          <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/topic-preferences')}>
-            <Settings className="h-5 w-5" />
-            <span className="sr-only">Настройки разделов</span>
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 py-2">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Здравствуйте,</p>
-            <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {isTeamMember ? (
-                <span className="rounded-full border border-primary/30 bg-primary/15 px-3 py-1 text-xs font-semibold text-primary">DevLabs Team</span>
-              ) : null}
-              <span className="rounded-full border border-border/70 bg-secondary/60 px-3 py-1 text-xs font-semibold text-foreground">{roleLabel}</span>
-            </div>
-          </div>
-          <Avatar className="h-16 w-16 rounded-full border-border/70 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.55)]">
-            <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-            <AvatarFallback className="text-xl">{getInitial(displayName)}</AvatarFallback>
-          </Avatar>
-        </div>
-
-        <div className="border-t border-border/60 pt-5">
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ваше</p>
-              <div className="mt-3 space-y-1">
-                <AccountRow icon={<Bookmark className="h-4 w-4" />} label="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
-                {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
+          <div className="mt-4 flex items-center justify-between gap-4 py-2">
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ,</p>
+              <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {isTeamMember ? <span className="px-3 py-1 text-xs font-semibold text-primary">DevLabs Team</span> : null}
+                <span className="px-3 py-1 text-xs font-semibold text-foreground">{roleLabel}</span>
               </div>
             </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Настройки</p>
-              <div className="mt-3 space-y-1">
-                <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Настройки разделов" onClick={() => navigate('/topic-preferences')} />
-                <AccountRow
-                  icon={<MoonStar className="h-4 w-4" />}
-                  label="Цветовая схема"
-                  value={theme === 'dark' ? 'Светлая' : 'Тёмная'}
-                  onClick={toggleTheme}
-                />
-              </div>
-            </div>
-
-            {isAdminUser ? (
-              <>
-                <Separator />
-
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">АДМИН</p>
-                  <div className="mt-3 space-y-1">
-                    <AccountRow icon={<Users className="h-4 w-4" />} label="Роли пользователей" onClick={() => navigate('/admin/users')} />
-                    <AccountRow icon={<ScrollText className="h-4 w-4" />} label="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
-                  </div>
-                </div>
-              </>
-            ) : null}
-
-            <Separator />
-
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Аккаунт</p>
-              <div className="mt-3">
-                <AccountRow
-                  icon={<LogOut className="h-4 w-4" />}
-                  label={signOutBusy ? 'Выходим...' : 'Выйти'}
-                  onClick={async () => {
-                    if (signOutBusy) {
-                      return;
-                    }
-
-                    setSignOutBusy(true);
-                    try {
-                      await signOut();
-                      navigate('/', { replace: true });
-                    } finally {
-                      setSignOutBusy(false);
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <Avatar className="h-16 w-16 rounded-full">
+              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+              <AvatarFallback className="text-xl">{getInitial(displayName)}</AvatarFallback>
+            </Avatar>
           </div>
-        </div>
+        </FlatSection>
+
+        <FlatSection className="pt-2">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Р’Р°С€Рµ</p>
+          <div className="mt-2 divide-y divide-border/60">
+            <AccountRow icon={<Bookmark className="h-4 w-4" />} label="РЎРѕС…СЂР°РЅС‘РЅРЅС‹Рµ СЃС‚Р°С‚СЊРё" onClick={() => navigate('/saved-articles')} />
+            {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="РњРѕРё РїСѓР±Р»РёРєР°С†РёРё" onClick={() => navigate('/my-posts')} /> : null}
+          </div>
+        </FlatSection>
+
+        <FlatSection className="pt-2">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РќР°СЃС‚СЂРѕР№РєРё</p>
+          <div className="mt-2 divide-y divide-border/60">
+            <AccountRow icon={<Settings2 className="h-4 w-4" />} label="РќР°СЃС‚СЂРѕР№РєРё СЂР°Р·РґРµР»РѕРІ" onClick={() => navigate('/topic-preferences')} />
+            <AccountRow
+              icon={<MoonStar className="h-4 w-4" />}
+              label="Р¦РІРµС‚РѕРІР°СЏ СЃС…РµРјР°"
+              value={theme === 'dark' ? 'РЎРІРµС‚Р»Р°СЏ' : 'РўС‘РјРЅР°СЏ'}
+              onClick={toggleTheme}
+            />
+          </div>
+        </FlatSection>
+
+        {isAdminUser ? (
+          <FlatSection className="pt-2">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РђР”РњРРќ</p>
+            <div className="mt-2 divide-y divide-border/60">
+              <AccountRow icon={<Users className="h-4 w-4" />} label="Р РѕР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№" onClick={() => navigate('/admin/users')} />
+              <AccountRow icon={<ScrollText className="h-4 w-4" />} label="РџСЂР°РІРёР»Р° РїСѓР±Р»РёРєР°С†РёР№" onClick={() => navigate('/admin/publication-rules')} />
+            </div>
+          </FlatSection>
+        ) : null}
+
+        <FlatSection className="pt-2 border-b-0">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РђРєРєР°СѓРЅС‚</p>
+          <div className="mt-2 divide-y divide-border/60">
+            <AccountRow
+              icon={<LogOut className="h-4 w-4" />}
+              label={signOutBusy ? 'Р’С‹С…РѕРґРёРј...' : 'Р’С‹Р№С‚Рё'}
+              onClick={async () => {
+                if (signOutBusy) {
+                  return;
+                }
+
+                setSignOutBusy(true);
+                try {
+                  await signOut();
+                  navigate('/', { replace: true });
+                } finally {
+                  setSignOutBusy(false);
+                }
+              }}
+            />
+          </div>
+        </FlatSection>
       </div>
-    </Container>
+    </FlatPage>
   );
 }

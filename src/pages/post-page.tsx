@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Container } from '@/components/layout/container';
+import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,11 +26,11 @@ function getReadingTime(content: string) {
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="rounded-[1.5rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+    <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p>{message}</p>
         <Button type="button" variant="outline" size="sm" onClick={onRetry} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
-          Повторить
+          РџРѕРІС‚РѕСЂРёС‚СЊ
         </Button>
       </div>
     </div>
@@ -39,15 +39,15 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
 
 function DetailSkeleton() {
   return (
-    <Container className="safe-pb py-6 sm:py-8">
-      <div className="mx-auto max-w-5xl space-y-6">
+    <FlatPage className="safe-pb py-6 sm:py-8">
+      <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Skeleton className="h-10 w-24 rounded-full" />
           <Skeleton className="h-5 w-40 rounded-full" />
         </div>
-        <div className="overflow-hidden">
+        <div>
           <Skeleton className="aspect-[16/8] w-full" />
-          <div className="space-y-5 p-6 sm:p-8 lg:p-10">
+          <div className="space-y-5 py-6 sm:py-8 lg:py-10">
             <Skeleton className="h-4 w-28 rounded-full" />
             <Skeleton className="h-14 w-full rounded-2xl" />
             <Skeleton className="h-8 w-5/6 rounded-2xl" />
@@ -66,7 +66,7 @@ function DetailSkeleton() {
         </div>
         <FeedSkeleton />
       </div>
-    </Container>
+    </FlatPage>
   );
 }
 
@@ -149,7 +149,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить материал.');
+          setError(loadError instanceof Error ? loadError.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р».');
         }
       } finally {
         if (!ignore) {
@@ -188,7 +188,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setLatestPosts([]);
-          setLatestError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить последние новости.');
+          setLatestError(loadError instanceof Error ? loadError.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РїРѕСЃР»РµРґРЅРёРµ РЅРѕРІРѕСЃС‚Рё.');
         }
       } finally {
         if (!ignore) {
@@ -229,12 +229,12 @@ export function PostPage() {
 
   if (error || !post) {
     return (
-      <Container className="safe-pb py-6 sm:py-8">
-        <div className="mx-auto max-w-3xl space-y-4">
+      <FlatPage className="safe-pb py-6 sm:py-8">
+        <div className="space-y-4">
           <Button
             type="button"
             variant="ghost"
-            className="w-fit rounded-full"
+            className="w-fit"
             onClick={() => {
               if (location.key !== 'default') {
                 navigate(-1);
@@ -245,11 +245,11 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            РќР°Р·Р°Рґ
           </Button>
-          <InlineError message={error ?? 'Не удалось загрузить материал.'} onRetry={retry} />
+          <InlineError message={error ?? 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р».'} onRetry={retry} />
         </div>
-      </Container>
+      </FlatPage>
     );
   }
 
@@ -257,13 +257,12 @@ export function PostPage() {
   const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
 
   return (
-    <Container className="safe-pb py-6 sm:py-8">
-      <div className="mx-auto max-w-5xl space-y-8">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+    <FlatPage className="safe-pb py-6 sm:py-8">
+      <div className="space-y-8">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 border-b border-border/60 pb-5">
           <Button
             type="button"
             variant="ghost"
-            className="rounded-full"
             onClick={() => {
               if (location.key !== 'default') {
                 navigate(-1);
@@ -274,12 +273,12 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            РќР°Р·Р°Рґ
           </Button>
 
           <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Link to="/" className="transition hover:text-foreground">
-              Новости
+              РќРѕРІРѕСЃС‚Рё
             </Link>
             {topic ? (
               <>
@@ -292,21 +291,19 @@ export function PostPage() {
           </nav>
         </motion.div>
 
-        <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="overflow-hidden">
+        <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
           {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/8] w-full object-cover" /> : null}
-          <div className="space-y-8 p-6 sm:p-8 lg:p-10">
+          <div className="space-y-8 py-6 sm:py-8 lg:py-10">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-                  {topic?.name ?? 'Новости'}
-                </span>
+                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'РќРѕРІРѕСЃС‚Рё'}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
                   {isAdmin ? (
                     <Button asChild size="sm" variant="outline">
                       <AppLink to={`/admin/edit/${post.id}`}>
                         <PencilLine className="h-4 w-4" />
-                        Редактировать
+                        Edit
                       </AppLink>
                     </Button>
                   ) : null}
@@ -318,7 +315,7 @@ export function PostPage() {
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <Clock3 className="h-4 w-4" />
-                  {readingTime} мин чтения
+                  {readingTime} РјРёРЅ С‡С‚РµРЅРёСЏ
                 </span>
                 <span>{createdAtLabel}</span>
               </div>
@@ -328,14 +325,14 @@ export function PostPage() {
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
             </div>
 
-            <div className="border-y border-border/60 py-5">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI-автор</p>
+            <FlatSection>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">AI-Р°РІС‚РѕСЂ</p>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-                Этот материал подготовлен с помощью ИИ и адаптирован для быстрого чтения. Перед тем как опираться на информацию, проверьте источники и контекст.
+                Р­С‚РѕС‚ РјР°С‚РµСЂРёР°Р» РїРѕРґРіРѕС‚РѕРІР»РµРЅ СЃ РїРѕРјРѕС‰СЊСЋ РР Рё Р°РґР°РїС‚РёСЂРѕРІР°РЅ РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ С‡С‚РµРЅРёСЏ. РџРµСЂРµРґ С‚РµРј РєР°Рє РѕРїРёСЂР°С‚СЊСЃСЏ РЅР° РёРЅС„РѕСЂРјР°С†РёСЋ, РїСЂРѕРІРµСЂСЊС‚Рµ РёСЃС‚РѕС‡РЅРёРєРё Рё РєРѕРЅС‚РµРєСЃС‚.
               </p>
-            </div>
+            </FlatSection>
 
-            <div className={`prose prose-slate max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:rounded-[1.25rem] prose-pre:bg-slate-950 prose-img:rounded-[1.25rem] dark:prose-invert ${textSizeClassName} ${textWidthClassName}`}>
+            <div className={`prose prose-slate max-w-none prose-headings:font-['Source_Serif_4'] prose-pre:bg-slate-950 dark:prose-invert ${textSizeClassName} ${textWidthClassName}`}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -356,8 +353,8 @@ export function PostPage() {
 
         <section className="space-y-5">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Ещё</p>
-            <h2 className="text-3xl font-extrabold">Последние новости</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Р•С‰С‘</p>
+            <h2 className="text-3xl font-extrabold">РџРѕСЃР»РµРґРЅРёРµ РЅРѕРІРѕСЃС‚Рё</h2>
           </div>
 
           {latestError ? <InlineError message={latestError} onRetry={retry} /> : null}
@@ -365,9 +362,9 @@ export function PostPage() {
           {latestLoading ? (
             <FeedSkeleton />
           ) : latestPosts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Пока больше материалов нет.</p>
+            <p className="text-sm text-muted-foreground">РџРѕРєР° Р±РѕР»СЊС€Рµ РјР°С‚РµСЂРёР°Р»РѕРІ РЅРµС‚.</p>
           ) : (
-            <div className="grid gap-5">
+            <div className="divide-y divide-border/60">
               {latestPosts.map((latestPost, index) => (
                 <PostCard
                   key={latestPost.id}
@@ -382,6 +379,6 @@ export function PostPage() {
           )}
         </section>
       </div>
-    </Container>
+    </FlatPage>
   );
 }

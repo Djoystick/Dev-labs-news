@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
+import { FlatSection } from '@/components/layout/flat';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -81,7 +82,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         }
       } catch {
         if (!ignore) {
-          setTopicsError('Не удалось загрузить разделы. Используется резервный список.');
+          setTopicsError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СЂР°Р·РґРµР»С‹. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂРµР·РµСЂРІРЅС‹Р№ СЃРїРёСЃРѕРє.');
           setTopics(FALLBACK_SECTION_TOPICS);
         }
       } finally {
@@ -98,7 +99,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }, []);
 
   const coverUrl = form.watch('cover_url');
-  const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
+  const submitLabel = isSubmitting ? 'РЎРѕС…СЂР°РЅРµРЅРёРµвЂ¦' : mode === 'create' ? 'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ' : 'РЎРѕС…СЂР°РЅРёС‚СЊ';
   const canDeletePost = profile?.role === 'admin';
 
   const returnState = useMemo(() => {
@@ -122,15 +123,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         shouldDirty: true,
         shouldValidate: true,
       });
-      toast.success('Обложка загружена.');
+      toast.success('РћР±Р»РѕР¶РєР° Р·Р°РіСЂСѓР¶РµРЅР°.');
     } catch {
-      toast.error('Не удалось загрузить обложку.');
+      toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РѕР±Р»РѕР¶РєСѓ.');
     } finally {
       setIsUploadingCover(false);
     }
   };
 
-  const pageTitle = useMemo(() => (mode === 'create' ? 'Новая новость' : 'Редактирование новости'), [mode]);
+  const pageTitle = useMemo(() => (mode === 'create' ? 'РќРѕРІР°СЏ РЅРѕРІРѕСЃС‚СЊ' : 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РЅРѕРІРѕСЃС‚Рё'), [mode]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -147,8 +148,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   if (topicsLoading) {
     return (
       <div className="space-y-5">
-        <Skeleton className="h-16 w-44 rounded-full" />
-        <Skeleton className="h-[640px] w-full rounded-[1.75rem]" />
+        <Skeleton className="h-16 w-44" />
+        <Skeleton className="h-[640px] w-full" />
       </div>
     );
   }
@@ -159,27 +160,27 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     hasSectionTopics
       ? sectionTopics
       : post?.topic_id
-        ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }]
+        ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: 'РўРµРєСѓС‰РёР№ СЂР°Р·РґРµР»', created_at: '' }]
         : FALLBACK_SECTION_TOPICS;
 
   return (
     <>
-      <div className="mx-auto max-w-5xl">
-        <div className="border-b border-border/60 pb-5">
+      <div>
+        <FlatSection className="pt-0">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h1 className="mt-2 text-3xl font-bold">{pageTitle}</h1>
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <AppLink to={`/post/${post.id}`}>Открыть опубликованную версию</AppLink>
+                  <AppLink to={`/post/${post.id}`}>РћС‚РєСЂС‹С‚СЊ РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅСѓСЋ РІРµСЂСЃРёСЋ</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
-                <AppLink to="/">Назад к ленте</AppLink>
+                <AppLink to="/">РќР°Р·Р°Рґ Рє Р»РµРЅС‚Рµ</AppLink>
               </Button>
             </div>
           </div>
-        </div>
+        </FlatSection>
 
         <div className="pt-6">
           <form
@@ -200,13 +201,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 if (mode === 'create') {
                   await createPost(payload);
-                  toast.success('Новость опубликована.');
+                  toast.success('РќРѕРІРѕСЃС‚СЊ РѕРїСѓР±Р»РёРєРѕРІР°РЅР°.');
                   navigate('/', { replace: true });
                   return;
                 }
 
                 await updatePost(post!.id, payload);
-                toast.success('Новость сохранена.');
+                toast.success('РќРѕРІРѕСЃС‚СЊ СЃРѕС…СЂР°РЅРµРЅР°.');
 
                 if (returnState?.returnTo === '/my-posts') {
                   navigate('/my-posts', {
@@ -222,29 +223,29 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   console.error('[PostForm] submit failed', error);
                 }
 
-                setSubmitError('Не удалось сохранить новость.');
-                toast.error('Не удалось сохранить новость.');
+                setSubmitError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
+                toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
               } finally {
                 setIsSubmitting(false);
               }
             })}
           >
-            {submitError ? <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
-            {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
-            {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Разделы не найдены. Проверьте миграции." /> : null}
+            {submitError ? <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
+            {topicsError ? <StateCard title="Р Р°Р·РґРµР»С‹ РЅРµРґРѕСЃС‚СѓРїРЅС‹" description={topicsError} /> : null}
+            {!topicsError && !hasSectionTopics ? <StateCard title="Р Р°Р·РґРµР»С‹ РЅРµ РЅР°Р№РґРµРЅС‹" description="Р Р°Р·РґРµР»С‹ РЅРµ РЅР°Р№РґРµРЅС‹. РџСЂРѕРІРµСЂСЊС‚Рµ РјРёРіСЂР°С†РёРё." /> : null}
 
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Заголовок</Label>
-                  <Input id="title" placeholder="Введите заголовок" {...form.register('title')} />
+                  <Label htmlFor="title">Р—Р°РіРѕР»РѕРІРѕРє</Label>
+                  <Input id="title" placeholder="Р’РІРµРґРёС‚Рµ Р·Р°РіРѕР»РѕРІРѕРє" {...form.register('title')} />
                   {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
                 </div>
               </div>
 
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="topic_id">Раздел</Label>
+                  <Label htmlFor="topic_id">Section</Label>
                   <Select
                     id="topic_id"
                     value={form.watch('topic_id')}
@@ -255,7 +256,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                       });
                     }}
                   >
-                    <option value="">Выберите раздел</option>
+                    <option value="">Р’С‹Р±РµСЂРёС‚Рµ СЂР°Р·РґРµР»</option>
                     {topicOptions.map((topic) => (
                       <option key={topic.id} value={topic.id}>
                         {topic.name}
@@ -267,7 +268,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="cover-upload">Обложка</Label>
+                    <Label htmlFor="cover-upload">РћР±Р»РѕР¶РєР°</Label>
                     <input
                       id="cover-upload"
                       accept="image/*"
@@ -283,20 +284,20 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     <Button asChild type="button" variant="outline" size="sm" disabled={isUploadingCover}>
                       <label htmlFor="cover-upload" className="cursor-pointer">
                         {isUploadingCover ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                        Загрузить
+                        Р—Р°РіСЂСѓР·РёС‚СЊ
                       </label>
                     </Button>
                   </div>
                   {coverUrl ? (
-                    <div className="overflow-hidden rounded-[1.25rem] border border-border">
+                    <div className="border-y border-border/60 py-3">
                       <img src={coverUrl} alt="" className="aspect-[16/9] w-full object-cover" />
                     </div>
                   ) : (
-                    <div className="rounded-[1.25rem] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                      Загрузите обложку, чтобы карточка новости выглядела лучше в ленте.
+                    <div className="border-y border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                      Р—Р°РіСЂСѓР·РёС‚Рµ РѕР±Р»РѕР¶РєСѓ, С‡С‚РѕР±С‹ РєР°СЂС‚РѕС‡РєР° РЅРѕРІРѕСЃС‚Рё РІС‹РіР»СЏРґРµР»Р° Р»СѓС‡С€Рµ РІ Р»РµРЅС‚Рµ.
                     </div>
                   )}
-                  <Input value={coverUrl ?? ''} readOnly placeholder="URL обложки появится после загрузки" />
+                  <Input value={coverUrl ?? ''} readOnly placeholder="URL РѕР±Р»РѕР¶РєРё РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё" />
                   {form.formState.errors.cover_url ? <p className="text-sm text-destructive">{form.formState.errors.cover_url.message}</p> : null}
                 </div>
               </div>
@@ -304,7 +305,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <Label>Текст</Label>
+                <Label>РўРµРєСЃС‚</Label>
                 <p className="text-xs text-muted-foreground">Markdown</p>
               </div>
               <RichTextMarkdownEditor
@@ -316,20 +317,20 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   });
                 }}
                 minHeight={320}
-                placeholder="Введите текст новости в визуальном редакторе. Сохранение выполняется в markdown."
+                placeholder="Р’РІРµРґРёС‚Рµ С‚РµРєСЃС‚ РЅРѕРІРѕСЃС‚Рё РІ РІРёР·СѓР°Р»СЊРЅРѕРј СЂРµРґР°РєС‚РѕСЂРµ. РЎРѕС…СЂР°РЅРµРЅРёРµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ markdown."
               />
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                {mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}
+                {mode === 'create' ? 'РџСѓР±Р»РёРєР°С†РёСЏ СЃС‚Р°РЅРµС‚ РґРѕСЃС‚СѓРїРЅР° СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ.' : 'РР·РјРµРЅРµРЅРёСЏ РїСЂРёРјРµРЅСЏС‚СЃСЏ СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ.'}
               </div>
               <div className="flex flex-wrap gap-3">
                 {mode === 'edit' && post && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
-                    Удалить
+                    РЈРґР°Р»РёС‚СЊ
                   </Button>
                 ) : null}
                 <Button type="submit" disabled={isSubmitting || isUploadingCover}>
@@ -345,19 +346,19 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       <Dialog open={canDeletePost ? isDeleteDialogOpen : false} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Удалить новость?</DialogTitle>
-            <DialogDescription>Новость будет удалена без возможности восстановления.</DialogDescription>
+            <DialogTitle>РЈРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ?</DialogTitle>
+            <DialogDescription>РќРѕРІРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° Р±РµР· РІРѕР·РјРѕР¶РЅРѕСЃС‚Рё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ.</DialogDescription>
           </DialogHeader>
-          <div className="rounded-2xl bg-destructive/10 p-4 text-sm leading-6 text-destructive">
+          <div className="border-y border-destructive/30 bg-destructive/10 p-4 text-sm leading-6 text-destructive">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4" />
-              Необратимое действие
+              РќРµРѕР±СЂР°С‚РёРјРѕРµ РґРµР№СЃС‚РІРёРµ
             </div>
-            Новость будет удалена сразу. Загруженные изображения останутся в storage.
+            РќРѕРІРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° СЃСЂР°Р·Сѓ. Р—Р°РіСЂСѓР¶РµРЅРЅС‹Рµ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ РѕСЃС‚Р°РЅСѓС‚СЃСЏ РІ storage.
           </div>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Отмена
+              РћС‚РјРµРЅР°
             </Button>
             <Button
               type="button"
@@ -372,7 +373,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 try {
                   await deletePost(post.id);
-                  toast.success('Новость удалена.');
+                  toast.success('РќРѕРІРѕСЃС‚СЊ СѓРґР°Р»РµРЅР°.');
                   if (returnState?.returnTo === '/my-posts') {
                     navigate('/my-posts', {
                       replace: true,
@@ -386,8 +387,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     console.error('[PostForm] delete failed', error);
                   }
 
-                  setSubmitError('Не удалось удалить новость.');
-                  toast.error('Не удалось удалить новость.');
+                  setSubmitError('РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
+                  toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
                 } finally {
                   setIsSubmitting(false);
                   setIsDeleteDialogOpen(false);
@@ -396,7 +397,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               disabled={isSubmitting}
             >
               {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Удалить новость
+              РЈРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ
             </Button>
           </div>
         </DialogContent>

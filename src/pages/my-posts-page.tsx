@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FilePenLine } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminGuard } from '@/components/auth/admin-guard';
-import { Container } from '@/components/layout/container';
+import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
@@ -64,9 +64,9 @@ function restoreScrollPosition(scrollY: number) {
 
 function MyPostsSkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-border/60">
       {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="p-4">
+        <div key={index} className="py-4">
           <div className="flex items-start gap-4">
             <div className="h-20 w-20 shrink-0 animate-pulse rounded-xl bg-secondary sm:h-24 sm:w-24" />
             <div className="min-w-0 flex-1 space-y-2">
@@ -75,7 +75,7 @@ function MyPostsSkeleton() {
               <div className="h-4 w-2/3 animate-pulse rounded bg-secondary" />
               <div className="h-3 w-40 animate-pulse rounded bg-secondary" />
             </div>
-            <div className="h-9 w-28 animate-pulse rounded-full bg-secondary" />
+            <div className="h-9 w-28 animate-pulse rounded bg-secondary" />
           </div>
         </div>
       ))}
@@ -120,7 +120,7 @@ export function MyPostsPage() {
     setPosts(data ?? []);
   }, [isAdmin, user?.id]);
 
-  const pageTitle = isAdmin ? 'Все публикации' : 'Мои публикации';
+  const pageTitle = isAdmin ? 'Р’СЃРµ РїСѓР±Р»РёРєР°С†РёРё' : 'РњРѕРё РїСѓР±Р»РёРєР°С†РёРё';
 
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +131,7 @@ export function MyPostsPage() {
       } catch {
         if (!cancelled) {
           setPosts([]);
-          setError('Не удалось загрузить публикации.');
+          setError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РїСѓР±Р»РёРєР°С†РёРё.');
         }
       } finally {
         if (!cancelled) {
@@ -149,10 +149,10 @@ export function MyPostsPage() {
 
   const pageDescription = useMemo(() => {
     if (posts.length === 0) {
-      return isAdmin ? 'Публикации всех авторов отображаются здесь.' : 'Публикации, созданные вами.';
+      return isAdmin ? 'РџСѓР±Р»РёРєР°С†РёРё РІСЃРµС… Р°РІС‚РѕСЂРѕРІ РѕС‚РѕР±СЂР°Р¶Р°СЋС‚СЃСЏ Р·РґРµСЃСЊ.' : 'РџСѓР±Р»РёРєР°С†РёРё, СЃРѕР·РґР°РЅРЅС‹Рµ РІР°РјРё.';
     }
 
-    return `Всего публикаций: ${posts.length}`;
+    return `Р’СЃРµРіРѕ РїСѓР±Р»РёРєР°С†РёР№: ${posts.length}`;
   }, [isAdmin, posts.length]);
 
   const restoreScrollY = useMemo(() => {
@@ -182,9 +182,9 @@ export function MyPostsPage() {
 
   return (
     <AdminGuard allowEditor>
-      <Container className="safe-pb py-6 sm:py-8">
-        <div className="mx-auto max-w-4xl space-y-5">
-          <div>
+      <FlatPage className="safe-pb py-6 sm:py-8">
+        <div className="space-y-5">
+          <div className="border-b border-border/60 pb-4">
             <h1 className="text-3xl font-extrabold">{pageTitle}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{pageDescription}</p>
           </div>
@@ -192,20 +192,20 @@ export function MyPostsPage() {
           {isLoading ? <MyPostsSkeleton /> : null}
 
           {!isLoading && error ? (
-            <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
+            <div className="border-y border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
               <p>{error}</p>
               <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setReloadKey((value) => value + 1)}>
-                Повторить
+                РџРѕРІС‚РѕСЂРёС‚СЊ
               </Button>
             </div>
           ) : null}
 
-          {!isLoading && !error && posts.length === 0 ? <StateCard title="Пока нет публикаций" description="Создайте первую новость, она появится здесь." /> : null}
+          {!isLoading && !error && posts.length === 0 ? <StateCard title="РџРѕРєР° РЅРµС‚ РїСѓР±Р»РёРєР°С†РёР№" description="РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІСѓСЋ РЅРѕРІРѕСЃС‚СЊ, РѕРЅР° РїРѕСЏРІРёС‚СЃСЏ Р·РґРµСЃСЊ." /> : null}
 
           {!isLoading && !error && posts.length > 0 ? (
             <div className="divide-y divide-border/60">
-              {posts.map((post, index) => (
-                <div key={post.id} className="p-4 sm:p-5">
+              {posts.map((post) => (
+                <div key={post.id} className="py-4">
                   <div className="flex items-start gap-4">
                     <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
                       {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
@@ -215,8 +215,8 @@ export function MyPostsPage() {
                       {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
                       <p className="mt-2 text-xs text-muted-foreground">
                         {formatDate(post.created_at)}
-                        {` • ${normalizeHandle(undefined) ?? 'Автор'}`}
-                        {typeof post.is_published === 'boolean' ? ` • ${post.is_published ? 'Опубликовано' : 'Черновик'}` : ''}
+                        {` вЂў ${normalizeHandle(undefined) ?? 'РђРІС‚РѕСЂ'}`}
+                        {typeof post.is_published === 'boolean' ? ` вЂў ${post.is_published ? 'РћРїСѓР±Р»РёРєРѕРІР°РЅРѕ' : 'Р§РµСЂРЅРѕРІРёРє'}` : ''}
                       </p>
                       <div className="mt-2">
                         <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
@@ -226,7 +226,7 @@ export function MyPostsPage() {
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="shrink-0 rounded-full"
+                      className="shrink-0"
                       onClick={() =>
                         navigate(`/admin/edit/${post.id}`, {
                           state: {
@@ -237,16 +237,15 @@ export function MyPostsPage() {
                       }
                     >
                       <FilePenLine className="h-4 w-4" />
-                      Редактировать
+                      Edit
                     </Button>
                   </div>
-                  {index < posts.length - 1 ? <div className="mt-4 h-px bg-border/60" /> : null}
                 </div>
               ))}
             </div>
           ) : null}
         </div>
-      </Container>
+      </FlatPage>
     </AdminGuard>
   );
 }

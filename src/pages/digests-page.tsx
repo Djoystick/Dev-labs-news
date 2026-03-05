@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronRight, Search, Sparkles } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Container } from '@/components/layout/container';
+import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ const initialTopicCount = 4;
 const sectionPostsLimit = 5;
 const modalPostsLimit = 30;
 const pillsBarHeight = 84;
-const pillActiveClass = 'border-transparent bg-primary text-primary-foreground shadow-lg shadow-primary/20';
+const pillActiveClass = 'border-primary bg-primary/10 text-foreground';
 
 type TopicPostsMap = Record<string, Post[]>;
 
@@ -51,7 +51,7 @@ function InlineError({
   onAction: () => void;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+    <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p>{message}</p>
         <Button type="button" variant="outline" size="sm" onClick={onAction} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
@@ -64,28 +64,20 @@ function InlineError({
 
 function SectionSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="overflow-hidden p-4">
-        <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
-        <div className="mt-4 space-y-3">
-          <Skeleton className="h-4 w-20 rounded-full" />
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-5 w-5/6" />
-          <Skeleton className="h-5 w-2/3" />
-        </div>
-      </div>
-      <div className="flex gap-4 overflow-hidden">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="min-w-[240px] overflow-hidden p-4 sm:min-w-[300px]">
-            <Skeleton className="aspect-[16/9] w-full rounded-[1.25rem]" />
-            <div className="mt-4 space-y-3">
-              <Skeleton className="h-4 w-16 rounded-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-4 w-5/6" />
+    <div className="divide-y divide-border/60">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="py-4">
+          <div className="flex items-start gap-4">
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-7 w-full" />
+              <Skeleton className="h-5 w-5/6" />
+              <Skeleton className="h-5 w-2/3" />
             </div>
+            <Skeleton className="aspect-square w-20 shrink-0 rounded-xl sm:w-24" />
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -107,7 +99,7 @@ function TopicSeeAllModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100svh-2rem)] max-w-5xl overflow-hidden p-0">
         <div className="flex max-h-[calc(100svh-2rem)] flex-col overflow-hidden">
-          <div className="border-b border-border/70 px-6 py-5">
+          <div className="border-b border-border/60 px-6 py-5">
             <DialogHeader className="pr-10">
               <DialogTitle>{topic?.name ?? 'Тема'}</DialogTitle>
               <DialogDescription>Последние материалы по этой теме.</DialogDescription>
@@ -120,7 +112,7 @@ function TopicSeeAllModal({
             ) : data.length === 0 ? (
               <EmptyState title="Пока материалов нет" description="Сейчас в этой теме нет публикаций." actionLabel="Повторить" onReset={retry} />
             ) : (
-              <div className="grid gap-5">
+              <div className="divide-y divide-border/60">
                 {data.map((post, index) => (
                   <PostCard
                     key={`${post.id}-modal`}
@@ -178,7 +170,7 @@ function AllTopicsSheet({
             </DialogHeader>
 
             {topics.length === 0 ? (
-              <div className="mt-6 rounded-[1.5rem] border border-dashed border-border/70 bg-card/60 px-4 py-8 text-center">
+              <div className="mt-6 border-y border-dashed border-border/70 px-4 py-8 text-center">
                 <p className="text-sm text-muted-foreground">Тем пока нет</p>
                 <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
                   Повторить
@@ -194,8 +186,8 @@ function AllTopicsSheet({
                         type="button"
                         onClick={() => setSelectedTopicId(topic.id)}
                         className={cn(
-                          'inline-flex min-h-12 items-center justify-between rounded-full border px-4 py-3 text-left text-sm font-semibold transition',
-                          selectedTopicId === topic.id ? pillActiveClass : 'border-border/70 bg-card/70 text-foreground hover:bg-secondary/80',
+                          'inline-flex min-h-12 items-center justify-between border px-4 py-3 text-left text-sm font-semibold transition',
+                          selectedTopicId === topic.id ? pillActiveClass : 'border-border/70 text-foreground hover:bg-secondary/30',
                         )}
                       >
                         <span className="truncate">{topic.name}</span>
@@ -212,7 +204,7 @@ function AllTopicsSheet({
                   ) : data.length === 0 ? (
                     <EmptyState title="Пока материалов нет" description="Сейчас в этой теме нет публикаций." actionLabel="Повторить" onReset={retry} />
                   ) : (
-                    <div className="grid gap-5">
+                    <div className="divide-y divide-border/60">
                       {data.map((post, index) => (
                         <PostCard
                           key={`${post.id}-sheet`}
@@ -262,14 +254,11 @@ function TopicSection({
     }
   }, [data, onData, topic.id]);
 
-  const featuredPost = data[0] ?? null;
-  const railPosts = data.slice(1);
-
   return (
     <section
       ref={(node) => onRegister(topic.id, node)}
       data-topic-id={topic.id}
-      className="scroll-mt-24 space-y-4 border-b border-border/60 p-5 sm:p-6"
+      className="scroll-mt-24 space-y-4 border-b border-border/60 py-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -289,31 +278,17 @@ function TopicSection({
       ) : data.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
-        <div className="space-y-5">
-          {featuredPost ? (
+        <div className="divide-y divide-border/60">
+          {data.map((post, index) => (
             <PostCard
-              post={featuredPost}
-              index={0}
-              reactionSummary={reactionSummariesById.get(featuredPost.id)}
-              reactionsDisabled={isReactionPending(featuredPost.id)}
+              key={post.id}
+              post={post}
+              index={index}
+              reactionSummary={reactionSummariesById.get(post.id)}
+              reactionsDisabled={isReactionPending(post.id)}
               onToggleReaction={onToggleReaction}
             />
-          ) : null}
-          <div className="no-scrollbar overflow-x-auto pb-2">
-            <div className="flex snap-x gap-4">
-              {railPosts.map((post, index) => (
-                <div key={post.id} className="min-w-[260px] snap-start sm:min-w-[300px]">
-                  <PostCard
-                    post={post}
-                    index={index + 1}
-                    reactionSummary={reactionSummariesById.get(post.id)}
-                    reactionsDisabled={isReactionPending(post.id)}
-                    onToggleReaction={onToggleReaction}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </section>
@@ -636,11 +611,11 @@ export function DigestsPage() {
 
   return (
     <>
-      <Container className="safe-pb py-6 sm:py-8">
+      <FlatPage className="safe-pb py-6 sm:py-8">
         <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
           <div className="border-b border-border/60 pb-5 sm:pb-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <div className="flex h-11 w-11 items-center justify-center text-primary">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
@@ -662,10 +637,10 @@ export function DigestsPage() {
 
           {topicsError ? <InlineError message={topicsError} onAction={() => setTopicsRetryToken((current) => current + 1)} actionLabel="Повторить" /> : null}
         </motion.section>
-      </Container>
+      </FlatPage>
 
       <div className="fixed inset-x-0 top-0 z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <Container className="py-3">
+        <div className="w-full px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="no-scrollbar flex-1 overflow-x-auto">
               <div className="flex min-w-max gap-3">
@@ -678,7 +653,7 @@ export function DigestsPage() {
                         onClick={() => scrollToTopic(topic.id)}
                         className={cn(
                           'rounded-full border px-4 py-2.5 text-sm font-semibold transition',
-                          activeTopicId === topic.id ? pillActiveClass : 'border-border/70 bg-card/70 text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+                          activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-muted-foreground hover:bg-secondary/30 hover:text-foreground',
                         )}
                       >
                         {topic.name}
@@ -692,11 +667,11 @@ export function DigestsPage() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </Container>
+        </div>
       </div>
 
       <div style={{ paddingTop: pillsBarHeight }}>
-        <Container className="safe-pb py-4 sm:py-6">
+        <FlatPage className="safe-pb py-4 sm:py-6">
           {topicsLoading ? (
             <div className="space-y-6">
               <SectionSkeleton />
@@ -717,7 +692,7 @@ export function DigestsPage() {
                     onReset={() => setSearchQuery('')}
                   />
                 ) : (
-                  <div className="grid gap-5">
+                  <div className="divide-y divide-border/60">
                     {searchResults.map((post, index) => (
                       <PostCard
                         key={`${post.id}-search`}
@@ -756,7 +731,7 @@ export function DigestsPage() {
               ))}
             </div>
           )}
-        </Container>
+        </FlatPage>
       </div>
 
       <TopicSeeAllModal topic={seeAllTopic} open={seeAllTopic !== null} onOpenChange={(open) => !open && setSeeAllTopic(null)} />

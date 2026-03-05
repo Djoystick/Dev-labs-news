@@ -1,5 +1,5 @@
 import { AdminGuard } from '@/components/auth/admin-guard';
-import { Container } from '@/components/layout/container';
+import { FlatPage } from '@/components/layout/flat';
 import { PostForm } from '@/features/posts/components/post-form';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -9,9 +9,9 @@ export function AdminNewPage() {
   return (
     <AdminGuard allowEditor>
       {user ? (
-        <Container className="safe-pb py-10">
+        <FlatPage className="safe-pb py-6 sm:py-8">
           <PostForm mode="create" userId={user.id} />
-        </Container>
+        </FlatPage>
       ) : null}
     </AdminGuard>
   );

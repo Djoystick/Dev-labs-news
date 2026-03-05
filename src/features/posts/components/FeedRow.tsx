@@ -17,17 +17,17 @@ function getRelativeTime(createdAt: string) {
   const diffMinutes = Math.floor(diffMs / 60000);
 
   if (diffMinutes < 1) {
-    return 'только что';
+    return 'С‚РѕР»СЊРєРѕ С‡С‚Рѕ';
   }
 
   if (diffMinutes < 60) {
-    return `${diffMinutes} мин назад`;
+    return `${diffMinutes} РјРёРЅ РЅР°Р·Р°Рґ`;
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
 
   if (diffHours < 24) {
-    return `${diffHours} ч назад`;
+    return `${diffHours} С‡ РЅР°Р·Р°Рґ`;
   }
 
   return new Date(createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -47,11 +47,11 @@ export function FeedRow({
   onToggleReaction?: (postId: string, value: -1 | 1) => void;
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
-  const source = post.topic?.name ?? 'Источник';
+  const source = post.topic?.name ?? 'РСЃС‚РѕС‡РЅРёРє';
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
-  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'РђРІС‚РѕСЂ';
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onOpen(post);
@@ -59,33 +59,28 @@ export function FeedRow({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      onClick={() => onOpen(post)}
-      className="w-full cursor-pointer px-0 py-4 text-left transition active:bg-secondary/10"
-    >
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-muted-foreground">{source}</p>
-          <h3 className="mt-1 line-clamp-3 text-lg font-extrabold leading-tight sm:text-xl">{post.title}</h3>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {getRelativeTime(post.created_at)}
-            {readingTime ? ` • ${readingTime} мин чтения` : ''}
-            {` • ${authorLabel}`}
-          </p>
-          {onToggleReaction ? (
-            <div className="mt-2">
-              <PostReactions postId={post.id} summary={reactionSummary} disabled={reactionsDisabled} onToggle={onToggleReaction} />
-            </div>
-          ) : null}
+    <div className="w-full py-4">
+      <button type="button" onKeyDown={handleKeyDown} onClick={() => onOpen(post)} className="w-full cursor-pointer text-left transition active:bg-secondary/10">
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-muted-foreground">{source}</p>
+            <h3 className="mt-1 line-clamp-3 text-lg font-extrabold leading-tight sm:text-xl">{post.title}</h3>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {getRelativeTime(post.created_at)}
+              {readingTime ? ` вЂў ${readingTime} РјРёРЅ С‡С‚РµРЅРёСЏ` : ''}
+              {` вЂў ${authorLabel}`}
+            </p>
+          </div>
+          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
+            {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+          </div>
         </div>
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
-          {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
+      </button>
+      {onToggleReaction ? (
+        <div className="mt-2">
+          <PostReactions postId={post.id} summary={reactionSummary} disabled={reactionsDisabled} onToggle={onToggleReaction} />
         </div>
-      </div>
-      <div className="mt-4 h-px bg-border/60" />
+      ) : null}
     </div>
   );
 }
