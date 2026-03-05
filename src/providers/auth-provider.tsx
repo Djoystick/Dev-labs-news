@@ -45,6 +45,17 @@ function parseJwtExp(token: string): number | null {
   }
 }
 
+function isTokenExpired(token: string, skewSec = 60): boolean {
+  const exp = parseJwtExp(token);
+
+  if (!exp) {
+    return true;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  return exp <= now + skewSec;
+}
+
 function buildSessionFromToken(token: string, authUser: User): Session {
   const now = Math.floor(Date.now() / 1000);
   const expiresAt = parseJwtExp(token) ?? now + 60 * 60 * 24;
@@ -129,8 +140,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const supabase = getSupabaseClient();
     const storedAuth = getStoredAuthState();
-    if (storedAuth) {
-      applyAuthState(storedAuth.token, storedAuth.profile);
+    const validStoredAuth =
+      storedAuth && !isTokenExpired(storedAuth.token)
+        ? storedAuth
+        : null;
+
+    if (storedAuth && !validStoredAuth) {
+      clearStoredAuthState();
+      applyAuthState(null, null);
+      setSupabaseAuthToken(null);
+    } else if (validStoredAuth) {
+      applyAuthState(validStoredAuth.token, validStoredAuth.profile);
     } else {
       applyAuthState(null, null);
     }
@@ -159,10 +179,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       nextSession = currentSession ?? null;
 
-      if (!nextSession && storedAuth?.token) {
-        nextSession = await hydrateSessionFromToken(storedAuth.token);
-        if (!nextSession && storedAuth.profile.id) {
-          nextSession = buildSessionFromProfile(storedAuth.token, storedAuth.profile.id);
+      if (!nextSession && validStoredAuth?.token) {
+        nextSession = await hydrateSessionFromToken(validStoredAuth.token);
+        if (!nextSession && validStoredAuth.profile.id) {
+          nextSession = buildSessionFromProfile(validStoredAuth.token, validStoredAuth.profile.id);
         }
       }
 
