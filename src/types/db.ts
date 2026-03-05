@@ -287,6 +287,12 @@ export type Database = {
         };
         Returns: PostRow[];
       };
+      mark_post_read: {
+        Args: {
+          p_post_id: string;
+        };
+        Returns: undefined;
+      };
       set_my_topics: {
         Args: {
           topic_ids: string[];

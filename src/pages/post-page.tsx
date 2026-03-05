@@ -9,6 +9,7 @@ import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
+import { markPostRead } from '@/features/posts/mark-post-read';
 import { PostCard } from '@/features/posts/components/post-card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
 import { recordPostView } from '@/features/profile/api';
@@ -204,6 +205,14 @@ export function PostPage() {
       controller.abort();
     };
   }, [id, retryToken]);
+
+  useEffect(() => {
+    if (!post?.id) {
+      return;
+    }
+
+    void markPostRead(post.id);
+  }, [post?.id]);
 
   useEffect(() => {
     if (!post?.id || !user?.id) {

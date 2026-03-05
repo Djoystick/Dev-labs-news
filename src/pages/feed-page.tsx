@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useOutletContext } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
+import { markPostRead } from '@/features/posts/mark-post-read';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -65,6 +66,14 @@ export function FeedPage() {
   const { summariesById, toggle, isPending } = useReactions(filteredPostIds);
   const hasBackendPosts = posts.length > 0;
   const isFiltersOnlyEmpty = hasBackendPosts && filteredPosts.length === 0;
+
+  useEffect(() => {
+    if (!openPost?.id) {
+      return;
+    }
+
+    void markPostRead(openPost.id);
+  }, [openPost?.id]);
 
   return (
     <>
