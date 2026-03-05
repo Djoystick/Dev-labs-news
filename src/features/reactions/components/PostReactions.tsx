@@ -21,7 +21,6 @@ const emptySummary: ReactionSummary = {
 
 export function PostReactions({ postId, summary, disabled = false, onToggle }: PostReactionsProps) {
   const { isAuthed } = useAuth();
-  const guestTest = import.meta.env.VITE_REACTIONS_GUEST_TEST === 'true';
   const current = summary ?? { ...emptySummary, post_id: postId };
 
   const stopTapPropagation = (event: PointerEvent<HTMLButtonElement>) => {
@@ -33,7 +32,7 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
     event.preventDefault();
     event.stopPropagation();
 
-    if (!isAuthed && !guestTest) {
+    if (!isAuthed) {
       toast.error('Войдите, чтобы поставить реакцию');
       return;
     }
