@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuthorHandles } from '@/features/profiles/use-author-handles';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
 import { normalizeHandle } from '@/lib/author-label';
 import { markFeedReturnIntent, saveFeedState } from '@/lib/feed-state';
@@ -18,7 +19,8 @@ function getReadingTime(content: string) {
 export function PostCard({ post, index }: { post: Post; index: number }) {
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
-  const authorLabel = normalizeHandle(undefined) ?? 'Автор';
+  const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   const handleOpen = () => {
     saveFeedState({

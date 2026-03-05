@@ -1,9 +1,8 @@
 export function normalizeHandle(value?: string | null) {
-  const trimmed = value?.trim();
-
-  if (!trimmed) {
+  const s = (value ?? '').trim();
+  if (!s) {
     return null;
   }
 
-  return trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  return s.startsWith('@') ? s.slice(1) : s;
 }

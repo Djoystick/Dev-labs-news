@@ -1,5 +1,6 @@
 import type { Post } from '@/types/db';
 import { normalizeHandle } from '@/lib/author-label';
+import { useAuthorHandles } from '@/features/profiles/use-author-handles';
 
 function getReadingTime(content: string) {
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
@@ -38,7 +39,8 @@ export function FeedRow({
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
   const source = post.topic?.name ?? 'Источник';
-  const authorLabel = normalizeHandle(undefined) ?? 'Автор';
+  const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   return (
     <button
