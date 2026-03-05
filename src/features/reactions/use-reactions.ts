@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { toggleReaction, fetchReactionSummaries, type ReactionSummary, type ReactionValue } from '@/features/reactions/api';
-import { useAuth } from '@/providers/auth-provider';
+import { fetchReactionSummaries, toggleReaction, type ReactionSummary, type ReactionValue } from '@/features/reactions/api';
 
 const summariesCache = new Map<string, ReactionSummary>();
 const loadedBatchKeys = new Set<string>();
@@ -49,18 +48,12 @@ function applyOptimistic(summary: ReactionSummary, value: -1 | 1): ReactionSumma
 }
 
 export function useReactions(postIds: string[]) {
-  const { isAuthed } = useAuth();
   const [tick, setTick] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingPostIds, setPendingPostIds] = useState<Record<string, true>>({});
 
-  const normalizedIds = useMemo(
-    () =>
-      [...new Set(postIds.filter(Boolean))]
-        .sort(),
-    [postIds],
-  );
+  const normalizedIds = useMemo(() => [...new Set(postIds.filter(Boolean))].sort(), [postIds]);
   const batchKey = normalizedIds.join(',');
 
   useEffect(() => {
@@ -137,43 +130,35 @@ export function useReactions(postIds: string[]) {
     return map;
   }, [normalizedIds, tick]);
 
-  const toggle = useCallback(
-    async (postId: string, value: -1 | 1) => {
-      if (!isAuthed) {
-        toast.error('Войдите, чтобы поставить реакцию');
-        return;
-      }
+  const toggle = useCallback(async (postId: string, value: -1 | 1) => {
+    const previous = ensureSummary(postId);
+    const optimistic = applyOptimistic(previous, value);
+    summariesCache.set(postId, optimistic);
+    setPendingPostIds((current) => ({ ...current, [postId]: true }));
+    notifyListeners();
 
-      const previous = ensureSummary(postId);
-      const optimistic = applyOptimistic(previous, value);
-      summariesCache.set(postId, optimistic);
-      setPendingPostIds((current) => ({ ...current, [postId]: true }));
+    try {
+      const serverSummary = await toggleReaction(postId, value);
+      summariesCache.set(postId, serverSummary);
+      setError(null);
+    } catch (toggleError) {
+      summariesCache.set(postId, previous);
+      const message = toggleError instanceof Error ? toggleError.message : 'Не удалось обновить реакцию.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPendingPostIds((current) => {
+        if (!current[postId]) {
+          return current;
+        }
+
+        const next = { ...current };
+        delete next[postId];
+        return next;
+      });
       notifyListeners();
-
-      try {
-        const serverSummary = await toggleReaction(postId, value);
-        summariesCache.set(postId, serverSummary);
-        setError(null);
-      } catch (toggleError) {
-        summariesCache.set(postId, previous);
-        const message = toggleError instanceof Error ? toggleError.message : 'Не удалось обновить реакцию.';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setPendingPostIds((current) => {
-          if (!current[postId]) {
-            return current;
-          }
-
-          const next = { ...current };
-          delete next[postId];
-          return next;
-        });
-        notifyListeners();
-      }
-    },
-    [isAuthed],
-  );
+    }
+  }, []);
 
   const isPending = useCallback((postId: string) => Boolean(pendingPostIds[postId]), [pendingPostIds]);
 

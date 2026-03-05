@@ -1,5 +1,7 @@
 import type { MouseEvent, PointerEvent } from 'react';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/providers/auth-provider';
 import { cn } from '@/lib/utils';
 import type { ReactionSummary } from '@/features/reactions/api';
 
@@ -18,6 +20,8 @@ const emptySummary: ReactionSummary = {
 };
 
 export function PostReactions({ postId, summary, disabled = false, onToggle }: PostReactionsProps) {
+  const { isAuthed } = useAuth();
+  const guestTest = import.meta.env.VITE_REACTIONS_GUEST_TEST === 'true';
   const current = summary ?? { ...emptySummary, post_id: postId };
 
   const stopTapPropagation = (event: PointerEvent<HTMLButtonElement>) => {
@@ -28,6 +32,12 @@ export function PostReactions({ postId, summary, disabled = false, onToggle }: P
   const handleToggle = (event: MouseEvent<HTMLButtonElement>, value: -1 | 1) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!isAuthed && !guestTest) {
+      toast.error('Войдите, чтобы поставить реакцию');
+      return;
+    }
+
     onToggle(postId, value);
   };
 

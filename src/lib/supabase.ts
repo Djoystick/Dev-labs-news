@@ -1,31 +1,52 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getStoredAuthToken } from '@/lib/auth-storage';
-import { requireEnv } from '@/lib/env';
+import { getEnv } from '@/lib/env';
 import type { Database } from '@/types/db';
 
-const supabaseClientCache = new Map<string, SupabaseClient<Database>>();
+let supabaseClient: SupabaseClient<Database> | null = null;
 
-export function getSupabaseClient(token?: string) {
-  const resolvedToken = typeof token === 'string' ? token : getStoredAuthToken() ?? '';
-  const cacheKey = resolvedToken || '__anon__';
-  const cachedClient = supabaseClientCache.get(cacheKey);
+function resolveSupabaseConfig() {
+  const { supabaseAnonKey, supabaseUrl } = getEnv();
 
-  if (cachedClient) {
-    return cachedClient;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase env: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY');
+    return {
+      supabaseAnonKey: supabaseAnonKey || 'missing-anon-key',
+      supabaseUrl: supabaseUrl || 'https://invalid.supabase.local',
+    };
   }
 
-  const { supabaseAnonKey, supabaseUrl } = requireEnv();
-  const client = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      persistSession: true,
-    },
-    global: {
-      headers: resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {},
-    },
-  });
+  return { supabaseAnonKey, supabaseUrl };
+}
 
-  supabaseClientCache.set(cacheKey, client);
-  return client;
+function setAuthorizationHeader(client: SupabaseClient<Database>, token?: string) {
+  const resolvedToken = typeof token === 'string' ? token : getStoredAuthToken() ?? '';
+  const rest = (client as unknown as { rest?: { headers?: Record<string, string> } }).rest;
+
+  if (!rest?.headers) {
+    return;
+  }
+
+  if (resolvedToken) {
+    rest.headers.Authorization = `Bearer ${resolvedToken}`;
+    return;
+  }
+
+  delete rest.headers.Authorization;
+}
+
+export function getSupabaseClient(token?: string) {
+  if (!supabaseClient) {
+    const { supabaseAnonKey, supabaseUrl } = resolveSupabaseConfig();
+    supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
+    });
+  }
+
+  setAuthorizationHeader(supabaseClient, token);
+  return supabaseClient;
 }
