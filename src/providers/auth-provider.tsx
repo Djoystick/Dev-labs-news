@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    const nextProfile = await fetchOwnProfile(profile.id, token);
+    const nextProfile = await fetchOwnProfile(profile.id);
 
     if (!nextProfile) {
       clearStoredAuthState();
@@ -138,7 +138,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const supabase = getSupabaseClient();
     const storedAuth = getStoredAuthState();
     const validStoredAuth =
       storedAuth && !isTokenExpired(storedAuth.token)
@@ -157,33 +156,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let active = true;
 
-    const hydrateSessionFromToken = async (authToken: string) => {
-      const { data, error } = await supabase.auth.getUser(authToken);
-
-      if (error || !data.user) {
-        return null;
-      }
-
-      return buildSessionFromToken(authToken, data.user);
-    };
-
     const bootstrapAuth = async () => {
       setLoading(true);
       setAuthReady(false);
 
       let nextSession: Session | null = null;
 
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-
-      nextSession = currentSession ?? null;
-
-      if (!nextSession && validStoredAuth?.token) {
-        nextSession = await hydrateSessionFromToken(validStoredAuth.token);
-        if (!nextSession && validStoredAuth.profile.id) {
-          nextSession = buildSessionFromProfile(validStoredAuth.token, validStoredAuth.profile.id);
-        }
+      if (validStoredAuth?.token && validStoredAuth.profile.id) {
+        nextSession = buildSessionFromProfile(validStoredAuth.token, validStoredAuth.profile.id);
       }
 
       const initData = getTelegramInitData().trim();
@@ -198,10 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             applyAuthState(result.token, nextProfile);
           }
 
-          nextSession = await hydrateSessionFromToken(result.token);
-          if (!nextSession) {
-            nextSession = buildSessionFromProfile(result.token, nextProfile.id);
-          }
+          nextSession = buildSessionFromProfile(result.token, nextProfile.id);
         } catch {
           // no-op: keep existing stored auth state
         }
@@ -218,20 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void bootstrapAuth();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!active) {
-        return;
-      }
-
-      setSession(nextSession);
-      setAuthReady(true);
-    });
-
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, []);
 
@@ -250,7 +215,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: profile?.role ?? null,
         session,
         signInWithTelegram: async () => {
-          const supabase = getSupabaseClient();
           setLoading(true);
           setAuthReady(false);
 
@@ -260,11 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setStoredAuthState({ profile: nextProfile, token: result.token });
             applyAuthState(result.token, nextProfile);
 
-            const { data, error } = await supabase.auth.getUser(result.token);
-            const nextSession = !error && data.user
-              ? buildSessionFromToken(result.token, data.user)
-              : buildSessionFromProfile(result.token, nextProfile.id);
-            setSession(nextSession);
+            setSession(buildSessionFromProfile(result.token, nextProfile.id));
           } finally {
             setAuthReady(true);
             setLoading(false);

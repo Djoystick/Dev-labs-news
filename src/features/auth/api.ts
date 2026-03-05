@@ -11,8 +11,8 @@ export type TelegramAuthResult = {
   token: string;
 };
 
-export async function fetchOwnProfile(userId: string, token?: string) {
-  const supabase = getSupabaseClient(token);
+export async function fetchOwnProfile(userId: string) {
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase.from('profiles').select(profileSelect).eq('id', userId).maybeSingle();
 
   if (error) {
