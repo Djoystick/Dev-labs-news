@@ -24,6 +24,8 @@ export type PostRow = {
   created_at: string;
   updated_at: string;
   author_id: string | null;
+  scheduled_at: string | null;
+  published_at: string | null;
 };
 
 export type Post = PostRow & {
@@ -119,6 +121,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           author_id?: string | null;
+          scheduled_at?: string | null;
+          published_at?: string | null;
         };
         Update: {
           id?: string;
@@ -130,6 +134,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           author_id?: string | null;
+          scheduled_at?: string | null;
+          published_at?: string | null;
         };
         Relationships: [
           {
