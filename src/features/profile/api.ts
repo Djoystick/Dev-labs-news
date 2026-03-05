@@ -2,7 +2,8 @@ import { normalizeProfileHandle, normalizeProfileHandleNorm } from '@/features/p
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Favorite, Post, Profile, ReadingHistoryEntry } from '@/types/db';
 
-const postSelect = 'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
+const postSelect =
+  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at), author:profiles!posts_author_id_fkey(handle, username, full_name)';
 const profileSelect = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
 const favoriteSelect = `id, user_id, post_id, created_at, post:posts(${postSelect})`;
 const historySelect = `id, user_id, post_id, last_read_at, read_count, post:posts(${postSelect})`;

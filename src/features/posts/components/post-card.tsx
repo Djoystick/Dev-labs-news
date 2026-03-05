@@ -5,6 +5,7 @@ import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
+import { getAuthorLabel } from '@/lib/author-label';
 import { markFeedReturnIntent, saveFeedState } from '@/lib/feed-state';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post } from '@/types/db';
@@ -17,6 +18,7 @@ function getReadingTime(content: string) {
 export function PostCard({ post, index }: { post: Post; index: number }) {
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
+  const authorLabel = getAuthorLabel(post);
 
   const handleOpen = () => {
     saveFeedState({
@@ -47,6 +49,7 @@ export function PostCard({ post, index }: { post: Post; index: number }) {
                   {new Date(post.created_at).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric' })}
                 </span>
                 <span>{readingTime} min</span>
+                <span className="max-w-[9rem] truncate">{authorLabel}</span>
               </div>
             </div>
             <div className="space-y-2">

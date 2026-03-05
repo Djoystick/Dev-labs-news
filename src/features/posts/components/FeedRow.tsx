@@ -1,4 +1,5 @@
 import type { Post } from '@/types/db';
+import { getAuthorLabel } from '@/lib/author-label';
 
 function getReadingTime(content: string) {
   const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
@@ -37,6 +38,7 @@ export function FeedRow({
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
   const source = post.topic?.name ?? 'Источник';
+  const authorLabel = getAuthorLabel(post);
 
   return (
     <button
@@ -51,6 +53,7 @@ export function FeedRow({
           <p className="mt-2 text-xs text-muted-foreground">
             {getRelativeTime(post.created_at)}
             {readingTime ? ` • ${readingTime} мин чтения` : ''}
+            {` • ${authorLabel}`}
           </p>
         </div>
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
