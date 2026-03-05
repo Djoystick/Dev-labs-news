@@ -33,7 +33,7 @@ export function PostCard({
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
-  const authorLabel = normalizeHandle(getName(post.author_id)) ?? '\u0410\u0432\u0442\u043E\u0440';
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   const handleOpen = () => {
     saveFeedState({
@@ -77,12 +77,12 @@ export function PostCard({
         <div className="flex items-center gap-2">
           {isAdmin ? (
             <Button asChild size="sm" variant="outline">
-              <AppLink to={`/admin/edit/${post.id}`}>{'\u0420\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c'}</AppLink>
+              <AppLink to={`/admin/edit/${post.id}`}>{'Редактировать'}</AppLink>
             </Button>
           ) : null}
           <Button asChild size="sm" variant={isAdmin ? 'ghost' : 'outline'}>
             <AppLink to={`/post/${post.id}`} onClick={handleOpen}>
-              {'\u0427\u0438\u0442\u0430\u0442\u044c'}
+              {'Читать'}
               <ArrowUpRight className="h-4 w-4" />
             </AppLink>
           </Button>

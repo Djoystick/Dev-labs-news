@@ -12,7 +12,7 @@ import type { Topic } from '@/types/db';
 
 const chipSkeletonWidths = ['w-28', 'w-36', 'w-32', 'w-40', 'w-24', 'w-44', 'w-28', 'w-36'];
 
-function InlineError({ actionLabel = '\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C', message, onAction }: { actionLabel?: string; message: string; onAction: () => void }) {
+function InlineError({ actionLabel = 'Повторить', message, onAction }: { actionLabel?: string; message: string; onAction: () => void }) {
   return (
     <div className="border-y border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -79,7 +79,7 @@ export function TopicPreferencesPage() {
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setLoadError(error instanceof Error ? error.message : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432.');
+          setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить настройки разделов.');
         }
       })
       .finally(() => {
@@ -116,7 +116,7 @@ export function TopicPreferencesPage() {
       await setMyTopics(selectedIds);
       void navigate('/profile', { replace: true });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432.');
+      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить настройки разделов.');
     } finally {
       setSaving(false);
     }
@@ -127,17 +127,17 @@ export function TopicPreferencesPage() {
       <FlatSection className="pt-0">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">{'\u0410\u043A\u043A\u0430\u0443\u043D\u0442'}</p>
-            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{'\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432'}</h1>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">{'Аккаунт'}</p>
+            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{'Настройки разделов'}</h1>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/profile')}>
             <X className="h-5 w-5" />
-            <span className="sr-only">{'\u041E\u0442\u043C\u0435\u043D\u0430'}</span>
+            <span className="sr-only">{'Отмена'}</span>
           </Button>
         </div>
 
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-          {'\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 \u0440\u0430\u0437\u0434\u0435\u043B\u044B, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u0432\u043B\u0438\u044F\u044E\u0442 \u043D\u0430 \u0432\u0430\u0448\u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0438 \u0438 \u0431\u0443\u0434\u0443\u0449\u0438\u0435 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F.'}
+          {'Обновите разделы, которые влияют на ваши рекомендации и будущие уведомления.'}
         </p>
       </FlatSection>
 
@@ -152,9 +152,9 @@ export function TopicPreferencesPage() {
       </FlatSection>
 
       <FlatSection className="mt-2">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0412\u044B\u0431\u0440\u0430\u043D\u043E'}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Выбрано'}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : '\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0445\u043E\u0442\u044F \u0431\u044B \u043E\u0434\u0438\u043D \u0440\u0430\u0437\u0434\u0435\u043B, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438.'}
+          {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : 'Выберите хотя бы один раздел, чтобы сохранить настройки.'}
         </p>
       </FlatSection>
 
@@ -162,7 +162,7 @@ export function TopicPreferencesPage() {
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 px-4 pt-4" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}>
           <div className="w-full px-0 sm:px-2">
             <Button className="h-14 w-full text-base" onClick={handleSave} disabled={saving || bootstrapping || Boolean(loadError) || selectedIds.length === 0}>
-              {saving ? '\u0421\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u043C...' : '\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C'}
+              {saving ? 'Сохраняем...' : 'Сохранить'}
             </Button>
             {saveError ? <p className="mt-3 text-sm text-destructive">{saveError}</p> : null}
             <button
@@ -171,7 +171,7 @@ export function TopicPreferencesPage() {
               className="mt-4 w-full text-center text-sm font-semibold text-muted-foreground transition hover:text-foreground"
               disabled={saving}
             >
-              {'\u041E\u0442\u043C\u0435\u043D\u0430'}
+              {'Отмена'}
             </button>
           </div>
         </div>

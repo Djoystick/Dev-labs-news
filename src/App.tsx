@@ -54,7 +54,7 @@ function DevMojibakeGuard() {
       return;
     }
 
-    const mojibakePattern = /[\u0420\u0421][\u0400-\u045F]{1,2}[\u0420\u0421]|\u0432\u0402\u045E/;
+    const mojibakePattern = /[РС][Ѐ-џ]{1,2}[РС]|вЂў/;
     const sample = document.body?.innerText ?? '';
     if (mojibakePattern.test(sample)) {
       console.warn('[dev] Potential Cyrillic mojibake detected in UI labels.');

@@ -30,7 +30,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p>{message}</p>
         <Button type="button" variant="outline" size="sm" onClick={onRetry} className="border-destructive/30 bg-transparent text-destructive hover:bg-destructive/10">
-          {'\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C'}
+          {'Повторить'}
         </Button>
       </div>
     </div>
@@ -149,7 +149,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setPost(null);
-          setError(loadError instanceof Error ? loadError.message : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B.');
+          setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить материал.');
         }
       } finally {
         if (!ignore) {
@@ -188,7 +188,7 @@ export function PostPage() {
       } catch (loadError) {
         if (!ignore && !(loadError instanceof DOMException && loadError.name === 'AbortError')) {
           setLatestPosts([]);
-          setLatestError(loadError instanceof Error ? loadError.message : '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0441\u0442\u0438.');
+          setLatestError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить последние новости.');
         }
       } finally {
         if (!ignore) {
@@ -245,9 +245,9 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            {'\u041D\u0430\u0437\u0430\u0434'}
+            {'Назад'}
           </Button>
-          <InlineError message={error ?? '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B.'} onRetry={retry} />
+          <InlineError message={error ?? 'Не удалось загрузить материал.'} onRetry={retry} />
         </div>
       </FlatPage>
     );
@@ -273,12 +273,12 @@ export function PostPage() {
             }}
           >
             <ArrowLeft className="h-4 w-4" />
-            {'\u041D\u0430\u0437\u0430\u0434'}
+            {'Назад'}
           </Button>
 
           <nav className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Link to="/" className="transition hover:text-foreground">
-              {'\u041D\u043E\u0432\u043E\u0441\u0442\u0438'}
+              {'Новости'}
             </Link>
             {topic ? (
               <>
@@ -296,7 +296,7 @@ export function PostPage() {
           <div className="space-y-8 py-6 sm:py-8 lg:py-10">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? '\u041D\u043E\u0432\u043E\u0441\u0442\u0438'}</span>
+                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
                   {isAdmin ? (
@@ -315,7 +315,7 @@ export function PostPage() {
               <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-2">
                   <Clock3 className="h-4 w-4" />
-                  {readingTime} {'\u043C\u0438\u043D \u0447\u0442\u0435\u043D\u0438\u044F'}
+                  {readingTime} {'мин чтения'}
                 </span>
                 <span>{createdAtLabel}</span>
               </div>
@@ -326,9 +326,9 @@ export function PostPage() {
             </div>
 
             <FlatSection>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'AI-\u0430\u0432\u0442\u043E\u0440'}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'AI-автор'}</p>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-                {'\u042D\u0442\u043E\u0442 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D \u0441 \u043F\u043E\u043C\u043E\u0449\u044C\u044E \u0418\u0418 \u0438 \u0430\u0434\u0430\u043F\u0442\u0438\u0440\u043E\u0432\u0430\u043D \u0434\u043B\u044F \u0431\u044B\u0441\u0442\u0440\u043E\u0433\u043E \u0447\u0442\u0435\u043D\u0438\u044F. \u041F\u0435\u0440\u0435\u0434 \u0442\u0435\u043C \u043A\u0430\u043A \u043E\u043F\u0438\u0440\u0430\u0442\u044C\u0441\u044F \u043D\u0430 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044E, \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u0438 \u0438 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442.'}
+                {'Этот материал подготовлен с помощью ИИ и адаптирован для быстрого чтения. Перед тем как опираться на информацию, проверьте источники и контекст.'}
               </p>
             </FlatSection>
 
@@ -353,8 +353,8 @@ export function PostPage() {
 
         <section className="space-y-5">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0415\u0449\u0451'}</p>
-            <h2 className="text-3xl font-extrabold">{'\u041F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0441\u0442\u0438'}</h2>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Ещё'}</p>
+            <h2 className="text-3xl font-extrabold">{'Последние новости'}</h2>
           </div>
 
           {latestError ? <InlineError message={latestError} onRetry={retry} /> : null}
@@ -362,7 +362,7 @@ export function PostPage() {
           {latestLoading ? (
             <FeedSkeleton />
           ) : latestPosts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{'\u041F\u043E\u043A\u0430 \u0431\u043E\u043B\u044C\u0448\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u043D\u0435\u0442.'}</p>
+            <p className="text-sm text-muted-foreground">{'Пока больше материалов нет.'}</p>
           ) : (
             <div className="divide-y divide-border/60">
               {latestPosts.map((latestPost, index) => (

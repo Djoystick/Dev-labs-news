@@ -17,17 +17,17 @@ function getRelativeTime(createdAt: string) {
   const diffMinutes = Math.floor(diffMs / 60000);
 
   if (diffMinutes < 1) {
-    return '\u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u043E';
+    return 'только что';
   }
 
   if (diffMinutes < 60) {
-    return `${diffMinutes} \u043C\u0438\u043D \u043D\u0430\u0437\u0430\u0434`;
+    return `${diffMinutes} мин назад`;
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
 
   if (diffHours < 24) {
-    return `${diffHours} \u0447 \u043D\u0430\u0437\u0430\u0434`;
+    return `${diffHours} ч назад`;
   }
 
   return new Date(createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -47,9 +47,9 @@ export function FeedRow({
   onToggleReaction?: (postId: string, value: -1 | 1) => void;
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
-  const source = post.topic?.name ?? '\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A';
+  const source = post.topic?.name ?? 'Источник';
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
-  const authorLabel = normalizeHandle(getName(post.author_id)) ?? '\u0410\u0432\u0442\u043E\u0440';
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -67,8 +67,8 @@ export function FeedRow({
             <h3 className="mt-1 line-clamp-3 text-lg font-extrabold leading-tight sm:text-xl">{post.title}</h3>
             <p className="mt-2 text-xs text-muted-foreground">
               {getRelativeTime(post.created_at)}
-              {readingTime ? ` \u2022 ${readingTime} \u043C\u0438\u043D \u0447\u0442\u0435\u043D\u0438\u044F` : ''}
-              {` \u2022 ${authorLabel}`}
+              {readingTime ? ` • ${readingTime} мин чтения` : ''}
+              {` • ${authorLabel}`}
             </p>
           </div>
           <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">

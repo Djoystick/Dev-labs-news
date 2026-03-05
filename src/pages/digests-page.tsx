@@ -191,7 +191,7 @@ function AllTopicsSheet({
                         )}
                       >
                         <span className="truncate">{topic.name}</span>
-                        <span className={cn('text-xs', selectedTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'\u2713'}</span>
+                        <span className={cn('text-xs', selectedTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'✓'}</span>
                       </button>
                     ))}
                   </div>

@@ -20,7 +20,7 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
         <p>{message}</p>
         <Button variant="outline" size="sm" onClick={onRetry} className="border-destructive/35 bg-transparent text-destructive hover:bg-destructive/10">
           <RefreshCw className="h-4 w-4" />
-          {'\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C'}
+          Повторить
         </Button>
       </div>
     </div>
@@ -85,13 +85,11 @@ export function ForYouPage() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0414\u043B\u044F \u0442\u0435\u0431\u044F'}</p>
-              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Recommended posts for your interests</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
+              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Рекомендации для вас</h1>
             </div>
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-            {'\u042D\u0442\u0430 \u043B\u0435\u043D\u0442\u0430 \u0432 \u043F\u0435\u0440\u0432\u0443\u044E \u043E\u0447\u0435\u0440\u0435\u0434\u044C \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u043F\u043E \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u043C \u0432\u0430\u043C\u0438 \u0442\u0435\u043C\u0430\u043C \u0438 \u0443\u0431\u0438\u0440\u0430\u0435\u0442 \u0441\u0442\u0430\u0442\u044C\u0438, \u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u0432\u044B \u0443\u0436\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0438.'}
-          </p>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Лента показывает материалы по выбранным разделам и скрывает статьи, которые вы уже сохранили.</p>
         </FlatSection>
 
         {error ? <InlineError message={error} onRetry={retry} /> : null}
@@ -100,9 +98,9 @@ export function ForYouPage() {
           <FeedRowsSkeleton />
         ) : posts.length === 0 ? (
           <EmptyState
-            title="\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0439"
-            description="\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0442\u0435\u043C\u044B \u0438\u043B\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u0435 \u0441\u0442\u0430\u0442\u044C\u0438, \u0447\u0442\u043E\u0431\u044B \u043C\u044B \u043B\u0443\u0447\u0448\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0438\u043B\u0438 \u044D\u0442\u0443 \u043B\u0435\u043D\u0442\u0443 \u043F\u043E\u0434 \u0432\u0430\u0448\u0438 \u0438\u043D\u0442\u0435\u0440\u0435\u0441\u044B."
-            actionLabel="\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C"
+            title="Пока нет рекомендаций"
+            description="Выберите разделы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."
+            actionLabel="Повторить"
             onReset={retry}
           />
         ) : (

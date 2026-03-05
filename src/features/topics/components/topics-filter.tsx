@@ -82,8 +82,8 @@ export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, 
       <CardHeader className="gap-4 pb-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Topics Filter</p>
-            <CardTitle className="mt-2 text-2xl sm:text-3xl">Технологические темы</CardTitle>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Фильтр разделов</p>
+            <CardTitle className="mt-2 text-2xl sm:text-3xl">Технологические разделы</CardTitle>
           </div>
           <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onReset}>
             <RotateCcw className="h-4 w-4" />
