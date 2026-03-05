@@ -51,7 +51,7 @@ export function Header() {
                 type="button"
                 variant="outline"
                 size="icon"
-                aria-label="Открыть фильтр тем"
+                aria-label="Открыть фильтр разделов"
                 className="relative h-9 w-9 border-border/70 bg-background/80 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.65)]"
                 onClick={() => setTopicsDialogOpen(true)}
               >
@@ -95,8 +95,8 @@ export function Header() {
             <DialogContent className="max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-xl">
               <div className="border-b border-border/70 px-5 py-4 sm:px-6">
                 <DialogHeader className="pr-10">
-                  <DialogTitle className="text-xl sm:text-2xl">Темы</DialogTitle>
-                  <DialogDescription>Настройте, какие темы показывать в ленте.</DialogDescription>
+                  <DialogTitle className="text-xl sm:text-2xl">Разделы</DialogTitle>
+                  <DialogDescription>Настройте, какие разделы показывать в ленте.</DialogDescription>
                 </DialogHeader>
               </div>
               <div className="overflow-y-auto p-3 sm:p-4">

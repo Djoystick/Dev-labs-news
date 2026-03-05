@@ -44,7 +44,7 @@ function AccountRow({
       </span>
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="font-semibold leading-tight">{label}</p>
-        {value ? <p className="text-sm leading-tight text-muted-foreground">{value}</p> : null}
+        {value ? <p className="truncate whitespace-nowrap text-sm leading-tight text-muted-foreground">{value}</p> : null}
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
@@ -127,7 +127,7 @@ export function ProfilePage() {
           </div>
           <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/topic-preferences')}>
             <Settings className="h-5 w-5" />
-            <span className="sr-only">Настройки тем</span>
+            <span className="sr-only">Настройки разделов</span>
           </Button>
         </div>
 
@@ -166,11 +166,11 @@ export function ProfilePage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Настройки</p>
                 <div className="mt-3 space-y-1">
-                  <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Настройки тем" onClick={() => navigate('/topic-preferences')} />
+                  <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Настройки разделов" onClick={() => navigate('/topic-preferences')} />
                   <AccountRow
                     icon={<MoonStar className="h-4 w-4" />}
-                    label="Тёмная тема"
-                    value={theme === 'dark' ? 'Вкл' : 'Выкл'}
+                    label="Цветовая схема"
+                    value={theme === 'dark' ? 'Светлая' : 'Тёмная'}
                     onClick={toggleTheme}
                   />
                 </div>

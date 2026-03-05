@@ -33,6 +33,19 @@ type ReturnState = {
   returnScrollY?: number;
 };
 
+const fallbackTopics: Topic[] = [
+  { id: 'ai-llm-ml', slug: 'ai-llm-ml', name: 'AI / LLM / ML', created_at: '' },
+  { id: 'cybersecurity', slug: 'cybersecurity', name: 'Кибербезопасность', created_at: '' },
+  { id: 'gadgets-devices', slug: 'gadgets-devices', name: 'Гаджеты и девайсы', created_at: '' },
+  { id: 'dev-devops', slug: 'dev-devops', name: 'Разработка и DevOps', created_at: '' },
+  { id: 'cloud-infra', slug: 'cloud-infra', name: 'Облака и инфраструктура', created_at: '' },
+  { id: 'data-analytics', slug: 'data-analytics', name: 'Данные и аналитика', created_at: '' },
+  { id: 'ar-vr-xr', slug: 'ar-vr-xr', name: 'AR/VR/XR', created_at: '' },
+  { id: 'robotics-drones', slug: 'robotics-drones', name: 'Робототехника и дроны', created_at: '' },
+  { id: 'ev-autonomy', slug: 'ev-autonomy', name: 'Электромобили и автономность', created_at: '' },
+  { id: 'web3-blockchain', slug: 'web3-blockchain', name: 'Web3/Блокчейн', created_at: '' },
+];
+
 const emptyValues: PostFormValues = {
   content: '',
   cover_url: '',
@@ -83,8 +96,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         }
       } catch {
         if (!ignore) {
-          setTopicsError('Не удалось загрузить темы.');
-          setTopics([]);
+          setTopicsError('Не удалось загрузить разделы. Используется резервный список.');
+          setTopics(fallbackTopics);
         }
       } finally {
         if (!ignore) {
@@ -158,9 +171,17 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     );
   }
 
-  if (topicsError) {
-    return <StateCard title="Темы недоступны" description={topicsError} />;
-  }
+  const topicOptions = useMemo(() => {
+    if (topics.length > 0) {
+      return topics;
+    }
+
+    if (post?.topic_id) {
+      return [...fallbackTopics, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }];
+    }
+
+    return fallbackTopics;
+  }, [post?.topic_id, topics]);
 
   return (
     <>
@@ -234,6 +255,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             })}
           >
             {submitError ? <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
+            {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
@@ -251,7 +273,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
               <div className="space-y-5 rounded-[1.5rem] border border-border/70 bg-background/70 p-5">
                 <div className="space-y-2">
-                  <Label htmlFor="topic_id">Тема</Label>
+                  <Label htmlFor="topic_id">Раздел</Label>
                   <Select
                     id="topic_id"
                     value={form.watch('topic_id')}
@@ -262,8 +284,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                       });
                     }}
                   >
-                    <option value="">Выберите тему</option>
-                    {topics.map((topic) => (
+                    <option value="">Выберите раздел</option>
+                    {topicOptions.map((topic) => (
                       <option key={topic.id} value={topic.id}>
                         {topic.name}
                       </option>
