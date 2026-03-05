@@ -33,7 +33,7 @@ export function PostCard({
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
-  const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'РђРІС‚РѕСЂ';
+  const authorLabel = normalizeHandle(getName(post.author_id)) ?? '\u0410\u0432\u0442\u043E\u0440';
 
   const handleOpen = () => {
     saveFeedState({

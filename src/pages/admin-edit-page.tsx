@@ -21,7 +21,7 @@ export function AdminEditPage() {
 
     async function loadPostForEdit() {
       if (!id) {
-        setError('РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РЅРѕРІРѕСЃС‚Рё.');
+        setError('\u041E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0438\u0434\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440 \u043D\u043E\u0432\u043E\u0441\u0442\u0438.');
         setIsLoading(false);
         return;
       }
@@ -38,7 +38,7 @@ export function AdminEditPage() {
       } catch {
         if (!ignore) {
           setPost(null);
-          setError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
+          setError('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C.');
         }
       } finally {
         if (!ignore) {
@@ -64,7 +64,7 @@ export function AdminEditPage() {
               <Skeleton className="h-[680px] w-full" />
             </div>
           ) : error || !post ? (
-            <StateCard title="РќРѕРІРѕСЃС‚СЊ РЅРµРґРѕСЃС‚СѓРїРЅР°" description={error ?? 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ.'} />
+            <StateCard title="\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430" description={error ?? '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C \u0434\u043B\u044F \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F.'} />
           ) : (
             <PostForm mode="edit" post={post} userId={user.id} />
           )}

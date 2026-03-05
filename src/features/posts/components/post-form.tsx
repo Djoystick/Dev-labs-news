@@ -82,7 +82,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         }
       } catch {
         if (!ignore) {
-          setTopicsError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СЂР°Р·РґРµР»С‹. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ СЂРµР·РµСЂРІРЅС‹Р№ СЃРїРёСЃРѕРє.');
+          setTopicsError('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0440\u0430\u0437\u0434\u0435\u043B\u044B. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0440\u0435\u0437\u0435\u0440\u0432\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A.');
           setTopics(FALLBACK_SECTION_TOPICS);
         }
       } finally {
@@ -99,7 +99,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }, []);
 
   const coverUrl = form.watch('cover_url');
-  const submitLabel = isSubmitting ? 'РЎРѕС…СЂР°РЅРµРЅРёРµвЂ¦' : mode === 'create' ? 'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ' : 'РЎРѕС…СЂР°РЅРёС‚СЊ';
+  const submitLabel = isSubmitting ? '\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435\u2026' : mode === 'create' ? '\u041E\u043F\u0443\u0431\u043B\u0438\u043A\u043E\u0432\u0430\u0442\u044C' : '\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C';
   const canDeletePost = profile?.role === 'admin';
 
   const returnState = useMemo(() => {
@@ -123,15 +123,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         shouldDirty: true,
         shouldValidate: true,
       });
-      toast.success('РћР±Р»РѕР¶РєР° Р·Р°РіСЂСѓР¶РµРЅР°.');
+      toast.success('\u041E\u0431\u043B\u043E\u0436\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u0430.');
     } catch {
-      toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РѕР±Р»РѕР¶РєСѓ.');
+      toast.error('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043E\u0431\u043B\u043E\u0436\u043A\u0443.');
     } finally {
       setIsUploadingCover(false);
     }
   };
 
-  const pageTitle = useMemo(() => (mode === 'create' ? 'РќРѕРІР°СЏ РЅРѕРІРѕСЃС‚СЊ' : 'Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РЅРѕРІРѕСЃС‚Рё'), [mode]);
+  const pageTitle = useMemo(() => (mode === 'create' ? '\u041D\u043E\u0432\u0430\u044F \u043D\u043E\u0432\u043E\u0441\u0442\u044C' : '\u0420\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435 \u043D\u043E\u0432\u043E\u0441\u0442\u0438'), [mode]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -160,7 +160,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     hasSectionTopics
       ? sectionTopics
       : post?.topic_id
-        ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: 'РўРµРєСѓС‰РёР№ СЂР°Р·РґРµР»', created_at: '' }]
+        ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: '\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u0440\u0430\u0437\u0434\u0435\u043B', created_at: '' }]
         : FALLBACK_SECTION_TOPICS;
 
   return (
@@ -172,11 +172,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <AppLink to={`/post/${post.id}`}>РћС‚РєСЂС‹С‚СЊ РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅСѓСЋ РІРµСЂСЃРёСЋ</AppLink>
+                  <AppLink to={`/post/${post.id}`}>{'\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043E\u043F\u0443\u0431\u043B\u0438\u043A\u043E\u0432\u0430\u043D\u043D\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E'}</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
-                <AppLink to="/">РќР°Р·Р°Рґ Рє Р»РµРЅС‚Рµ</AppLink>
+                <AppLink to="/">{'\u041D\u0430\u0437\u0430\u0434 \u043A \u043B\u0435\u043D\u0442\u0435'}</AppLink>
               </Button>
             </div>
           </div>
@@ -201,13 +201,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 if (mode === 'create') {
                   await createPost(payload);
-                  toast.success('РќРѕРІРѕСЃС‚СЊ РѕРїСѓР±Р»РёРєРѕРІР°РЅР°.');
+                  toast.success('\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u043E\u043F\u0443\u0431\u043B\u0438\u043A\u043E\u0432\u0430\u043D\u0430.');
                   navigate('/', { replace: true });
                   return;
                 }
 
                 await updatePost(post!.id, payload);
-                toast.success('РќРѕРІРѕСЃС‚СЊ СЃРѕС…СЂР°РЅРµРЅР°.');
+                toast.success('\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0430.');
 
                 if (returnState?.returnTo === '/my-posts') {
                   navigate('/my-posts', {
@@ -223,22 +223,22 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   console.error('[PostForm] submit failed', error);
                 }
 
-                setSubmitError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
-                toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
+                setSubmitError('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C.');
+                toast.error('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C.');
               } finally {
                 setIsSubmitting(false);
               }
             })}
           >
             {submitError ? <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
-            {topicsError ? <StateCard title="Р Р°Р·РґРµР»С‹ РЅРµРґРѕСЃС‚СѓРїРЅС‹" description={topicsError} /> : null}
-            {!topicsError && !hasSectionTopics ? <StateCard title="Р Р°Р·РґРµР»С‹ РЅРµ РЅР°Р№РґРµРЅС‹" description="Р Р°Р·РґРµР»С‹ РЅРµ РЅР°Р№РґРµРЅС‹. РџСЂРѕРІРµСЂСЊС‚Рµ РјРёРіСЂР°С†РёРё." /> : null}
+            {topicsError ? <StateCard title="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B" description={topicsError} /> : null}
+            {!topicsError && !hasSectionTopics ? <StateCard title="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B" description="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043C\u0438\u0433\u0440\u0430\u0446\u0438\u0438." /> : null}
 
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Р—Р°РіРѕР»РѕРІРѕРє</Label>
-                  <Input id="title" placeholder="Р’РІРµРґРёС‚Рµ Р·Р°РіРѕР»РѕРІРѕРє" {...form.register('title')} />
+                  <Label htmlFor="title">{'\u0417\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A'}</Label>
+                  <Input id="title" placeholder="\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043E\u043A" {...form.register('title')} />
                   {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
                 </div>
               </div>
@@ -256,7 +256,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                       });
                     }}
                   >
-                    <option value="">Р’С‹Р±РµСЂРёС‚Рµ СЂР°Р·РґРµР»</option>
+                    <option value="">{'\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0430\u0437\u0434\u0435\u043B'}</option>
                     {topicOptions.map((topic) => (
                       <option key={topic.id} value={topic.id}>
                         {topic.name}
@@ -268,7 +268,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <Label htmlFor="cover-upload">РћР±Р»РѕР¶РєР°</Label>
+                    <Label htmlFor="cover-upload">{'\u041E\u0431\u043B\u043E\u0436\u043A\u0430'}</Label>
                     <input
                       id="cover-upload"
                       accept="image/*"
@@ -284,7 +284,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     <Button asChild type="button" variant="outline" size="sm" disabled={isUploadingCover}>
                       <label htmlFor="cover-upload" className="cursor-pointer">
                         {isUploadingCover ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                        Р—Р°РіСЂСѓР·РёС‚СЊ
+                        {'\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C'}
                       </label>
                     </Button>
                   </div>
@@ -294,10 +294,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     </div>
                   ) : (
                     <div className="border-y border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                      Р—Р°РіСЂСѓР·РёС‚Рµ РѕР±Р»РѕР¶РєСѓ, С‡С‚РѕР±С‹ РєР°СЂС‚РѕС‡РєР° РЅРѕРІРѕСЃС‚Рё РІС‹РіР»СЏРґРµР»Р° Р»СѓС‡С€Рµ РІ Р»РµРЅС‚Рµ.
+                      {'\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u043E\u0431\u043B\u043E\u0436\u043A\u0443, \u0447\u0442\u043E\u0431\u044B \u043A\u0430\u0440\u0442\u043E\u0447\u043A\u0430 \u043D\u043E\u0432\u043E\u0441\u0442\u0438 \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B\u0430 \u043B\u0443\u0447\u0448\u0435 \u0432 \u043B\u0435\u043D\u0442\u0435.'}
                     </div>
                   )}
-                  <Input value={coverUrl ?? ''} readOnly placeholder="URL РѕР±Р»РѕР¶РєРё РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ Р·Р°РіСЂСѓР·РєРё" />
+                  <Input value={coverUrl ?? ''} readOnly placeholder="URL \u043E\u0431\u043B\u043E\u0436\u043A\u0438 \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438" />
                   {form.formState.errors.cover_url ? <p className="text-sm text-destructive">{form.formState.errors.cover_url.message}</p> : null}
                 </div>
               </div>
@@ -305,7 +305,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <Label>РўРµРєСЃС‚</Label>
+                <Label>{'\u0422\u0435\u043A\u0441\u0442'}</Label>
                 <p className="text-xs text-muted-foreground">Markdown</p>
               </div>
               <RichTextMarkdownEditor
@@ -317,20 +317,20 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   });
                 }}
                 minHeight={320}
-                placeholder="Р’РІРµРґРёС‚Рµ С‚РµРєСЃС‚ РЅРѕРІРѕСЃС‚Рё РІ РІРёР·СѓР°Р»СЊРЅРѕРј СЂРµРґР°РєС‚РѕСЂРµ. РЎРѕС…СЂР°РЅРµРЅРёРµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РІ markdown."
+                placeholder="\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0442\u0435\u043A\u0441\u0442 \u043D\u043E\u0432\u043E\u0441\u0442\u0438 \u0432 \u0432\u0438\u0437\u0443\u0430\u043B\u044C\u043D\u043E\u043C \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435. \u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F \u0432 markdown."
               />
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                {mode === 'create' ? 'РџСѓР±Р»РёРєР°С†РёСЏ СЃС‚Р°РЅРµС‚ РґРѕСЃС‚СѓРїРЅР° СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ.' : 'РР·РјРµРЅРµРЅРёСЏ РїСЂРёРјРµРЅСЏС‚СЃСЏ СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃРѕС…СЂР°РЅРµРЅРёСЏ.'}
+                {mode === 'create' ? '\u041F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u044F \u0441\u0442\u0430\u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0441\u0440\u0430\u0437\u0443 \u043F\u043E\u0441\u043B\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F.' : '\u0418\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F \u043F\u0440\u0438\u043C\u0435\u043D\u044F\u0442\u0441\u044F \u0441\u0440\u0430\u0437\u0443 \u043F\u043E\u0441\u043B\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u044F.'}
               </div>
               <div className="flex flex-wrap gap-3">
                 {mode === 'edit' && post && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
-                    РЈРґР°Р»РёС‚СЊ
+                    {'\u0423\u0434\u0430\u043B\u0438\u0442\u044C'}
                   </Button>
                 ) : null}
                 <Button type="submit" disabled={isSubmitting || isUploadingCover}>
@@ -346,19 +346,19 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       <Dialog open={canDeletePost ? isDeleteDialogOpen : false} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>РЈРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ?</DialogTitle>
-            <DialogDescription>РќРѕРІРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° Р±РµР· РІРѕР·РјРѕР¶РЅРѕСЃС‚Рё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ.</DialogDescription>
+            <DialogTitle>{'\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C?'}</DialogTitle>
+            <DialogDescription>{'\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0435\u043D\u0430 \u0431\u0435\u0437 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F.'}</DialogDescription>
           </DialogHeader>
           <div className="border-y border-destructive/30 bg-destructive/10 p-4 text-sm leading-6 text-destructive">
             <div className="mb-2 flex items-center gap-2 font-semibold">
               <AlertTriangle className="h-4 w-4" />
-              РќРµРѕР±СЂР°С‚РёРјРѕРµ РґРµР№СЃС‚РІРёРµ
+              {'\u041D\u0435\u043E\u0431\u0440\u0430\u0442\u0438\u043C\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435'}
             </div>
-            РќРѕРІРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° СЃСЂР°Р·Сѓ. Р—Р°РіСЂСѓР¶РµРЅРЅС‹Рµ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ РѕСЃС‚Р°РЅСѓС‚СЃСЏ РІ storage.
+            {'\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043B\u0435\u043D\u0430 \u0441\u0440\u0430\u0437\u0443. \u0417\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043D\u044B\u0435 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u043E\u0441\u0442\u0430\u043D\u0443\u0442\u0441\u044F \u0432 storage.'}
           </div>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              РћС‚РјРµРЅР°
+              {'\u041E\u0442\u043C\u0435\u043D\u0430'}
             </Button>
             <Button
               type="button"
@@ -373,7 +373,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 try {
                   await deletePost(post.id);
-                  toast.success('РќРѕРІРѕСЃС‚СЊ СѓРґР°Р»РµРЅР°.');
+                  toast.success('\u041D\u043E\u0432\u043E\u0441\u0442\u044C \u0443\u0434\u0430\u043B\u0435\u043D\u0430.');
                   if (returnState?.returnTo === '/my-posts') {
                     navigate('/my-posts', {
                       replace: true,
@@ -387,8 +387,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     console.error('[PostForm] delete failed', error);
                   }
 
-                  setSubmitError('РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
-                  toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ.');
+                  setSubmitError('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C.');
+                  toast.error('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0443\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C.');
                 } finally {
                   setIsSubmitting(false);
                   setIsDeleteDialogOpen(false);
@@ -397,7 +397,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               disabled={isSubmitting}
             >
               {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              РЈРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ
+              {'\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043D\u043E\u0432\u043E\u0441\u0442\u044C'}
             </Button>
           </div>
         </DialogContent>

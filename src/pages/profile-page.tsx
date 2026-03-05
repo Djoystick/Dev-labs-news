@@ -59,17 +59,17 @@ export function ProfilePage() {
     }
 
     if (!profile) {
-      return 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ';
+      return '\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C';
     }
 
-    return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ');
+    return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || '\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C');
   }, [profile, telegramUser, user?.email]);
 
   const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
-  const roleLabel = profile?.role === 'admin' ? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ' : profile?.role === 'editor' ? 'Р РµРґР°РєС‚РѕСЂ' : 'Р§РёС‚Р°С‚РµР»СЊ';
+  const roleLabel = profile?.role === 'admin' ? '\u0410\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0430\u0442\u043E\u0440' : profile?.role === 'editor' ? '\u0420\u0435\u0434\u0430\u043A\u0442\u043E\u0440' : '\u0427\u0438\u0442\u0430\u0442\u0435\u043B\u044C';
 
   if (loading) {
     return (
@@ -92,13 +92,13 @@ export function ProfilePage() {
         <div className="space-y-4">
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
-            РќР°Р·Р°Рґ
+            {'\u041D\u0430\u0437\u0430\u0434'}
           </Button>
-          <StateCard title="РќСѓР¶РµРЅ РІС…РѕРґ" description="Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ СѓРїСЂР°РІР»СЏС‚СЊ Р°РєРєР°СѓРЅС‚РѕРј, СЃРѕС…СЂР°РЅС‘РЅРЅС‹РјРё РјР°С‚РµСЂРёР°Р»Р°РјРё Рё СЂР°Р·РґРµР»Р°РјРё." />
+          <StateCard title="\u041D\u0443\u0436\u0435\u043D \u0432\u0445\u043E\u0434" description="\u0412\u043E\u0439\u0434\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0442\u044C \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u043E\u043C, \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u043C\u0438 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u0430\u043C\u0438 \u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u0430\u043C\u0438." />
           <div className="flex gap-3">
-            <Button onClick={() => setAuthDialogOpen(true)}>Р’РѕР№С‚Рё</Button>
+            <Button onClick={() => setAuthDialogOpen(true)}>{'\u0412\u043E\u0439\u0442\u0438'}</Button>
             <Button variant="outline" onClick={() => navigate('/')}>
-              РќР° РіР»Р°РІРЅСѓСЋ
+              {'\u041D\u0430 \u0433\u043B\u0430\u0432\u043D\u0443\u044E'}
             </Button>
           </div>
           <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} />
@@ -115,18 +115,18 @@ export function ProfilePage() {
             <div className="flex items-center gap-3">
               <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)}>
                 <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">РќР°Р·Р°Рґ</span>
+                <span className="sr-only">{'\u041D\u0430\u0437\u0430\u0434'}</span>
               </Button>
-              <h1 className="text-3xl font-extrabold">РђРєРєР°СѓРЅС‚</h1>
+              <h1 className="text-3xl font-extrabold">{'\u0410\u043A\u043A\u0430\u0443\u043D\u0442'}</h1>
             </div>
             <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/topic-preferences')}>
               <Settings className="h-5 w-5" />
-              <span className="sr-only">РќР°СЃС‚СЂРѕР№РєРё СЂР°Р·РґРµР»РѕРІ</span>
+              <span className="sr-only">{'\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432'}</span>
             </Button>
           </div>
           <div className="mt-4 flex items-center justify-between gap-4 py-2">
             <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">Р—РґСЂР°РІСЃС‚РІСѓР№С‚Рµ,</p>
+              <p className="text-sm text-muted-foreground">{'\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435,'}</p>
               <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {isTeamMember ? <span className="px-3 py-1 text-xs font-semibold text-primary">DevLabs Team</span> : null}
@@ -141,21 +141,21 @@ export function ProfilePage() {
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Р’Р°С€Рµ</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0412\u0430\u0448\u0435'}</p>
           <div className="mt-2 divide-y divide-border/60">
-            <AccountRow icon={<Bookmark className="h-4 w-4" />} label="РЎРѕС…СЂР°РЅС‘РЅРЅС‹Рµ СЃС‚Р°С‚СЊРё" onClick={() => navigate('/saved-articles')} />
-            {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="РњРѕРё РїСѓР±Р»РёРєР°С†РёРё" onClick={() => navigate('/my-posts')} /> : null}
+            <AccountRow icon={<Bookmark className="h-4 w-4" />} label="\u0421\u043E\u0445\u0440\u0430\u043D\u0451\u043D\u043D\u044B\u0435 \u0441\u0442\u0430\u0442\u044C\u0438" onClick={() => navigate('/saved-articles')} />
+            {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="\u041C\u043E\u0438 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438" onClick={() => navigate('/my-posts')} /> : null}
           </div>
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РќР°СЃС‚СЂРѕР№РєРё</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438'}</p>
           <div className="mt-2 divide-y divide-border/60">
-            <AccountRow icon={<Settings2 className="h-4 w-4" />} label="РќР°СЃС‚СЂРѕР№РєРё СЂР°Р·РґРµР»РѕРІ" onClick={() => navigate('/topic-preferences')} />
+            <AccountRow icon={<Settings2 className="h-4 w-4" />} label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432" onClick={() => navigate('/topic-preferences')} />
             <AccountRow
               icon={<MoonStar className="h-4 w-4" />}
-              label="Р¦РІРµС‚РѕРІР°СЏ СЃС…РµРјР°"
-              value={theme === 'dark' ? 'РЎРІРµС‚Р»Р°СЏ' : 'РўС‘РјРЅР°СЏ'}
+              label="\u0426\u0432\u0435\u0442\u043E\u0432\u0430\u044F \u0441\u0445\u0435\u043C\u0430"
+              value={theme === 'dark' ? '\u0421\u0432\u0435\u0442\u043B\u0430\u044F' : '\u0422\u0451\u043C\u043D\u0430\u044F'}
               onClick={toggleTheme}
             />
           </div>
@@ -163,20 +163,20 @@ export function ProfilePage() {
 
         {isAdminUser ? (
           <FlatSection className="pt-2">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РђР”РњРРќ</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0410\u0414\u041C\u0418\u041D'}</p>
             <div className="mt-2 divide-y divide-border/60">
-              <AccountRow icon={<Users className="h-4 w-4" />} label="Р РѕР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№" onClick={() => navigate('/admin/users')} />
-              <AccountRow icon={<ScrollText className="h-4 w-4" />} label="РџСЂР°РІРёР»Р° РїСѓР±Р»РёРєР°С†РёР№" onClick={() => navigate('/admin/publication-rules')} />
+              <AccountRow icon={<Users className="h-4 w-4" />} label="\u0420\u043E\u043B\u0438 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439" onClick={() => navigate('/admin/users')} />
+              <AccountRow icon={<ScrollText className="h-4 w-4" />} label="\u041F\u0440\u0430\u0432\u0438\u043B\u0430 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0439" onClick={() => navigate('/admin/publication-rules')} />
             </div>
           </FlatSection>
         ) : null}
 
         <FlatSection className="pt-2 border-b-0">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">РђРєРєР°СѓРЅС‚</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'\u0410\u043A\u043A\u0430\u0443\u043D\u0442'}</p>
           <div className="mt-2 divide-y divide-border/60">
             <AccountRow
               icon={<LogOut className="h-4 w-4" />}
-              label={signOutBusy ? 'Р’С‹С…РѕРґРёРј...' : 'Р’С‹Р№С‚Рё'}
+              label={signOutBusy ? '\u0412\u044B\u0445\u043E\u0434\u0438\u043C...' : '\u0412\u044B\u0439\u0442\u0438'}
               onClick={async () => {
                 if (signOutBusy) {
                   return;

@@ -9,7 +9,7 @@ const pageSize = 10;
 const allTopicsEntry: Topic = {
   id: 'all',
   slug: 'all',
-  name: 'Все темы',
+  name: '\u0412\u0441\u0435 \u0440\u0430\u0437\u0434\u0435\u043B\u044B',
   created_at: '',
 };
 

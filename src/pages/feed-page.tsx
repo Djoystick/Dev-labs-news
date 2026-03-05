@@ -71,9 +71,9 @@ export function FeedPage() {
       <FlatPage className="safe-pb py-4 sm:py-6">
         <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="mb-5 space-y-4 border-b border-border/60 pb-4">
           <div>
-            <h1 className="text-3xl font-extrabold sm:text-4xl">Р›РµРЅС‚Р°</h1>
+            <h1 className="text-3xl font-extrabold sm:text-4xl">{'\u041B\u0435\u043D\u0442\u0430'}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedTopic.name} вЂў {filteredPosts.length} РёР· {resultsCount}
+              {selectedTopic.name} {'\u2022'} {filteredPosts.length} {'\u0438\u0437'} {resultsCount}
             </p>
           </div>
 
@@ -84,7 +84,7 @@ export function FeedPage() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11"
-              placeholder="РќР°Р№С‚Рё РїРѕ Р·Р°РіРѕР»РѕРІРєСѓ РёР»Рё СЃРѕРґРµСЂР¶Р°РЅРёСЋ"
+              placeholder="\u041D\u0430\u0439\u0442\u0438 \u043F\u043E \u0437\u0430\u0433\u043E\u043B\u043E\u0432\u043A\u0443 \u0438\u043B\u0438 \u0441\u043E\u0434\u0435\u0440\u0436\u0430\u043D\u0438\u044E"
             />
           </div>
         </motion.section>
@@ -96,19 +96,19 @@ export function FeedPage() {
             </motion.div>
           ) : postsError && posts.length === 0 ? (
             <motion.div key="error" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              <StateCard title="РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р»С‹" description={postsError} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" onAction={retryPosts} />
+              <StateCard title="\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B" description={postsError} actionLabel="\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C" onAction={retryPosts} />
             </motion.div>
           ) : posts.length === 0 ? (
             <motion.div key="empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              <EmptyState onReset={retryPosts} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" description="РњР°С‚РµСЂРёР°Р»С‹ РїРѕРєР° РЅРµ РЅР°Р№РґРµРЅС‹. РџРѕРїСЂРѕР±СѓР№С‚Рµ РѕР±РЅРѕРІРёС‚СЊ Р»РµРЅС‚Сѓ." title="Р›РµРЅС‚Р° РїРѕРєР° РїСѓСЃС‚Р°" />
+              <EmptyState onReset={retryPosts} actionLabel="\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C" description="\u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u043F\u043E\u043A\u0430 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u043B\u0435\u043D\u0442\u0443." title="\u041B\u0435\u043D\u0442\u0430 \u043F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u0430" />
             </motion.div>
           ) : isFiltersOnlyEmpty ? (
             <motion.div key="filtered-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
               <EmptyState
                 onReset={retryPosts}
-                actionLabel="РћР±РЅРѕРІРёС‚СЊ"
-                description="РџРѕ РІС‹Р±СЂР°РЅРЅС‹Рј С‚РµРјР°Рј РјР°С‚РµСЂРёР°Р»РѕРІ РЅРµС‚. РР·РјРµРЅРёС‚Рµ С„РёР»СЊС‚СЂС‹ С‚РµРј С‡РµСЂРµР· РІРµСЂС…РЅСЋСЋ РїР°РЅРµР»СЊ."
-                title="РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ"
+                actionLabel="\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C"
+                description="\u041F\u043E \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u043C \u0440\u0430\u0437\u0434\u0435\u043B\u0430\u043C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u043D\u0435\u0442. \u0418\u0437\u043C\u0435\u043D\u0438\u0442\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u044B \u0440\u0430\u0437\u0434\u0435\u043B\u043E\u0432 \u0447\u0435\u0440\u0435\u0437 \u0432\u0435\u0440\u0445\u043D\u044E\u044E \u043F\u0430\u043D\u0435\u043B\u044C."
+                title="\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E"
               />
             </motion.div>
           ) : (
@@ -133,13 +133,13 @@ export function FeedPage() {
                     <FeedRowsSkeleton />
                   </div>
                 ) : postsError ? (
-                  <StateCard title="РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РјР°С‚РµСЂРёР°Р»С‹" description={postsError} actionLabel="РџРѕРІС‚РѕСЂРёС‚СЊ" onAction={retryPosts} />
+                  <StateCard title="\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B" description={postsError} actionLabel="\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C" onAction={retryPosts} />
                 ) : hasMore ? (
                   <Button variant="outline" onClick={loadMore}>
-                    РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘
+                    {'\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0435\u0449\u0451'}
                   </Button>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{query ? 'Р’СЃРµ РЅР°Р№РґРµРЅРЅС‹Рµ РјР°С‚РµСЂРёР°Р»С‹ СѓР¶Рµ РїРѕРєР°Р·Р°РЅС‹.' : 'Р­С‚Рѕ РєРѕРЅРµС† С‚РµРєСѓС‰РµР№ РїРѕРґР±РѕСЂРєРё.'}</p>
+                  <p className="text-sm text-muted-foreground">{query ? '\u0412\u0441\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043D\u044B\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u0443\u0436\u0435 \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B.' : '\u042D\u0442\u043E \u043A\u043E\u043D\u0435\u0446 \u0442\u0435\u043A\u0443\u0449\u0435\u0439 \u043F\u043E\u0434\u0431\u043E\u0440\u043A\u0438.'}</p>
                 )}
               </div>
             </motion.div>
@@ -152,11 +152,11 @@ export function FeedPage() {
           {openPost ? (
             <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
               <FlatSection className="pt-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? 'РСЃС‚РѕС‡РЅРёРє'}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? '\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A'}</p>
                 <h2 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">{openPost.title}</h2>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {new Date(openPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}
-                  {openPost.content?.trim() ? ` вЂў ${getReadingTime(openPost.content)} РјРёРЅ С‡С‚РµРЅРёСЏ` : ''}
+                  {openPost.content?.trim() ? ` \u2022 ${getReadingTime(openPost.content)} \u043C\u0438\u043D \u0447\u0442\u0435\u043D\u0438\u044F` : ''}
                 </p>
                 <div className="mt-2">
                   <PostReactions postId={openPost.id} summary={summariesById.get(openPost.id)} disabled={isPending(openPost.id)} onToggle={toggle} />
@@ -169,7 +169,7 @@ export function FeedPage() {
               ) : null}
               <FlatSection className="border-b-0 pb-0">
                 <div className="prose prose-slate max-w-none dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{openPost.content?.trim() || openPost.excerpt || 'РўРµРєСЃС‚ РЅРѕРІРѕСЃС‚Рё РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚.'}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{openPost.content?.trim() || openPost.excerpt || '\u0422\u0435\u043A\u0441\u0442 \u043D\u043E\u0432\u043E\u0441\u0442\u0438 \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442.'}</ReactMarkdown>
                 </div>
               </FlatSection>
             </div>

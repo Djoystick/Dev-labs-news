@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { OnboardingGate } from '@/app/OnboardingGate';
 import { AppShell } from '@/components/layout/app-shell';
@@ -41,9 +42,33 @@ function AppContent() {
   return <AppShell>{content}</AppShell>;
 }
 
+function DevMojibakeGuard() {
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const globalWindow = window as unknown as Record<string, boolean>;
+    const marker = '__devLabsMojibakeWarned';
+    if (globalWindow[marker]) {
+      return;
+    }
+
+    const mojibakePattern = /[\u0420\u0421][\u0400-\u045F]{1,2}[\u0420\u0421]|\u0432\u0402\u045E/;
+    const sample = document.body?.innerText ?? '';
+    if (mojibakePattern.test(sample)) {
+      console.warn('[dev] Potential Cyrillic mojibake detected in UI labels.');
+      globalWindow[marker] = true;
+    }
+  }, []);
+
+  return null;
+}
+
 export function App() {
   return (
     <OnboardingGate>
+      <DevMojibakeGuard />
       <AppContent />
     </OnboardingGate>
   );

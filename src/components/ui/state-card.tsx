@@ -10,7 +10,7 @@ type StateCardProps = {
   title: string;
 };
 
-export function StateCard({ actionLabel = 'РџРѕРІС‚РѕСЂРёС‚СЊ', description, icon, onAction, title }: StateCardProps) {
+export function StateCard({ actionLabel = '\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C', description, icon, onAction, title }: StateCardProps) {
   return (
     <div className="border-y border-border/60 py-4">
       <div className="flex items-start gap-3">
