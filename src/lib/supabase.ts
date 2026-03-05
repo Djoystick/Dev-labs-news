@@ -84,12 +84,18 @@ function createAuthFetch(supabaseUrl: string, supabaseAnonKey: string): typeof f
     }
 
     const token = resolveAuthToken();
-    if (token && !merged.has('authorization')) {
+    if (token) {
+      // Always override: supabase-js may prefill Authorization with anon bearer.
       merged.set('Authorization', `Bearer ${token}`);
+    } else if (!merged.has('authorization')) {
+      merged.set('Authorization', `Bearer ${supabaseAnonKey}`);
     }
 
     if (import.meta.env.DEV && pathname.includes('/rest/v1/')) {
+      const authVal = merged.get('authorization') ?? '';
+      const apiVal = merged.get('apikey') ?? '';
       console.debug('[supabase authFetch]', {
+        authEqualsApiKey: Boolean(apiVal) && authVal.includes(apiVal),
         hasApiKey: merged.has('apikey'),
         hasAuth: merged.has('authorization'),
         path: pathname,
