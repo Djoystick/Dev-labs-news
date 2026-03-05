@@ -261,6 +261,15 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      get_author_handles: {
+        Args: {
+          p_ids: string[];
+        };
+        Returns: Array<{
+          id: string;
+          handle: string;
+        }>;
+      };
       get_recommended_posts: {
         Args: {
           p_limit: number;

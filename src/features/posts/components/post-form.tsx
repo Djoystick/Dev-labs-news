@@ -171,17 +171,12 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     );
   }
 
-  const topicOptions = useMemo(() => {
-    if (topics.length > 0) {
-      return topics;
-    }
-
-    if (post?.topic_id) {
-      return [...fallbackTopics, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }];
-    }
-
-    return fallbackTopics;
-  }, [post?.topic_id, topics]);
+  const topicOptions =
+    topics.length > 0
+      ? topics
+      : post?.topic_id
+        ? [...fallbackTopics, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }]
+        : fallbackTopics;
 
   return (
     <>
