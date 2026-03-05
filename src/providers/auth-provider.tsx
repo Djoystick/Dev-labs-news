@@ -3,7 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { exchangeTelegramAuth, fetchOwnProfile } from '@/features/auth/api';
 import { clearStoredAuthState, getStoredAuthState, setStoredAuthState } from '@/lib/auth-storage';
 import { hasSupabaseEnv } from '@/lib/env';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, setSupabaseAuthToken } from '@/lib/supabase';
 import { getTelegramInitData } from '@/lib/telegram';
 import type { Profile, UserRole } from '@/types/db';
 
@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyAuthState = (nextToken: string | null, nextProfile: Profile | null) => {
     setToken(nextToken);
+    setSupabaseAuthToken(nextToken);
     setProfile(nextProfile);
   };
 
@@ -255,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearStoredAuthState();
           setSession(null);
           applyAuthState(null, null);
+          setSupabaseAuthToken(null);
           setAuthReady(true);
         },
         token,

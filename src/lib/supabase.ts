@@ -22,8 +22,8 @@ function resolveSupabaseConfig() {
   return { supabaseAnonKey, supabaseUrl };
 }
 
-function setAuthorizationHeader(client: SupabaseClient<Database>, token?: string) {
-  const resolvedToken = typeof token === 'string' ? token : getStoredAuthToken() ?? '';
+function setAuthorizationHeader(client: SupabaseClient<Database>, token?: string | null) {
+  const resolvedToken = token === undefined ? getStoredAuthToken() ?? '' : token ?? '';
   const rest = (client as unknown as { rest?: { headers?: Record<string, string> } }).rest;
 
   if (!rest?.headers) {
@@ -38,7 +38,7 @@ function setAuthorizationHeader(client: SupabaseClient<Database>, token?: string
   delete rest.headers.Authorization;
 }
 
-export function getSupabaseClient(token?: string) {
+export function getSupabaseClient(token?: string | null) {
   if (!supabaseClient) {
     supabaseClient = globalScope.__devLabsSupabaseClient ?? null;
   }
@@ -57,4 +57,9 @@ export function getSupabaseClient(token?: string) {
 
   setAuthorizationHeader(supabaseClient, token);
   return supabaseClient;
+}
+
+export function setSupabaseAuthToken(token: string | null) {
+  const client = getSupabaseClient();
+  setAuthorizationHeader(client, token);
 }
