@@ -19,6 +19,7 @@ import { createPost, deletePost, updatePost, type PostMutationInput } from '@/fe
 import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { listTopics } from '@/features/topics/api';
+import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
@@ -32,19 +33,6 @@ type ReturnState = {
   returnTo?: string;
   returnScrollY?: number;
 };
-
-const fallbackTopics: Topic[] = [
-  { id: 'ai-llm-ml', slug: 'ai-llm-ml', name: 'AI / LLM / ML', created_at: '' },
-  { id: 'cybersecurity', slug: 'cybersecurity', name: 'Кибербезопасность', created_at: '' },
-  { id: 'gadgets-devices', slug: 'gadgets-devices', name: 'Гаджеты и девайсы', created_at: '' },
-  { id: 'dev-devops', slug: 'dev-devops', name: 'Разработка и DevOps', created_at: '' },
-  { id: 'cloud-infra', slug: 'cloud-infra', name: 'Облака и инфраструктура', created_at: '' },
-  { id: 'data-analytics', slug: 'data-analytics', name: 'Данные и аналитика', created_at: '' },
-  { id: 'ar-vr-xr', slug: 'ar-vr-xr', name: 'AR/VR/XR', created_at: '' },
-  { id: 'robotics-drones', slug: 'robotics-drones', name: 'Робототехника и дроны', created_at: '' },
-  { id: 'ev-autonomy', slug: 'ev-autonomy', name: 'Электромобили и автономность', created_at: '' },
-  { id: 'web3-blockchain', slug: 'web3-blockchain', name: 'Web3/Блокчейн', created_at: '' },
-];
 
 const emptyValues: PostFormValues = {
   content: '',
@@ -97,7 +85,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       } catch {
         if (!ignore) {
           setTopicsError('Не удалось загрузить разделы. Используется резервный список.');
-          setTopics(fallbackTopics);
+          setTopics(FALLBACK_SECTION_TOPICS);
         }
       } finally {
         if (!ignore) {
@@ -171,12 +159,14 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     );
   }
 
+  const sectionTopics = filterToSections(topics);
+  const hasSectionTopics = sectionTopics.length > 0;
   const topicOptions =
-    topics.length > 0
-      ? topics
+    hasSectionTopics
+      ? sectionTopics
       : post?.topic_id
-        ? [...fallbackTopics, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }]
-        : fallbackTopics;
+        ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }]
+        : FALLBACK_SECTION_TOPICS;
 
   return (
     <>
@@ -251,6 +241,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
           >
             {submitError ? <div className="rounded-[1.25rem] border border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
             {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
+            {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Разделы не найдены. Проверьте миграции." /> : null}
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
                 <div className="space-y-2">

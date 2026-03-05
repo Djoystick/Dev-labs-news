@@ -5,6 +5,7 @@ import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchMyTopicIds, fetchTopics, setMyTopics } from '@/features/topics/api';
+import { filterToSections } from '@/features/topics/sections';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import type { Topic } from '@/types/db';
@@ -46,7 +47,7 @@ function TopicChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-2 rounded-full border px-4 py-3 text-left text-sm font-semibold transition-all duration-200',
+        'inline-flex max-w-full items-center gap-2 rounded-full border px-4 py-3 text-left text-sm font-semibold transition-all duration-200',
         selected
           ? 'border-transparent bg-indigo-500 text-white shadow-[0_16px_40px_-24px_rgba(99,102,241,0.95)]'
           : 'border-border/80 bg-card/70 text-foreground hover:border-indigo-400/60 hover:bg-card',
@@ -60,7 +61,7 @@ function TopicChip({
       >
         <Check className="h-3.5 w-3.5" />
       </span>
-      <span>{topic.name}</span>
+      <span className="min-w-0 max-w-[15rem] break-words leading-snug line-clamp-2">{topic.name}</span>
     </button>
   );
 }
@@ -96,12 +97,12 @@ export function TopicPreferencesPage() {
           return;
         }
 
-        setTopics(loadedTopics);
+        setTopics(filterToSections(loadedTopics));
         setSelectedIds(myTopicIds);
       })
       .catch((error) => {
         if (!controller.signal.aborted) {
-          setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить настройки тем.');
+          setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить настройки разделов.');
         }
       })
       .finally(() => {
@@ -138,7 +139,7 @@ export function TopicPreferencesPage() {
       await setMyTopics(selectedIds);
       void navigate('/profile', { replace: true });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить настройки тем.');
+      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить настройки разделов.');
     } finally {
       setSaving(false);
     }
@@ -150,7 +151,7 @@ export function TopicPreferencesPage() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-primary">Аккаунт</p>
-            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Настройки тем</h1>
+            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">Настройки разделов</h1>
           </div>
           <Button type="button" variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/profile')}>
             <X className="h-5 w-5" />
@@ -159,7 +160,7 @@ export function TopicPreferencesPage() {
         </div>
 
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-          Обновите темы, которые влияют на ваши рекомендации и будущие уведомления.
+          Обновите разделы, которые влияют на ваши рекомендации и будущие уведомления.
         </p>
 
         <div className="mt-6 space-y-4">
@@ -175,7 +176,7 @@ export function TopicPreferencesPage() {
         <div className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Выбрано</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : 'Выберите хотя бы одну тему, чтобы сохранить настройки.'}
+            {selectedTopics.length > 0 ? selectedTopics.map((topic) => topic.name).join(', ') : 'Выберите хотя бы один раздел, чтобы сохранить настройки.'}
           </p>
         </div>
 
