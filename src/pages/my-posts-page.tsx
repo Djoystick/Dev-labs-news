@@ -5,7 +5,7 @@ import { AdminGuard } from '@/components/auth/admin-guard';
 import { Container } from '@/components/layout/container';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
-import { getAuthorLabel } from '@/lib/author-label';
+import { normalizeHandle } from '@/lib/author-label';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -17,11 +17,6 @@ type MyPost = {
   created_at: string;
   topic_id: string;
   author_id: string | null;
-  author?: {
-    handle: string | null;
-    full_name: string | null;
-    username: string | null;
-  } | null;
   is_published?: boolean | null;
 };
 
@@ -109,9 +104,7 @@ export function MyPostsPage() {
 
     const supabase = getSupabaseClient();
     const postsTable = supabase.from('posts') as unknown as MyPostsQueryBuilder;
-    const baseQuery = postsTable.select(
-      'id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published, author:profiles!posts_author_id_fkey(handle, username, full_name)',
-    );
+    const baseQuery = postsTable.select('id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published');
     const { data, error: queryError } = isAdmin
       ? await baseQuery.order('created_at', { ascending: false })
       : await baseQuery.eq('author_id', user.id).order('created_at', { ascending: false });
@@ -218,7 +211,7 @@ export function MyPostsPage() {
                       {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
                       <p className="mt-2 text-xs text-muted-foreground">
                         {formatDate(post.created_at)}
-                        {` • ${getAuthorLabel(post)}`}
+                        {` • ${normalizeHandle(undefined) ?? 'Автор'}`}
                         {typeof post.is_published === 'boolean' ? ` • ${post.is_published ? 'Опубликовано' : 'Черновик'}` : ''}
                       </p>
                     </div>

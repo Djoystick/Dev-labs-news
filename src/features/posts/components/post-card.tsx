@@ -5,7 +5,7 @@ import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
-import { getAuthorLabel } from '@/lib/author-label';
+import { normalizeHandle } from '@/lib/author-label';
 import { markFeedReturnIntent, saveFeedState } from '@/lib/feed-state';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post } from '@/types/db';
@@ -18,7 +18,7 @@ function getReadingTime(content: string) {
 export function PostCard({ post, index }: { post: Post; index: number }) {
   const { isAdmin } = useAuth();
   const readingTime = getReadingTime(post.content);
-  const authorLabel = getAuthorLabel(post);
+  const authorLabel = normalizeHandle(undefined) ?? 'Автор';
 
   const handleOpen = () => {
     saveFeedState({

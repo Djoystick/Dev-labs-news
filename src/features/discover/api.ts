@@ -2,7 +2,7 @@ import { getSupabaseClient } from '@/lib/supabase';
 import type { Post } from '@/types/db';
 
 const postSelect =
-  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at), author:profiles!posts_author_id_fkey(handle, username, full_name)';
+  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
 
 export async function fetchPostsByTopic(topicId: string, limit: number, signal?: AbortSignal): Promise<Post[]> {
   const supabase = getSupabaseClient();

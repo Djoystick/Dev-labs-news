@@ -26,15 +26,8 @@ export type PostRow = {
   author_id: string | null;
 };
 
-export type PostAuthor = {
-  handle: string | null;
-  full_name: string | null;
-  username: string | null;
-};
-
 export type Post = PostRow & {
   topic?: Topic | null;
-  author?: PostAuthor | null;
 };
 
 export type PublicationRule = {
