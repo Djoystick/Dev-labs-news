@@ -11,6 +11,7 @@ export const SECTION_DEFINITIONS = [
   { slug: 'robotics-drones', name: 'Робототехника и дроны' },
   { slug: 'ev-autonomy', name: 'Электромобили и автономность' },
   { slug: 'web3-blockchain', name: 'Web3/Блокчейн' },
+  { slug: 'gamedev', name: 'Геймдев и игры' },
 ] as const;
 
 export const SECTION_SLUG_ALLOWLIST = SECTION_DEFINITIONS.map((section) => section.slug);

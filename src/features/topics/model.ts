@@ -11,6 +11,7 @@ export const TOPIC_LABELS = [
   'Робототехника и дроны',
   'Электромобили и автономность',
   'Web3/Блокчейн',
+  'Геймдев и игры',
 ] as const;
 
 const TOPIC_KEYS = [
@@ -24,7 +25,9 @@ const TOPIC_KEYS = [
   'robotics-drones',
   'ev-autonomy',
   'web3-blockchain',
+  'gamedev',
 ] as const;
+const topicKeySet = new Set<string>(TOPIC_KEYS);
 
 const TOPIC_KEYWORDS: Record<TopicKey, string[]> = {
   'ai-llm-ml': ['ai', 'llm', 'ml', 'machine learning', 'gpt', 'rag', 'нейросеть', 'искусственный интеллект'],
@@ -37,6 +40,7 @@ const TOPIC_KEYWORDS: Record<TopicKey, string[]> = {
   'robotics-drones': ['robot', 'robotics', 'drone', 'uav', 'робот', 'дрон'],
   'ev-autonomy': ['electric vehicle', 'tesla', 'autonomous', 'self-driving', 'электромоб', 'автоном', 'беспилот'],
   'web3-blockchain': ['web3', 'blockchain', 'crypto', 'ethereum', 'solana', 'defi', 'nft', 'блокч', 'крипт'],
+  gamedev: ['gamedev', 'game dev', 'gaming', 'videogame', 'unity', 'unreal', 'игр', 'геймдев'],
 };
 
 const TOPIC_LABEL_BY_KEY: Record<TopicKey, (typeof TOPIC_LABELS)[number]> = {
@@ -50,6 +54,7 @@ const TOPIC_LABEL_BY_KEY: Record<TopicKey, (typeof TOPIC_LABELS)[number]> = {
   'robotics-drones': TOPIC_LABELS[7],
   'ev-autonomy': TOPIC_LABELS[8],
   'web3-blockchain': TOPIC_LABELS[9],
+  gamedev: TOPIC_LABELS[10],
 };
 
 export type TopicKey = (typeof TOPIC_KEYS)[number];
@@ -133,6 +138,10 @@ export function normalizeTopicFilterState(value: unknown): TopicFilterState {
   }
 
   return defaults;
+}
+
+export function isTopicKey(value: string): value is TopicKey {
+  return topicKeySet.has(value);
 }
 
 export const topicKeys = TOPIC_KEYS;

@@ -2,13 +2,15 @@ import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { TOPIC_LABELS, topicKeys, topicLabels, type TopicFilterState, type TopicKey } from '@/features/topics/model';
+import { topicKeys, topicLabels, type TopicFilterState, type TopicKey } from '@/features/topics/model';
 
 type TopicsFilterProps = {
   selectedTopics: TopicFilterState;
   enabledCount: number;
   onToggle: (key: TopicKey, value: boolean) => void;
   onReset: () => void;
+  topics?: Array<{ key: TopicKey; label: string }>;
+  totalCount?: number;
   variant?: 'card' | 'compact';
 };
 
@@ -50,13 +52,16 @@ function FilterSwitch({ checked, compact = false, label, onChange }: { checked: 
   );
 }
 
-export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, variant = 'card' }: TopicsFilterProps) {
+export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, topics, totalCount, variant = 'card' }: TopicsFilterProps) {
+  const filterItems = topics ?? topicKeys.map((key) => ({ key, label: topicLabels[key] }));
+  const enabledTotal = totalCount ?? filterItems.length;
+
   if (variant === 'compact') {
     return (
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-2">
           <span className="flex h-11 items-center justify-center rounded-full border border-border bg-background/80 px-3 py-2 text-center text-[12px] font-semibold leading-none">
-            {enabledCount} из {TOPIC_LABELS.length} включено
+            {enabledCount} из {enabledTotal} включено
           </span>
           <Button type="button" variant="outline" className="h-11 px-3 py-2 text-[12px]" onClick={onReset}>
             <RotateCcw className="h-4 w-4" />
@@ -64,8 +69,8 @@ export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, 
           </Button>
         </div>
         <div className="grid auto-rows-fr grid-cols-2 gap-2">
-          {topicKeys.map((key) => (
-            <FilterSwitch key={key} checked={selectedTopics[key]} compact label={topicLabels[key]} onChange={(value) => onToggle(key, value)} />
+          {filterItems.map(({ key, label }) => (
+            <FilterSwitch key={key} checked={selectedTopics[key]} compact label={label} onChange={(value) => onToggle(key, value)} />
           ))}
         </div>
       </div>
@@ -87,14 +92,14 @@ export function TopicsFilter({ selectedTopics, enabledCount, onToggle, onReset, 
         </div>
         <div className="flex flex-wrap gap-2 text-sm">
           <span className="rounded-full border border-border bg-background/80 px-3 py-1.5 font-semibold">
-            {enabledCount} из {TOPIC_LABELS.length} включено
+            {enabledCount} из {enabledTotal} включено
           </span>
         </div>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid gap-3 md:grid-cols-2">
-          {topicKeys.map((key) => (
-            <FilterSwitch key={key} checked={selectedTopics[key]} label={topicLabels[key]} onChange={(value) => onToggle(key, value)} />
+          {filterItems.map(({ key, label }) => (
+            <FilterSwitch key={key} checked={selectedTopics[key]} label={label} onChange={(value) => onToggle(key, value)} />
           ))}
         </div>
       </CardContent>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PencilLine, SlidersHorizontal } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -7,10 +7,21 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { fetchTopics } from '@/features/topics/api';
 import { TopicsFilter } from '@/features/topics/components/topics-filter';
-import { TOPIC_LABELS } from '@/features/topics/model';
+import { isTopicKey, type TopicKey } from '@/features/topics/model';
+import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
 import { useAuth } from '@/providers/auth-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
+
+type FilterTopicOption = {
+  key: TopicKey;
+  label: string;
+};
+
+function mapTopicsToFilterOptions(topics: Array<{ slug: string; name: string }>): FilterTopicOption[] {
+  return topics.flatMap((topic) => (isTopicKey(topic.slug) ? [{ key: topic.slug, label: topic.name }] : []));
+}
 
 export function Header() {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -20,14 +31,45 @@ export function Header() {
   const { isAuthed, loading, profile } = useAuth();
   const { enabledTopicCount, resetTopicFilters, setTopicEnabled, topicFilters } = useReadingPreferences();
   const isFeedRoute = location.pathname === '/';
-  const hasFilteredTopics = enabledTopicCount !== TOPIC_LABELS.length;
   const canWritePosts = profile?.role === 'admin' || profile?.role === 'editor';
+  const fallbackTopicOptions = useMemo(() => mapTopicsToFilterOptions(FALLBACK_SECTION_TOPICS), []);
+  const [sectionTopicOptions, setSectionTopicOptions] = useState<FilterTopicOption[]>(fallbackTopicOptions);
+  const totalTopics = sectionTopicOptions.length > 0 ? sectionTopicOptions.length : fallbackTopicOptions.length;
+  const hasFilteredTopics = enabledTopicCount !== totalTopics;
 
   useEffect(() => {
     if (!isFeedRoute) {
       setTopicsDialogOpen(false);
     }
   }, [isFeedRoute]);
+
+  useEffect(() => {
+    if (!isFeedRoute) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void fetchTopics()
+      .then((loadedTopics) => {
+        if (cancelled) {
+          return;
+        }
+
+        const sectionTopics = filterToSections(loadedTopics);
+        const mappedOptions = mapTopicsToFilterOptions(sectionTopics);
+        setSectionTopicOptions(mappedOptions.length > 0 ? mappedOptions : fallbackTopicOptions);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSectionTopicOptions(fallbackTopicOptions);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackTopicOptions, isFeedRoute]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
@@ -59,7 +101,7 @@ export function Header() {
                 {hasFilteredTopics ? (
                   <>
                     <span className="absolute -right-1 -top-1 hidden min-w-8 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground shadow sm:inline-flex">
-                      {enabledTopicCount}/{TOPIC_LABELS.length}
+                      {enabledTopicCount}/{totalTopics}
                     </span>
                     <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-primary shadow sm:hidden" />
                   </>
@@ -105,6 +147,8 @@ export function Header() {
                   onReset={resetTopicFilters}
                   onToggle={setTopicEnabled}
                   selectedTopics={topicFilters}
+                  topics={sectionTopicOptions}
+                  totalCount={totalTopics}
                   variant="compact"
                 />
               </div>
