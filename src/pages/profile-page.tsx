@@ -197,7 +197,6 @@ export function ProfilePage() {
         <FlatSection className="pt-2">
           <SectionTitle>{'НАСТРОЙКИ'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            <ProfileRow icon={Settings2} title="Настройки разделов" onClick={() => navigate('/topic-preferences')} />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"

@@ -23,7 +23,7 @@ export function AppShell({ children }: AppShellProps) {
       >
         {children}
       </main>
-      <Footer />
+      {showBottomBar ? null : <Footer />}
       {showBottomBar ? <BottomBar /> : null}
     </div>
   );

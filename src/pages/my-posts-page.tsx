@@ -1,4 +1,4 @@
-import { FilePenLine } from 'lucide-react';
+import { FilePenLine, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AdminGuard } from '@/components/auth/admin-guard';
@@ -94,6 +94,14 @@ export function MyPostsPage() {
   const isAdmin = profile?.role === 'admin';
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
+  const onClose = useCallback(() => {
+    if (location.key && location.key !== 'default') {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/profile', { replace: true });
+  }, [location.key, navigate]);
 
   const loadPosts = useCallback(async () => {
     if (!user?.id) {
@@ -185,7 +193,12 @@ export function MyPostsPage() {
       <FlatPage className="safe-pb py-6 sm:py-8">
         <div className="space-y-5">
           <div className="border-b border-border/60 pb-4">
-            <h1 className="text-3xl font-extrabold">{pageTitle}</h1>
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="text-3xl font-extrabold">{pageTitle}</h1>
+              <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
             <p className="mt-1 text-sm text-muted-foreground">{pageDescription}</p>
           </div>
 
