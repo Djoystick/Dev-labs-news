@@ -77,13 +77,8 @@ export function Header() {
       <Container className="py-2 sm:py-1.5">
         <div className="flex h-9 items-center gap-3 sm:h-12">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <AppLink to="/" aria-label="На главную" className="group min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-              <div className="flex items-center gap-2.5">
-                <img src={logoUrl} alt="Dev-labs News" className="h-8 w-8 shrink-0" loading="eager" decoding="async" />
-                <span className="truncate whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[0.24em] text-primary transition group-hover:text-primary/80">
-                  DEV-LABS NEWS
-                </span>
-              </div>
+            <AppLink to="/" aria-label="Home" className="flex h-full items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+              <img src={logoUrl} alt="Dev-labs News" className="block h-[calc(100%-8px)] w-auto max-h-full shrink-0" loading="eager" decoding="async" />
             </AppLink>
           </div>
           <div className="flex shrink-0 items-center gap-2">
