@@ -12,6 +12,11 @@ const PostPage = lazy(() => import('@/pages/post-page').then((module) => ({ defa
 const MyPostsPage = lazy(() => import('@/pages/my-posts-page').then((module) => ({ default: module.MyPostsPage })));
 const ProfilePage = lazy(() => import('@/pages/profile-page').then((module) => ({ default: module.ProfilePage })));
 const SavedArticlesPage = lazy(() => import('@/pages/saved-articles-page').then((module) => ({ default: module.SavedArticlesPage })));
+const ReadingHistoryPage = lazy(() => import('@/pages/reading-history-page').then((module) => ({ default: module.ReadingHistoryPage })));
+const ActivityPage = lazy(() => import('@/pages/activity-page').then((module) => ({ default: module.ActivityPage })));
+const SupportPage = lazy(() => import('@/pages/support-page').then((module) => ({ default: module.SupportPage })));
+const AboutPage = lazy(() => import('@/pages/about-page').then((module) => ({ default: module.AboutPage })));
+const AuthorPanelPage = lazy(() => import('@/pages/author-panel-page').then((module) => ({ default: module.AuthorPanelPage })));
 const TopicPreferencesPage = lazy(() => import('@/pages/topic-preferences-page').then((module) => ({ default: module.TopicPreferencesPage })));
 const AdminNewPage = lazy(() => import('@/pages/admin-new-page').then((module) => ({ default: module.AdminNewPage })));
 const AdminEditPage = lazy(() => import('@/pages/admin-edit-page').then((module) => ({ default: module.AdminEditPage })));
@@ -55,6 +60,11 @@ export const router = createBrowserRouter([
       { path: 'my-posts', element: withSuspense(MyPostsPage) },
       { path: 'profile', element: withSuspense(ProfilePage) },
       { path: 'saved-articles', element: withSuspense(SavedArticlesPage) },
+      { path: 'reading-history', element: withSuspense(ReadingHistoryPage) },
+      { path: 'activity', element: withSuspense(ActivityPage) },
+      { path: 'support', element: withSuspense(SupportPage) },
+      { path: 'about', element: withSuspense(AboutPage) },
+      { path: 'author', element: withSuspense(AuthorPanelPage) },
       { path: 'topic-preferences', element: withSuspense(TopicPreferencesPage) },
       { path: 'admin/new', element: withSuspense(AdminNewPage) },
       { path: 'admin/edit/:id', element: withSuspense(AdminEditPage) },

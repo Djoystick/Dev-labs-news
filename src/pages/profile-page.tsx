@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, ChevronRight, FilePenLine, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -191,12 +191,17 @@ export function ProfilePage() {
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
             <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
             {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
+            <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
+            <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
+            {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Панель автора" onClick={() => navigate('/author')} /> : null}
           </div>
         </FlatSection>
 
         <FlatSection className="pt-2">
           <SectionTitle>{'НАСТРОЙКИ'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
+            <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"
