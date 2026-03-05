@@ -13,7 +13,7 @@ export function BottomBar() {
   const location = useLocation();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[55] border-t border-border/70 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-xl">
       <div className="mx-auto grid max-w-lg grid-cols-4 gap-2 rounded-[1.5rem] border border-border/70 bg-card/90 p-2 shadow-[0_20px_48px_-32px_rgba(15,23,42,0.65)]">
         {items.map((item) => {
           const isActive = location.pathname === item.href;

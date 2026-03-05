@@ -10,16 +10,21 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const location = useLocation();
+  const pathname = location.pathname;
   const showHeader = location.pathname === '/';
+  const showBottomBar = pathname === '/' || pathname === '/for-you' || pathname === '/digests' || pathname === '/profile';
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
       {showHeader ? <Header /> : null}
-      <main id="app-scroll" className={showHeader ? 'app-header-offset app-bottom-nav-offset' : 'app-bottom-nav-offset'}>
+      <main
+        id="app-scroll"
+        className={showHeader ? (showBottomBar ? 'app-header-offset app-bottom-nav-offset' : 'app-header-offset') : showBottomBar ? 'app-bottom-nav-offset' : undefined}
+      >
         {children}
       </main>
       <Footer />
-      <BottomBar />
+      {showBottomBar ? <BottomBar /> : null}
     </div>
   );
 }

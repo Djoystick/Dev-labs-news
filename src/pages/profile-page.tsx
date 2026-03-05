@@ -1,6 +1,6 @@
 import { ArrowLeft, Bookmark, ChevronRight, FilePenLine, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
 import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
 
@@ -20,25 +21,47 @@ function getInitial(value: string | null | undefined) {
   return normalizeHandle(value).trim().charAt(0).toUpperCase() || 'D';
 }
 
-function AccountRow({
-  icon,
-  label,
-  onClick,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  value?: string;
-}) {
-  return (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-4 py-3 text-left transition hover:bg-secondary/30">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center text-foreground">{icon}</span>
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="font-semibold leading-tight">{label}</p>
-        {value ? <p className="truncate whitespace-nowrap text-sm leading-tight text-muted-foreground">{value}</p> : null}
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <p className="mb-2 mt-6 text-xs font-bold uppercase tracking-[0.24em] text-cyan-300/80">{children}</p>;
+}
+
+type ProfileRowProps = {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+  onClick?: () => void;
+  to?: string;
+  right?: ReactNode;
+  titleClassName?: string;
+  iconClassName?: string;
+};
+
+function ProfileRow({ icon: Icon, title, subtitle, onClick, to, right, titleClassName, iconClassName }: ProfileRowProps) {
+  const rowClassName = 'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 active:bg-white/10';
+  const content = (
+    <>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5">
+        <Icon className={cn('h-5 w-5 text-white/80', iconClassName)} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={cn('text-base font-medium leading-tight text-white', titleClassName)}>{title}</p>
+        {subtitle ? <p className="mt-0.5 truncate whitespace-nowrap text-xs leading-tight text-white/60">{subtitle}</p> : null}
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {right ?? <ChevronRight className="h-5 w-5 shrink-0 text-white/35" />}
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={rowClassName}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={rowClassName}>
+      {content}
     </button>
   );
 }
@@ -69,11 +92,12 @@ export function ProfilePage() {
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
-  const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Читатель';
+  const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
+  const roleBadgeClass = profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
 
   if (loading) {
     return (
-      <FlatPage className="safe-pb py-6 sm:py-8">
+      <FlatPage className="py-6 sm:py-8">
         <div className="space-y-5">
           <div className="flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-full" />
@@ -88,7 +112,7 @@ export function ProfilePage() {
 
   if (!isAuthed || !user || !profile) {
     return (
-      <FlatPage className="safe-pb py-6 sm:py-8">
+      <FlatPage className="py-6 sm:py-8">
         <div className="space-y-4">
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
@@ -108,54 +132,76 @@ export function ProfilePage() {
   }
 
   return (
-    <FlatPage className="safe-pb py-6 sm:py-8">
+    <FlatPage className="py-6 sm:py-8">
       <div className="space-y-2">
         <FlatSection className="pt-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
-                <span className="sr-only">{'Назад'}</span>
-              </Button>
-              <h1 className="text-3xl font-extrabold">{'Аккаунт'}</h1>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+              <span className="sr-only">{'Назад'}</span>
+            </Button>
             <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/topic-preferences')}>
               <Settings className="h-5 w-5" />
               <span className="sr-only">{'Настройки разделов'}</span>
             </Button>
           </div>
-          <div className="mt-4 flex items-center justify-between gap-4 py-2">
-            <div className="min-w-0">
-              <p className="text-sm text-muted-foreground">{'Здравствуйте,'}</p>
-              <h2 className="mt-1 text-2xl font-extrabold">{displayName}</h2>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {isTeamMember ? <span className="px-3 py-1 text-xs font-semibold text-primary">DevLabs Team</span> : null}
-                <span className="px-3 py-1 text-xs font-semibold text-foreground">{roleLabel}</span>
+
+          <div className="mt-2 rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm text-white/60">{'Здравствуйте,'}</p>
+                <h1 className="mt-1 text-3xl font-semibold leading-tight text-white">{displayName}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {isTeamMember ? <span className="text-sm text-cyan-300/90">DevLabs Team</span> : null}
+                  <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', roleBadgeClass)}>{roleLabel}</span>
+                </div>
               </div>
+              <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-white/10">
+                <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+                <AvatarFallback className="flex h-full w-full items-center justify-center bg-cyan-500/20 text-lg font-semibold text-cyan-100">
+                  {getInitial(displayName)}
+                </AvatarFallback>
+              </Avatar>
             </div>
-            <Avatar className="h-16 w-16 rounded-full">
-              <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
-              <AvatarFallback className="text-xl">{getInitial(displayName)}</AvatarFallback>
-            </Avatar>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {canManageOwnPosts ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/my-posts')}
+                  className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                >
+                  <FilePenLine className="h-4 w-4" />
+                  {'Мои публикации'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => navigate('/topic-preferences')}
+                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+              >
+                <Settings2 className="h-4 w-4" />
+                {'Разделы'}
+              </button>
+            </div>
           </div>
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Ваше'}</p>
-          <div className="mt-2 divide-y divide-border/60">
-            <AccountRow icon={<Bookmark className="h-4 w-4" />} label="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
-            {canManageOwnPosts ? <AccountRow icon={<FilePenLine className="h-4 w-4" />} label="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
+          <SectionTitle>{'ВАШЕ'}</SectionTitle>
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
+            {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
           </div>
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Настройки'}</p>
-          <div className="mt-2 divide-y divide-border/60">
-            <AccountRow icon={<Settings2 className="h-4 w-4" />} label="Настройки разделов" onClick={() => navigate('/topic-preferences')} />
-            <AccountRow
-              icon={<MoonStar className="h-4 w-4" />}
-              label="Цветовая схема"
-              value={theme === 'dark' ? 'Светлая' : 'Тёмная'}
+          <SectionTitle>{'НАСТРОЙКИ'}</SectionTitle>
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <ProfileRow icon={Settings2} title="Настройки разделов" onClick={() => navigate('/topic-preferences')} />
+            <ProfileRow
+              icon={MoonStar}
+              title="Цветовая схема"
+              subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'}
               onClick={toggleTheme}
             />
           </div>
@@ -163,20 +209,22 @@ export function ProfilePage() {
 
         {isAdminUser ? (
           <FlatSection className="pt-2">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'АДМИН'}</p>
-            <div className="mt-2 divide-y divide-border/60">
-              <AccountRow icon={<Users className="h-4 w-4" />} label="Роли пользователей" onClick={() => navigate('/admin/users')} />
-              <AccountRow icon={<ScrollText className="h-4 w-4" />} label="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
+            <SectionTitle>{'АДМИН'}</SectionTitle>
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} />
+              <ProfileRow icon={ScrollText} title="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
             </div>
           </FlatSection>
         ) : null}
 
-        <FlatSection className="pt-2 border-b-0">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Аккаунт'}</p>
-          <div className="mt-2 divide-y divide-border/60">
-            <AccountRow
-              icon={<LogOut className="h-4 w-4" />}
-              label={signOutBusy ? 'Выходим...' : 'Выйти'}
+        <FlatSection className="border-b-0 pt-2">
+          <SectionTitle>{'АККАУНТ'}</SectionTitle>
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <ProfileRow
+              icon={LogOut}
+              iconClassName="text-red-300/80"
+              title={signOutBusy ? 'Выходим...' : 'Выйти'}
+              titleClassName="text-red-300/90"
               onClick={async () => {
                 if (signOutBusy) {
                   return;
@@ -193,6 +241,13 @@ export function ProfilePage() {
             />
           </div>
         </FlatSection>
+
+        <div className="mt-6 pb-6 text-center text-xs text-white/40">
+          {'Разработано '}
+          <a href="https://t.me/Tvoy_Kosmonavt" target="_blank" rel="noreferrer" className="font-semibold text-white/60 transition hover:text-white/80">
+            {'Твой Космонавт'}
+          </a>
+        </div>
       </div>
     </FlatPage>
   );
