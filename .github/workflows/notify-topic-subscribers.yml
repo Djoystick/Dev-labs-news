@@ -1,0 +1,43 @@
+name: Notify topic subscribers
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call telegram-notify-topics
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SUPABASE_NOTIFY_FUNCTION_URL: ${{ secrets.SUPABASE_NOTIFY_FUNCTION_URL }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$CRON_SECRET"
+          if [ -z "${SUPABASE_NOTIFY_FUNCTION_URL:-}" ]; then
+            echo "SUPABASE_NOTIFY_FUNCTION_URL is not set"
+            exit 1
+          fi
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set"
+            exit 1
+          fi
+
+          response_file=$(mktemp)
+          status=$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$SUPABASE_NOTIFY_FUNCTION_URL" \
+            -H "content-type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --data '{}')
+
+          echo "HTTP status: $status"
+          echo "Response:"
+          cat "$response_file"
+          echo
+
+          if [ "$status" -ne 200 ]; then
+            exit 1
+          fi
+
