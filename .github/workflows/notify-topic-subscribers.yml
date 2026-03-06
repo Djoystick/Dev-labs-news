@@ -12,6 +12,7 @@ jobs:
       - name: Call telegram-notify-topics
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_NOTIFY_FUNCTION_URL: ${{ secrets.SUPABASE_NOTIFY_FUNCTION_URL }}
         run: |
           set -euo pipefail
@@ -30,6 +31,8 @@ jobs:
             -X POST "$SUPABASE_NOTIFY_FUNCTION_URL" \
             -H "content-type: application/json" \
             -H "x-cron-secret: $CRON_SECRET" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
             --data '{}')
 
           echo "HTTP status: $status"
@@ -40,4 +43,3 @@ jobs:
           if [ "$status" -ne 200 ]; then
             exit 1
           fi
-
