@@ -11,6 +11,19 @@ export type TelegramAuthResult = {
   token: string;
 };
 
+type TelegramAuthPayload = {
+  access_token?: string;
+  error?: string;
+  ok?: boolean;
+  profile?: (Pick<Profile, 'id' | 'role' | 'telegram_id' | 'username'> & Partial<Profile>) | null;
+  refresh_token?: string;
+  session?: {
+    access_token?: string;
+    refresh_token?: string;
+  } | null;
+  token?: string;
+} | null;
+
 export async function fetchOwnProfile(userId: string) {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.from('profiles').select(profileSelect).eq('id', userId).maybeSingle();
@@ -44,11 +57,32 @@ export async function exchangeTelegramAuth(initDataOverride?: string) {
     throw new Error(error.message || 'Telegram sign-in failed.');
   }
 
-  const payload = data as ({ error?: string } & Partial<TelegramAuthResult>) | null;
+  const payload = data as TelegramAuthPayload;
+  const accessToken = payload?.session?.access_token ?? payload?.access_token ?? null;
+  const refreshToken = payload?.session?.refresh_token ?? payload?.refresh_token ?? null;
 
-  if (!payload?.ok || !payload.token || !payload.profile?.id || !payload.profile.role) {
+  if (!accessToken || !refreshToken) {
+    throw new Error('Не удалось сохранить сессию. Повторите вход.');
+  }
+
+  const { error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  if (sessionError) {
+    throw new Error(sessionError.message || 'Не удалось сохранить сессию. Повторите вход.');
+  }
+
+  await supabase.auth.getSession();
+
+  if (!payload?.ok || !payload.profile?.id || !payload.profile.role) {
     throw new Error('Telegram auth returned an incomplete payload.');
   }
 
-  return payload as TelegramAuthResult;
+  return {
+    ok: true,
+    profile: payload.profile,
+    token: accessToken,
+  } as TelegramAuthResult;
 }
