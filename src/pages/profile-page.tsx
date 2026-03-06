@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
 import { useReadingProgress } from '@/features/reading/reading-progress';
+import { getTelegramAvatarProxyUrl } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
 import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
@@ -117,7 +118,18 @@ export function ProfilePage() {
     return normalizeHandle(profile.full_name?.trim() || getProfileDisplayName(profile, user?.email) || 'Пользователь');
   }, [profile, telegramUser, user?.email]);
 
-  const avatarUrl = useMemo(() => getTelegramAvatarUrl(telegramUser) ?? profile?.avatar_url ?? null, [profile?.avatar_url, telegramUser]);
+  const avatarUrl = useMemo(() => {
+    const telegramPhotoUrl = getTelegramAvatarUrl(telegramUser);
+    if (telegramPhotoUrl) {
+      return telegramPhotoUrl;
+    }
+
+    if (typeof telegramUser?.id === 'number') {
+      return getTelegramAvatarProxyUrl(telegramUser.id, 'small');
+    }
+
+    return null;
+  }, [telegramUser]);
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
