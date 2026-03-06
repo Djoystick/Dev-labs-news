@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
-import { useFilteredFeedPosts } from '@/features/reading/reading-progress';
+import { isPostRead, useFilteredFeedPosts } from '@/features/reading/reading-progress';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -111,16 +111,26 @@ export function ForYouPage() {
           <StateCard title="Вы уже прочитали всё из этой ленты" description="Попробуйте отключить скрытие прочитанного в профиле." />
         ) : (
           <div className="divide-y divide-border/60">
-            {posts.map((post) => (
-              <FeedRow
-                key={post.id}
-                post={post}
-                onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
-                reactionSummary={summariesById.get(post.id)}
-                reactionsDisabled={isPending(post.id)}
-                onToggleReaction={toggle}
-              />
-            ))}
+            {posts.map((post) => {
+              const read = isPostRead(post.id);
+
+              return (
+                <div key={post.id} className={`relative transition-opacity ${read ? 'opacity-70 hover:opacity-90' : ''}`}>
+                  {read ? (
+                    <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                      Прочитано
+                    </span>
+                  ) : null}
+                  <FeedRow
+                    post={post}
+                    onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
+                    reactionSummary={summariesById.get(post.id)}
+                    reactionsDisabled={isPending(post.id)}
+                    onToggleReaction={toggle}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </motion.section>

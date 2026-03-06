@@ -13,7 +13,7 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { markPostRead } from '@/features/posts/mark-post-read';
-import { useFilteredFeedPosts } from '@/features/reading/reading-progress';
+import { isPostRead, useFilteredFeedPosts } from '@/features/reading/reading-progress';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -140,16 +140,26 @@ export function FeedPage() {
             <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {isRefreshing ? <FeedRowsSkeleton /> : null}
               <div className="divide-y divide-border/60">
-                {filteredPosts.map((post) => (
-                  <FeedRow
-                    key={post.id}
-                    post={post}
-                    onOpen={setOpenPost}
-                    reactionSummary={summariesById.get(post.id)}
-                    reactionsDisabled={isPending(post.id)}
-                    onToggleReaction={toggle}
-                  />
-                ))}
+                {filteredPosts.map((post) => {
+                  const read = isPostRead(post.id);
+
+                  return (
+                    <div key={post.id} className={`relative transition-opacity ${read ? 'opacity-70 hover:opacity-90' : ''}`}>
+                      {read ? (
+                        <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                          Прочитано
+                        </span>
+                      ) : null}
+                      <FeedRow
+                        post={post}
+                        onOpen={setOpenPost}
+                        reactionSummary={summariesById.get(post.id)}
+                        reactionsDisabled={isPending(post.id)}
+                        onToggleReaction={toggle}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="mt-6 flex flex-col items-center gap-3">
