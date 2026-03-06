@@ -45,7 +45,7 @@ export async function exchangeTelegramAuth(initDataOverride?: string) {
   const initData = (initDataOverride ?? getTelegramInitData()).trim();
 
   if (!initData) {
-    throw new Error('РћС‚РєСЂРѕР№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёРµ РІРЅСѓС‚СЂРё Telegram');
+    throw new Error('Откройте приложение внутри Telegram');
   }
 
   const supabase = getSupabaseClient();
@@ -60,21 +60,27 @@ export async function exchangeTelegramAuth(initDataOverride?: string) {
   const payload = data as TelegramAuthPayload;
   const accessToken = payload?.session?.access_token ?? payload?.access_token ?? null;
   const refreshToken = payload?.session?.refresh_token ?? payload?.refresh_token ?? null;
+  const appToken = payload?.token ?? accessToken;
 
-  if (!accessToken || !refreshToken) {
-    throw new Error('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ СЃРµСЃСЃРёСЋ. РџРѕРІС‚РѕСЂРёС‚Рµ РІС…РѕРґ.');
+  if (!appToken && !accessToken) {
+    throw new Error('Не удалось выполнить вход. Повторите попытку.');
   }
 
-  const { error: sessionError } = await supabase.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
+  // Mobile Telegram WebView may fail to persist Supabase session; keep login valid with app token.
+  if (accessToken && refreshToken) {
+    try {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
 
-  if (sessionError) {
-    throw new Error(sessionError.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ СЃРµСЃСЃРёСЋ. РџРѕРІС‚РѕСЂРёС‚Рµ РІС…РѕРґ.');
+      if (!sessionError) {
+        await supabase.auth.getSession();
+      }
+    } catch {
+      // Ignore session persistence failures and continue auth flow.
+    }
   }
-
-  await supabase.auth.getSession();
 
   if (!payload?.ok || !payload.profile?.id || !payload.profile.role) {
     throw new Error('Telegram auth returned an incomplete payload.');
@@ -83,6 +89,6 @@ export async function exchangeTelegramAuth(initDataOverride?: string) {
   return {
     ok: true,
     profile: payload.profile,
-    token: accessToken,
+    token: appToken as string,
   } as TelegramAuthResult;
 }
