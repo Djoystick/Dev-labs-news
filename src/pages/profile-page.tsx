@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
 import { useReadingProgress } from '@/features/reading/reading-progress';
-import { getTelegramAvatarProxyUrl } from '@/lib/telegram-avatar';
+import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
 import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
@@ -122,7 +122,7 @@ export function ProfilePage() {
   const avatarUrl = useMemo(() => {
     const telegramPhotoUrl = getTelegramAvatarUrl(telegramUser);
     if (telegramPhotoUrl && !avatarFailed) {
-      return telegramPhotoUrl;
+      return getTelegramPhotoUrlProxy(telegramPhotoUrl, 'small');
     }
 
     if (typeof telegramUser?.id === 'number') {

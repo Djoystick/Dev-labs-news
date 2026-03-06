@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
-import { getTelegramAvatarProxyUrl } from '@/lib/telegram-avatar';
+import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramUser } from '@/lib/telegram-user';
 
 type Insets = {
@@ -84,6 +84,14 @@ export function WebAppDebugPage() {
   const [lastAction, setLastAction] = useState('—');
   const [homeScreenStatus, setHomeScreenStatus] = useState('—');
   const telegramUser = useMemo(() => getTelegramUser(), []);
+  const telegramPhotoProxyUrl = useMemo(() => {
+    const photoUrl = telegramUser?.photo_url?.trim();
+    if (!photoUrl) {
+      return null;
+    }
+
+    return getTelegramPhotoUrlProxy(photoUrl, 'small');
+  }, [telegramUser]);
   const telegramAvatarProxyUrl = useMemo(() => {
     if (typeof telegramUser?.id !== 'number') {
       return null;
@@ -182,18 +190,23 @@ export function WebAppDebugPage() {
               <span className="text-sm text-white/70">Proxy URL</span>
               <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramAvatarProxyUrl ?? '—'}</span>
             </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm text-white/70">Proxy URL (photo_url)</span>
+              <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramPhotoProxyUrl ?? '—'}</span>
+            </div>
           </div>
           <Button
             type="button"
             variant="outline"
             className="mt-3"
             onClick={() => {
-              if (!telegramAvatarProxyUrl) {
+              const proxyUrl = telegramPhotoProxyUrl ?? telegramAvatarProxyUrl;
+              if (!proxyUrl) {
                 window.alert('Нет telegram user id');
                 return;
               }
 
-              window.open(telegramAvatarProxyUrl, '_blank', 'noopener,noreferrer');
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
             }}
           >
             Открыть аватар (proxy)

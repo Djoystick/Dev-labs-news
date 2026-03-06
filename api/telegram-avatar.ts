@@ -36,6 +36,44 @@ type TelegramFileResult = {
   file_path?: string;
 };
 
+function isRedirectStatus(status: number) {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+function parseAllowedUserpicUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 't.me' || !parsed.pathname.startsWith('/i/userpic/')) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAllowedUserpic(sourceUrl: URL) {
+  let upstream = await fetch(sourceUrl.toString(), { redirect: 'manual' });
+
+  if (isRedirectStatus(upstream.status)) {
+    const location = upstream.headers.get('location');
+    if (!location) {
+      throw new Error('Redirect location is missing');
+    }
+
+    const redirectedUrl = new URL(location, sourceUrl);
+    const allowedRedirectedUrl = parseAllowedUserpicUrl(redirectedUrl.toString());
+    if (!allowedRedirectedUrl) {
+      throw new Error('Redirect location is not allowed');
+    }
+
+    upstream = await fetch(allowedRedirectedUrl.toString(), { redirect: 'manual' });
+  }
+
+  return upstream;
+}
+
 function getSingleHeader(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0] ?? '';
@@ -102,14 +140,52 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
+  const host = getSingleHeader(request.headers?.host) || 'localhost';
+  const requestUrl = new URL(request.url ?? '', `https://${host}`);
+  const srcParam = (requestUrl.searchParams.get('src') ?? '').trim();
+  const sizeParam = (requestUrl.searchParams.get('size') ?? 'small').trim().toLowerCase();
+  const size: AvatarSize = sizeParam === 'medium' || sizeParam === 'large' ? sizeParam : 'small';
+
+  if (srcParam) {
+    const sourceUrl = parseAllowedUserpicUrl(srcParam);
+    if (!sourceUrl) {
+      sendJson(response, 400, { error: 'Invalid src' });
+      return;
+    }
+
+    try {
+      const fileResponse = await fetchAllowedUserpic(sourceUrl);
+
+      if (fileResponse.status === 404) {
+        setCacheHeaders(response);
+        response.status(204).end();
+        return;
+      }
+
+      if (isRedirectStatus(fileResponse.status) || !fileResponse.ok) {
+        sendJson(response, 502, { error: 'Failed to fetch Telegram avatar file' });
+        return;
+      }
+
+      const body = Buffer.from(await fileResponse.arrayBuffer());
+      const contentType = fileResponse.headers.get('content-type') ?? 'image/jpeg';
+
+      setCacheHeaders(response);
+      response.setHeader('Content-Type', contentType);
+      response.status(200).send(body);
+      return;
+    } catch {
+      sendJson(response, 502, { error: 'Failed to load Telegram avatar' });
+      return;
+    }
+  }
+
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) {
     sendJson(response, 500, { error: 'Missing TELEGRAM_BOT_TOKEN' });
     return;
   }
 
-  const host = getSingleHeader(request.headers?.host) || 'localhost';
-  const requestUrl = new URL(request.url ?? '', `https://${host}`);
   const tgIdParam = (requestUrl.searchParams.get('tg_id') ?? '').trim();
   const tgId = Number(tgIdParam);
 
@@ -117,9 +193,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     response.status(400).send('Missing tg_id');
     return;
   }
-
-  const sizeParam = (requestUrl.searchParams.get('size') ?? 'small').trim().toLowerCase();
-  const size: AvatarSize = sizeParam === 'medium' || sizeParam === 'large' ? sizeParam : 'small';
 
   try {
     const profilePhotosUrl = `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${encodeURIComponent(String(tgId))}&limit=1`;
