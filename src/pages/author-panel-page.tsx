@@ -1,4 +1,4 @@
-import { ChevronRight, FilePenLine, X } from 'lucide-react';
+import { ChevronRight, FilePenLine, LoaderCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage } from '@/components/layout/flat';
@@ -24,6 +24,7 @@ type AuthorPost = {
 };
 
 type TabKey = 'drafts' | 'published' | 'scheduled';
+type QuickAction = 'publish' | 'unschedule' | 'unpublish';
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: 'drafts', label: 'Черновики' },
@@ -86,6 +87,9 @@ export function AuthorPanelPage() {
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [lastFailedAction, setLastFailedAction] = useState<{ action: QuickAction; postId: string } | null>(null);
 
   const isAdmin = profile?.role === 'admin';
   const canUseAuthorPanel = profile?.role === 'admin' || profile?.role === 'editor';
@@ -110,6 +114,15 @@ export function AuthorPanelPage() {
     },
     [navigate],
   );
+
+  const updatePostFields = useCallback(async (postId: string, patch: { is_published?: boolean; scheduled_at?: string | null }) => {
+    const supabase = getSupabaseClient();
+    const { error: updateError } = await supabase.from('posts').update(patch).eq('id', postId);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }, []);
 
   const loadPosts = useCallback(async () => {
     if (!user?.id || !canUseAuthorPanel) {
@@ -164,6 +177,8 @@ export function AuthorPanelPage() {
 
       try {
         await loadPosts();
+        setActionError(null);
+        setLastFailedAction(null);
       } catch {
         if (!cancelled) {
           setPosts([]);
@@ -182,6 +197,46 @@ export function AuthorPanelPage() {
       cancelled = true;
     };
   }, [activeTab, canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
+
+  const runQuickAction = useCallback(
+    async (postId: string, action: QuickAction) => {
+      if (action === 'unpublish') {
+        const confirmed = window.confirm('Снять публикацию? Пост исчезнет из ленты.');
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      if (action === 'unschedule') {
+        const confirmed = window.confirm('Снять с расписания? Публикация станет черновиком.');
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      setActionBusyId(postId);
+      setActionError(null);
+      setLastFailedAction(null);
+
+      try {
+        if (action === 'publish') {
+          await updatePostFields(postId, { is_published: true, scheduled_at: null });
+        } else if (action === 'unschedule') {
+          await updatePostFields(postId, { is_published: false, scheduled_at: null });
+        } else {
+          await updatePostFields(postId, { is_published: false, scheduled_at: null });
+        }
+
+        await loadPosts();
+      } catch {
+        setActionError('Не удалось применить действие. Попробуйте ещё раз.');
+        setLastFailedAction({ action, postId });
+      } finally {
+        setActionBusyId(null);
+      }
+    },
+    [loadPosts, updatePostFields],
+  );
 
   const emptyStateTitle = activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных';
 
@@ -294,6 +349,28 @@ export function AuthorPanelPage() {
           </div>
         ) : null}
 
+        {!isLoadingPosts && !error && actionError ? (
+          <div className="border-y border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
+            <p>{actionError}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              onClick={() => {
+                if (lastFailedAction) {
+                  void runQuickAction(lastFailedAction.postId, lastFailedAction.action);
+                  return;
+                }
+
+                setReloadKey((value) => value + 1);
+              }}
+            >
+              {'Повторить'}
+            </Button>
+          </div>
+        ) : null}
+
         {!isLoadingPosts && !error && posts.length === 0 ? (
           <StateCard
             title={emptyStateTitle}
@@ -321,10 +398,71 @@ export function AuthorPanelPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {activeTab === 'drafts' ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={actionBusyId === post.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void runQuickAction(post.id, 'publish');
+                      }}
+                    >
+                      {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                      {'Опубликовать'}
+                    </Button>
+                  ) : null}
+                  {activeTab === 'scheduled' ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={actionBusyId === post.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void runQuickAction(post.id, 'publish');
+                        }}
+                      >
+                        {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                        {'Опубликовать'}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={actionBusyId === post.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void runQuickAction(post.id, 'unschedule');
+                        }}
+                      >
+                        {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                        {'Снять'}
+                      </Button>
+                    </>
+                  ) : null}
+                  {activeTab === 'published' ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={actionBusyId === post.id}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void runQuickAction(post.id, 'unpublish');
+                      }}
+                    >
+                      {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                      {'Снять с публикации'}
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
+                    disabled={actionBusyId === post.id}
                     onClick={(event) => {
                       event.stopPropagation();
                       openEditor(post.id);
