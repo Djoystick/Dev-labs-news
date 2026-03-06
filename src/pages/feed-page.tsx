@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { FilePenLine, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useNavigate, useOutletContext } from 'react-router-dom';
@@ -14,7 +14,7 @@ import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { markPostRead } from '@/features/posts/mark-post-read';
 import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
-import { usePostSearch } from '@/features/search/post-search';
+import { feedSearchStorageKey, usePersistentSearchQuery, usePostSearch } from '@/features/search/post-search';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -64,7 +64,8 @@ export function FeedPage() {
   const { topicFilters } = useReadingPreferences();
   const { setHiddenReadEnabled } = useReadingProgress();
   const [openPost, setOpenPost] = useState<Post | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePersistentSearchQuery(feedSearchStorageKey);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const topicFilteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
   const { filteredPosts, hiddenReadEnabled } = useFilteredFeedPosts(topicFilteredPosts);
   const { debouncedQuery, filteredPosts: searchedPosts, hasQuery } = usePostSearch(filteredPosts, searchQuery);
@@ -104,6 +105,7 @@ export function FeedPage() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               id="feed-search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -111,7 +113,17 @@ export function FeedPage() {
               placeholder="Поиск по новостям"
             />
             {searchQuery.trim() ? (
-              <Button type="button" variant="ghost" size="sm" className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground" onClick={() => setSearchQuery('')}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.focus({ preventScroll: true });
+                }}
+              >
                 Очистить
               </Button>
             ) : null}

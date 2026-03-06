@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Post } from '@/types/db';
 
+export const feedSearchStorageKey = 'devlabs.search.feed.v1';
+export const forYouSearchStorageKey = 'devlabs.search.for-you.v1';
+
 function normalize(value: string) {
   return value.trim().toLocaleLowerCase();
 }
@@ -29,6 +32,36 @@ export function useDebouncedValue<T>(value: T, delayMs = 250) {
   }, [delayMs, value]);
 
   return debouncedValue;
+}
+
+function readStoredQuery(storageKey: string) {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  try {
+    return window.sessionStorage.getItem(storageKey) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function usePersistentSearchQuery(storageKey: string) {
+  const [query, setQuery] = useState(() => readStoredQuery(storageKey));
+
+  useEffect(() => {
+    try {
+      if (query.trim()) {
+        window.sessionStorage.setItem(storageKey, query);
+      } else {
+        window.sessionStorage.removeItem(storageKey);
+      }
+    } catch {
+      // no-op: sessionStorage can fail in restricted mode
+    }
+  }, [query, storageKey]);
+
+  return [query, setQuery] as const;
 }
 
 export function filterPostsByQuery(posts: Post[], rawQuery: string) {

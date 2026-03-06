@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
@@ -11,7 +11,7 @@ import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
 import { useRecommendationsPreferences } from '@/features/recommendations/preferences';
-import { usePostSearch } from '@/features/search/post-search';
+import { forYouSearchStorageKey, usePersistentSearchQuery, usePostSearch } from '@/features/search/post-search';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -83,7 +83,8 @@ export function ForYouPage() {
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
   const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics, readTopics } = useRecommendationsPreferences();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePersistentSearchQuery(forYouSearchStorageKey);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const likedTopicsSet = useMemo(() => new Set(likedTopics), [likedTopics]);
@@ -213,13 +214,24 @@ export function ForYouPage() {
           <div className="relative mt-4">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11 pr-24"
               placeholder="Поиск по новостям"
             />
             {searchQuery.trim() ? (
-              <Button type="button" variant="ghost" size="sm" className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground" onClick={() => setSearchQuery('')}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.focus({ preventScroll: true });
+                }}
+              >
                 Очистить
               </Button>
             ) : null}
