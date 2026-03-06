@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -15,6 +15,14 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { createPost, deletePost, updatePost, type PostMutationInput } from '@/features/posts/api';
+import {
+  clearPostDraft,
+  getPostDraftStorageKey,
+  hasMeaningfulPostDraft,
+  readPostDraft,
+  writePostDraft,
+  type PostDraftPayload,
+} from '@/features/posts/draft-autosave';
 import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { listTopics } from '@/features/topics/api';
@@ -132,6 +140,16 @@ function resolvePublishingMode(post: EditablePost | null): PublishingMode {
   return 'draft';
 }
 
+function toDraftFormValues(values: PostFormValues) {
+  return {
+    content: values.content ?? '',
+    cover_url: values.cover_url ?? '',
+    excerpt: values.excerpt ?? '',
+    title: values.title ?? '',
+    topic_id: values.topic_id ?? '',
+  };
+}
+
 export function PostForm({ mode, post, userId }: PostFormProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -147,35 +165,138 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [publishMode, setPublishMode] = useState<PublishingMode>('published');
   const [scheduledLocal, setScheduledLocal] = useState('');
   const [scheduledError, setScheduledError] = useState<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'restored' | null>(null);
+  const [hasCheckedDraftRestore, setHasCheckedDraftRestore] = useState(false);
+  const lastSavedSnapshotRef = useRef('');
+  const hasRestoredDraftRef = useRef(false);
 
   const form = useForm<PostFormValues>({
     defaultValues: emptyValues,
     resolver: zodResolver(postFormSchema),
   });
 
-  useEffect(() => {
-    form.reset({
+  const watchedTitle = form.watch('title');
+  const watchedContent = form.watch('content');
+  const watchedExcerpt = form.watch('excerpt');
+  const watchedCoverUrl = form.watch('cover_url');
+  const watchedTopicId = form.watch('topic_id');
+  const initialFormValues = useMemo<PostFormValues>(
+    () => ({
       content: editablePost?.content ?? '',
       cover_url: editablePost?.cover_url ?? '',
       excerpt: editablePost?.excerpt ?? '',
       title: editablePost?.title ?? '',
       topic_id: editablePost?.topic_id ?? '',
-    });
-  }, [editablePost, form]);
+    }),
+    [editablePost?.content, editablePost?.cover_url, editablePost?.excerpt, editablePost?.title, editablePost?.topic_id],
+  );
+  const draftStorageKey = useMemo(() => {
+    if (mode === 'create') {
+      return getPostDraftStorageKey({ mode: 'create' });
+    }
+
+    if (!editablePost?.id) {
+      return null;
+    }
+
+    return getPostDraftStorageKey({ mode: 'edit', postId: editablePost.id });
+  }, [editablePost?.id, mode]);
+  const initialPublishMode = useMemo<PublishingMode>(() => {
+    if (mode === 'create') {
+      return 'published';
+    }
+
+    return resolvePublishingMode(editablePost);
+  }, [editablePost, mode]);
+  const initialScheduledLocal = useMemo(
+    () => (initialPublishMode === 'scheduled' ? toDatetimeLocal(editablePost?.scheduled_at) : ''),
+    [editablePost?.scheduled_at, initialPublishMode],
+  );
 
   useEffect(() => {
-    if (mode === 'create') {
-      setPublishMode('published');
-      setScheduledLocal('');
-      setScheduledError(null);
+    hasRestoredDraftRef.current = false;
+    lastSavedSnapshotRef.current = '';
+    setHasCheckedDraftRestore(false);
+    setAutosaveStatus(null);
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    form.reset(initialFormValues);
+  }, [form, initialFormValues]);
+
+  useEffect(() => {
+    setPublishMode(initialPublishMode);
+    setScheduledLocal(initialScheduledLocal);
+    setScheduledError(null);
+  }, [initialPublishMode, initialScheduledLocal]);
+
+  useEffect(() => {
+    if (!draftStorageKey || hasRestoredDraftRef.current) {
+      if (!hasCheckedDraftRestore) {
+        setHasCheckedDraftRestore(true);
+      }
+
       return;
     }
 
-    const nextMode = resolvePublishingMode(editablePost);
-    setPublishMode(nextMode);
-    setScheduledLocal(nextMode === 'scheduled' ? toDatetimeLocal(editablePost?.scheduled_at) : '');
-    setScheduledError(null);
-  }, [editablePost, mode]);
+    const draft = readPostDraft(draftStorageKey);
+    hasRestoredDraftRef.current = true;
+
+    if (!draft) {
+      setHasCheckedDraftRestore(true);
+      return;
+    }
+
+    if (!hasMeaningfulPostDraft(draft)) {
+      clearPostDraft(draftStorageKey);
+      setHasCheckedDraftRestore(true);
+      return;
+    }
+
+    const currentValues = toDraftFormValues(form.getValues());
+    const currentHasValues = hasMeaningfulPostDraft({
+      ...currentValues,
+      scheduled_at: '',
+    });
+    const currentMatchesInitial =
+      currentValues.title === initialFormValues.title &&
+      currentValues.content === initialFormValues.content &&
+      currentValues.excerpt === initialFormValues.excerpt &&
+      currentValues.cover_url === initialFormValues.cover_url &&
+      currentValues.topic_id === initialFormValues.topic_id;
+
+    if (currentMatchesInitial || !currentHasValues) {
+      const restoredValues: PostFormValues = {
+        title: draft.title.length > 0 ? draft.title : initialFormValues.title,
+        content: draft.content.length > 0 ? draft.content : initialFormValues.content,
+        excerpt: draft.excerpt.length > 0 ? draft.excerpt : initialFormValues.excerpt,
+        cover_url: draft.cover_url.length > 0 ? draft.cover_url : initialFormValues.cover_url,
+        topic_id: draft.topic_id.length > 0 ? draft.topic_id : initialFormValues.topic_id,
+      };
+      const restoredMode: PublishingMode = draft.publish_mode;
+      const restoredScheduled = restoredMode === 'scheduled' ? draft.scheduled_at : '';
+
+      form.reset(restoredValues);
+      setPublishMode(restoredMode);
+      setScheduledLocal(restoredScheduled);
+      setScheduledError(restoredMode === 'scheduled' ? getScheduledValidationError(restoredScheduled) : null);
+      setAutosaveStatus('restored');
+      lastSavedSnapshotRef.current = JSON.stringify({
+        ...restoredValues,
+        publish_mode: restoredMode,
+        scheduled_at: restoredScheduled,
+      });
+    }
+
+    setHasCheckedDraftRestore(true);
+  }, [
+    draftStorageKey,
+    form,
+    hasCheckedDraftRestore,
+    initialFormValues,
+    initialPublishMode,
+    initialScheduledLocal,
+  ]);
 
   useEffect(() => {
     let ignore = false;
@@ -207,7 +328,64 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     };
   }, []);
 
-  const coverUrl = form.watch('cover_url');
+  useEffect(() => {
+    if (!draftStorageKey || !hasCheckedDraftRestore || isSubmitting) {
+      return;
+    }
+
+    const nextPayloadBase = {
+      title: watchedTitle ?? '',
+      content: watchedContent ?? '',
+      excerpt: watchedExcerpt ?? '',
+      cover_url: watchedCoverUrl ?? '',
+      topic_id: watchedTopicId ?? '',
+      publish_mode: publishMode,
+      scheduled_at: publishMode === 'scheduled' ? scheduledLocal : '',
+    };
+
+    if (!hasMeaningfulPostDraft(nextPayloadBase)) {
+      if (lastSavedSnapshotRef.current) {
+        clearPostDraft(draftStorageKey);
+        lastSavedSnapshotRef.current = '';
+        setAutosaveStatus(null);
+      }
+
+      return;
+    }
+
+    const nextSnapshot = JSON.stringify(nextPayloadBase);
+    if (nextSnapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      const payloadToSave: PostDraftPayload = {
+        ...nextPayloadBase,
+        updatedAt: new Date().toISOString(),
+      };
+
+      writePostDraft(draftStorageKey, payloadToSave);
+      lastSavedSnapshotRef.current = nextSnapshot;
+      setAutosaveStatus('saved');
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [
+    draftStorageKey,
+    hasCheckedDraftRestore,
+    isSubmitting,
+    publishMode,
+    scheduledLocal,
+    watchedContent,
+    watchedCoverUrl,
+    watchedExcerpt,
+    watchedTitle,
+    watchedTopicId,
+  ]);
+
+  const coverUrl = watchedCoverUrl;
   const submitLabel = isSubmitting
     ? 'Сохранение…'
     : publishMode === 'published'
@@ -217,7 +395,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       : publishMode === 'draft'
         ? 'Сохранить черновик'
         : 'Запланировать';
-  const isEditingScheduledPost = mode === 'edit' && resolvePublishingMode(editablePost) === 'scheduled';
+  const isEditingScheduledPost = mode === 'edit' && initialPublishMode === 'scheduled';
   const scheduledHumanDate = formatScheduledHuman(scheduledLocal);
   const statusHint =
     publishMode === 'published'
@@ -234,6 +412,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       : publishMode === 'draft'
         ? 'Материал сохранится как черновик без публикации.'
         : 'Публикация выйдет автоматически в указанное время.';
+
+  const autosaveHint =
+    autosaveStatus === 'restored' ? 'Восстановлен черновик' : autosaveStatus === 'saved' ? 'Сохранено' : null;
 
   const returnState = useMemo(() => {
     const state = location.state as ReturnState | null;
@@ -367,12 +548,20 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 if (mode === 'create') {
                   await createPost(payload);
+                  if (draftStorageKey) {
+                    clearPostDraft(draftStorageKey);
+                    lastSavedSnapshotRef.current = '';
+                  }
                   toast.success('Новость опубликована.');
                   navigate('/', { replace: true });
                   return;
                 }
 
                 await updatePost(editablePost!.id, payload);
+                if (draftStorageKey) {
+                  clearPostDraft(draftStorageKey);
+                  lastSavedSnapshotRef.current = '';
+                }
                 toast.success('Новость сохранена.');
 
                 if (returnState?.returnTo === '/my-posts') {
@@ -542,8 +731,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             </div>
 
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-muted-foreground">
-                {publicationHint}
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{publicationHint}</p>
+                {autosaveHint ? <p className="text-xs text-white/60">{autosaveHint}</p> : null}
               </div>
               <div className="flex flex-wrap gap-3">
                 {mode === 'edit' && editablePost && canDeletePost ? (
@@ -592,6 +782,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
                 try {
                   await deletePost(post.id);
+                  if (draftStorageKey) {
+                    clearPostDraft(draftStorageKey);
+                    lastSavedSnapshotRef.current = '';
+                  }
                   toast.success('Новость удалена.');
                   if (returnState?.returnTo === '/my-posts') {
                     navigate('/my-posts', {
