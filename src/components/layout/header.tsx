@@ -37,14 +37,8 @@ export function Header() {
   const [sectionTopicOptions, setSectionTopicOptions] = useState<FilterTopicOption[]>(fallbackTopicOptions);
   const totalTopics = sectionTopicOptions.length > 0 ? sectionTopicOptions.length : fallbackTopicOptions.length;
   const hasFilteredTopics = enabledTopicCount !== totalTopics;
-  const tapSafeRightPadding = useMemo(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
-    const hasTelegramWebApp = Boolean((window as Window & { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp);
-    return hasTelegramWebApp ? 'calc(72px + var(--tma-safe-right, 0px))' : undefined;
-  }, []);
+  const tg = typeof window !== 'undefined' ? (window as Window & { Telegram?: { WebApp?: { isFullscreen?: boolean } } }).Telegram?.WebApp : null;
+  const isFullscreen = Boolean(tg?.isFullscreen);
 
   useEffect(() => {
     if (!isFeedRoute) {
@@ -82,14 +76,14 @@ export function Header() {
 
   return (
     <header className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
-      <Container className="py-2 sm:py-1.5">
+      <Container className={isFullscreen ? 'pt-11 pb-2 sm:pb-1.5' : 'py-2 sm:py-1.5'}>
         <div className="flex h-9 items-center gap-3 sm:h-12">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <AppLink to="/" aria-label="Home" className="flex h-full items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
               <img src={logoUrl} alt="Dev-labs News" className="block h-[calc(100%-8px)] w-auto max-h-full shrink-0" loading="eager" decoding="async" />
             </AppLink>
           </div>
-          <div className="flex shrink-0 items-center gap-2" style={tapSafeRightPadding ? { paddingRight: tapSafeRightPadding } : undefined}>
+          <div className="flex shrink-0 items-center gap-2">
             {isFeedRoute ? (
               <Button
                 type="button"
