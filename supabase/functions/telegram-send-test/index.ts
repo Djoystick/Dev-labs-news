@@ -1,4 +1,4 @@
-/// <reference lib="deno.ns" />
+﻿/// <reference lib="deno.ns" />
 /// <reference lib="dom" />
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
@@ -46,13 +46,12 @@ function getEnvWithFallback(primary: string, fallback?: string) {
 function getRequiredServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
-  const bot = Deno.env.get("TELEGRAM_BOT_TOKEN");
 
-  if (!url || !anon || !bot) {
+  if (!url || !anon) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { anon, bot, url };
+  return { anon, url };
 }
 
 function getAuthorizationHeader(request: Request) {
@@ -99,43 +98,39 @@ function normalizeTelegramUserId(value: number | string | null): string | null {
   return null;
 }
 
-async function sendTelegramMessage(botToken: string, chatId: string, text: string) {
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+async function sendTelegramMessage(token: string, chatId: string, text: string) {
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const telegramResp = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "content-type": "application/json",
     },
     body: JSON.stringify({
       chat_id: chatId,
       text,
+      disable_web_page_preview: true,
     }),
   });
 
-  let payload: { description?: string; ok?: boolean } | null = null;
+  if (telegramResp.ok) {
+    return { message: null, ok: true };
+  }
+
+  const raw = await telegramResp.text();
+  let message = raw || "Telegram API returned an error.";
 
   try {
-    payload = (await response.json()) as { description?: string; ok?: boolean };
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok || payload?.ok === false) {
-    const description = typeof payload?.description === "string"
-      ? payload.description
-      : "Telegram API returned an error.";
-    const lowered = description.toLowerCase();
-    if (
-      lowered.includes("chat not found")
-      || lowered.includes("bot was blocked")
-      || lowered.includes("forbidden")
-      || lowered.includes("user is deactivated")
-      || lowered.includes("have no rights")
-    ) {
-      throw new HttpError(400, "Не удалось отправить тест. Откройте бота и нажмите Start, затем повторите попытку.");
+    const parsed = JSON.parse(raw) as { description?: string; error_code?: number; ok?: boolean };
+    if (typeof parsed.description === "string" && parsed.description.trim()) {
+      message = parsed.description.trim();
+    } else if (typeof parsed.error_code === "number") {
+      message = `Telegram error code ${parsed.error_code}`;
     }
-
-    throw new HttpError(502, `Telegram sendMessage failed: ${description}`);
+  } catch {
+    // Keep raw text for diagnostics when JSON parsing fails.
   }
+
+  return { message, ok: false };
 }
 
 serve(async (request: Request) => {
@@ -147,9 +142,14 @@ serve(async (request: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
+  const token = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim();
+  if (!token) {
+    return jsonResponse({ error: "Missing env", missing: ["TELEGRAM_BOT_TOKEN"] }, 500);
+  }
+
   try {
     const authorization = getAuthorizationHeader(request);
-    const { anon, bot, url } = getRequiredServerEnv();
+    const { anon, url } = getRequiredServerEnv();
     const { asUser, userId } = await getCurrentUserId(url, anon, authorization);
     const profileResult = await asUser
       .from("profiles")
@@ -172,18 +172,33 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    await sendTelegramMessage(bot, telegramUserId, TEST_TEXT);
+    const telegramSendResult = await sendTelegramMessage(token, telegramUserId, TEST_TEXT);
+    if (!telegramSendResult.ok) {
+      return jsonResponse(
+        {
+          error: "Telegram API error",
+          message: telegramSendResult.message,
+        },
+        400,
+      );
+    }
 
     return jsonResponse({
       ok: true,
       message: "Тестовое сообщение отправлено.",
     });
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return jsonResponse({ error: error.message }, error.status);
+  } catch (err) {
+    if (err instanceof HttpError && (err.status === 400 || err.status === 401 || err.status === 403)) {
+      return jsonResponse({ error: err.message }, err.status);
     }
 
-    console.error("telegram-send-test failed", error);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    console.error("telegram-send-test error:", err);
+    return jsonResponse(
+      {
+        error: "Internal error",
+        message: String((err as { message?: unknown } | null)?.message ?? err),
+      },
+      500,
+    );
   }
 });
