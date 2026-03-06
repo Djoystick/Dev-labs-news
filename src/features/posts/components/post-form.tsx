@@ -63,6 +63,56 @@ function toDatetimeLocal(iso: string | null | undefined) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function getRoundedScheduledLocal() {
+  const scheduledDate = new Date(Date.now() + 30 * 60 * 1000);
+  scheduledDate.setSeconds(0, 0);
+
+  const roundedMinutes = Math.ceil(scheduledDate.getMinutes() / 5) * 5;
+  if (roundedMinutes === 60) {
+    scheduledDate.setHours(scheduledDate.getHours() + 1, 0, 0, 0);
+  } else {
+    scheduledDate.setMinutes(roundedMinutes, 0, 0);
+  }
+
+  return toDatetimeLocal(scheduledDate.toISOString());
+}
+
+function getScheduledValidationError(value: string) {
+  if (!value.trim()) {
+    return 'Укажите дату и время';
+  }
+
+  const scheduledDate = new Date(value);
+  if (Number.isNaN(scheduledDate.getTime())) {
+    return 'Введите корректную дату и время публикации.';
+  }
+
+  if (scheduledDate.getTime() < Date.now()) {
+    return 'Время не может быть в прошлом';
+  }
+
+  return null;
+}
+
+function formatScheduledHuman(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const scheduledDate = new Date(value);
+  if (Number.isNaN(scheduledDate.getTime())) {
+    return null;
+  }
+
+  return scheduledDate.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function resolvePublishingMode(post: EditablePost | null): PublishingMode {
   if (!post) {
     return 'published';
@@ -167,6 +217,16 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       : publishMode === 'draft'
         ? 'Сохранить черновик'
         : 'Запланировать';
+  const isEditingScheduledPost = mode === 'edit' && resolvePublishingMode(editablePost) === 'scheduled';
+  const scheduledHumanDate = formatScheduledHuman(scheduledLocal);
+  const statusHint =
+    publishMode === 'published'
+      ? 'Статус: Опубликовано'
+      : publishMode === 'draft'
+        ? 'Статус: Черновик'
+        : scheduledHumanDate
+          ? `Статус: Запланировано на ${scheduledHumanDate}`
+          : 'Статус: Запланировано';
   const canDeletePost = profile?.role === 'admin';
   const publicationHint =
     publishMode === 'published'
@@ -205,6 +265,24 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   };
 
   const pageTitle = useMemo(() => (mode === 'create' ? 'Новая новость' : 'Редактирование новости'), [mode]);
+
+  const handlePublishModeChange = (nextMode: PublishingMode) => {
+    setPublishMode(nextMode);
+
+    if (nextMode !== 'scheduled') {
+      setScheduledError(null);
+      return;
+    }
+
+    if (!scheduledLocal.trim() && !isEditingScheduledPost) {
+      const defaultScheduledLocal = getRoundedScheduledLocal();
+      setScheduledLocal(defaultScheduledLocal);
+      setScheduledError(getScheduledValidationError(defaultScheduledLocal));
+      return;
+    }
+
+    setScheduledError(getScheduledValidationError(scheduledLocal));
+  };
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -264,18 +342,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
               let scheduledAt: string | null = null;
               if (publishMode === 'scheduled') {
-                if (!scheduledLocal.trim()) {
-                  setScheduledError('Укажите дату и время публикации.');
+                const validationError = getScheduledValidationError(scheduledLocal);
+                if (validationError) {
+                  setScheduledError(validationError);
                   return;
                 }
 
-                const scheduledDate = new Date(scheduledLocal);
-                if (Number.isNaN(scheduledDate.getTime())) {
-                  setScheduledError('Введите корректную дату и время публикации.');
-                  return;
-                }
-
-                scheduledAt = scheduledDate.toISOString();
+                scheduledAt = new Date(scheduledLocal).toISOString();
               }
 
               setIsSubmitting(true);
@@ -420,10 +493,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setPublishMode('published');
-                    setScheduledError(null);
-                  }}
+                  onClick={() => handlePublishModeChange('published')}
                   className={cn(
                     'rounded-full px-3 py-1.5 text-sm transition-colors',
                     publishMode === 'published' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
@@ -433,10 +503,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setPublishMode('draft');
-                    setScheduledError(null);
-                  }}
+                  onClick={() => handlePublishModeChange('draft')}
                   className={cn(
                     'rounded-full px-3 py-1.5 text-sm transition-colors',
                     publishMode === 'draft' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
@@ -446,10 +513,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setPublishMode('scheduled');
-                    setScheduledError(null);
-                  }}
+                  onClick={() => handlePublishModeChange('scheduled')}
                   className={cn(
                     'rounded-full px-3 py-1.5 text-sm transition-colors',
                     publishMode === 'scheduled' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
@@ -458,6 +522,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   {'Запланировать'}
                 </button>
               </div>
+              <p className="text-xs text-white/60">{statusHint}</p>
               {publishMode === 'scheduled' ? (
                 <div className="space-y-2">
                   <Label htmlFor="scheduled-at">{'Дата и время публикации'}</Label>
@@ -466,10 +531,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     type="datetime-local"
                     value={scheduledLocal}
                     onChange={(event) => {
-                      setScheduledLocal(event.target.value);
-                      if (scheduledError) {
-                        setScheduledError(null);
-                      }
+                      const nextValue = event.target.value;
+                      setScheduledLocal(nextValue);
+                      setScheduledError(getScheduledValidationError(nextValue));
                     }}
                   />
                 </div>
@@ -488,7 +552,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     {'Удалить'}
                   </Button>
                 ) : null}
-                <Button type="submit" disabled={isSubmitting || isUploadingCover}>
+                <Button type="submit" disabled={isSubmitting || isUploadingCover || Boolean(scheduledError)}>
                   {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   {submitLabel}
                 </Button>
