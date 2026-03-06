@@ -37,6 +37,14 @@ export function Header() {
   const [sectionTopicOptions, setSectionTopicOptions] = useState<FilterTopicOption[]>(fallbackTopicOptions);
   const totalTopics = sectionTopicOptions.length > 0 ? sectionTopicOptions.length : fallbackTopicOptions.length;
   const hasFilteredTopics = enabledTopicCount !== totalTopics;
+  const tapSafeRightPadding = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const hasTelegramWebApp = Boolean((window as Window & { Telegram?: { WebApp?: unknown } }).Telegram?.WebApp);
+    return hasTelegramWebApp ? 'calc(72px + var(--tma-safe-right, 0px))' : undefined;
+  }, []);
 
   useEffect(() => {
     if (!isFeedRoute) {
@@ -81,7 +89,7 @@ export function Header() {
               <img src={logoUrl} alt="Dev-labs News" className="block h-[calc(100%-8px)] w-auto max-h-full shrink-0" loading="eager" decoding="async" />
             </AppLink>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2" style={tapSafeRightPadding ? { paddingRight: tapSafeRightPadding } : undefined}>
             {isFeedRoute ? (
               <Button
                 type="button"
