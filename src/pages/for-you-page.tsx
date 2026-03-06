@@ -79,13 +79,45 @@ export function ForYouPage() {
   const navigate = useNavigate();
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
-  const { clearTopicPreference, dislikeTopic, getTopicPreference, likeTopic } = useRecommendationsPreferences();
+  const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics } = useRecommendationsPreferences();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
-  const { filteredPosts: posts, hiddenReadEnabled } = useFilteredFeedPosts(recommendedPosts);
+  const likedTopicsSet = useMemo(() => new Set(likedTopics), [likedTopics]);
+  const dislikedTopicsSet = useMemo(() => new Set(dislikedTopics), [dislikedTopics]);
+  const postsAfterDislikedFilter = useMemo(() => {
+    if (dislikedTopicsSet.size === 0) {
+      return recommendedPosts;
+    }
+
+    return recommendedPosts.filter((post) => {
+      const topicKey = getTopicKey(post);
+      return !topicKey || !dislikedTopicsSet.has(topicKey);
+    });
+  }, [dislikedTopicsSet, recommendedPosts]);
+  const { filteredPosts: postsAfterReadFilter, hiddenReadEnabled } = useFilteredFeedPosts(postsAfterDislikedFilter);
+  const posts = useMemo(() => {
+    if (likedTopicsSet.size === 0) {
+      return postsAfterReadFilter;
+    }
+
+    const preferredPosts: Post[] = [];
+    const regularPosts: Post[] = [];
+
+    for (const post of postsAfterReadFilter) {
+      const topicKey = getTopicKey(post);
+      if (topicKey && likedTopicsSet.has(topicKey)) {
+        preferredPosts.push(post);
+      } else {
+        regularPosts.push(post);
+      }
+    }
+
+    return [...preferredPosts, ...regularPosts];
+  }, [likedTopicsSet, postsAfterReadFilter]);
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
-  const isReadHiddenEmpty = hiddenReadEnabled && recommendedPosts.length > 0 && posts.length === 0;
+  const isPreferenceFilteredEmpty = recommendedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
+  const isReadHiddenEmpty = hiddenReadEnabled && postsAfterDislikedFilter.length > 0 && postsAfterReadFilter.length === 0;
 
   const recommendationReasons = useMemo(() => {
     const reasons = new Map<string, string>();
@@ -157,6 +189,8 @@ export function ForYouPage() {
             actionLabel="Повторить"
             onReset={retry}
           />
+        ) : isPreferenceFilteredEmpty ? (
+          <StateCard title="Лента скрыта вашими предпочтениями" description="Измените выбор «Меньше такого», чтобы снова увидеть больше рекомендаций." />
         ) : isReadHiddenEmpty ? (
           <StateCard
             title="Вы уже прочитали всё из этой ленты"
@@ -168,6 +202,8 @@ export function ForYouPage() {
           <div className="divide-y divide-border/60">
             {posts.map((post) => {
               const read = isPostRead(post.id);
+              const topicKey = getTopicKey(post);
+              const topicPreference = topicKey ? getTopicPreference(topicKey) : null;
 
               return (
                 <div key={post.id} className={`relative transition-opacity ${read ? 'opacity-70 hover:opacity-90' : ''}`}>
@@ -184,20 +220,15 @@ export function ForYouPage() {
                     onToggleReaction={toggle}
                     recommendationReason={recommendationReasons.get(post.id) ?? 'Подобрано для вашей ленты'}
                   />
-                  {getTopicKey(post) ? (
+                  {topicKey ? (
                     <div className="mt-1 flex items-center gap-2 pl-0">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className={`h-7 rounded-full px-2 text-xs ${getTopicPreference(getTopicKey(post) ?? '') === 'more' ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                        className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'more' ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
                         onClick={() => {
-                          const topicKey = getTopicKey(post);
-                          if (!topicKey) {
-                            return;
-                          }
-
-                          if (getTopicPreference(topicKey) === 'more') {
+                          if (topicPreference === 'more') {
                             clearTopicPreference(topicKey);
                             return;
                           }
@@ -212,14 +243,9 @@ export function ForYouPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className={`h-7 rounded-full px-2 text-xs ${getTopicPreference(getTopicKey(post) ?? '') === 'less' ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                        className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'less' ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
                         onClick={() => {
-                          const topicKey = getTopicKey(post);
-                          if (!topicKey) {
-                            return;
-                          }
-
-                          if (getTopicPreference(topicKey) === 'less') {
+                          if (topicPreference === 'less') {
                             clearTopicPreference(topicKey);
                             return;
                           }
