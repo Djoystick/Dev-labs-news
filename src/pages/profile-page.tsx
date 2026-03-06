@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -202,6 +202,7 @@ export function ProfilePage() {
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
             <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
             <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
+            <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"

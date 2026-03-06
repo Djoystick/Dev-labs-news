@@ -17,6 +17,7 @@ const ActivityPage = lazy(() => import('@/pages/activity-page').then((module) =>
 const SupportPage = lazy(() => import('@/pages/support-page').then((module) => ({ default: module.SupportPage })));
 const AboutPage = lazy(() => import('@/pages/about-page').then((module) => ({ default: module.AboutPage })));
 const AuthorPanelPage = lazy(() => import('@/pages/author-panel-page').then((module) => ({ default: module.AuthorPanelPage })));
+const WebAppDebugPage = lazy(() => import('@/pages/webapp-debug-page').then((module) => ({ default: module.WebAppDebugPage })));
 const TopicPreferencesPage = lazy(() => import('@/pages/topic-preferences-page').then((module) => ({ default: module.TopicPreferencesPage })));
 const AdminNewPage = lazy(() => import('@/pages/admin-new-page').then((module) => ({ default: module.AdminNewPage })));
 const AdminEditPage = lazy(() => import('@/pages/admin-edit-page').then((module) => ({ default: module.AdminEditPage })));
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
       { path: 'support', element: withSuspense(SupportPage) },
       { path: 'about', element: withSuspense(AboutPage) },
       { path: 'author', element: withSuspense(AuthorPanelPage) },
+      { path: 'webapp-debug', element: withSuspense(WebAppDebugPage) },
       { path: 'topic-preferences', element: withSuspense(TopicPreferencesPage) },
       { path: 'admin/new', element: withSuspense(AdminNewPage) },
       { path: 'admin/edit/:id', element: withSuspense(AdminEditPage) },
