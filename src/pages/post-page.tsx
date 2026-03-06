@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock3, PencilLine, Share2 } from 'lucide-react';
+import { ArrowLeft, Clock3, MessageCircle, PencilLine, Share2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -104,6 +104,82 @@ async function copyPostLink(url: string) {
   }
 
   return copied;
+}
+
+type PostWithDiscussionFields = Post & {
+  commentsUrl?: string | null;
+  comments_url?: string | null;
+  discussionUrl?: string | null;
+  discussion_url?: string | null;
+  sourceUrl?: string | null;
+  source_url?: string | null;
+  telegramUrl?: string | null;
+  telegram_url?: string | null;
+};
+
+function parseExternalUrl(value: unknown) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(normalizedValue, window.location.origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function getDiscussionUrl(post: Post) {
+  const source = post as PostWithDiscussionFields;
+  const candidates = [
+    source.discussion_url,
+    source.discussionUrl,
+    source.comments_url,
+    source.commentsUrl,
+    source.telegram_url,
+    source.telegramUrl,
+    source.source_url,
+    source.sourceUrl,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = parseExternalUrl(candidate);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function openExternalUrl(url: string) {
+  try {
+    const telegramWebApp = (window as Window & { Telegram?: { WebApp?: { openLink?: (value: string) => void; openTelegramLink?: (value: string) => void } } }).Telegram?.WebApp;
+    if (telegramWebApp?.openTelegramLink && url.startsWith('https://t.me/')) {
+      telegramWebApp.openTelegramLink(url);
+      return true;
+    }
+
+    if (telegramWebApp?.openLink) {
+      telegramWebApp.openLink(url);
+      return true;
+    }
+  } catch {
+    // no-op: fallback below
+  }
+
+  const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+  return Boolean(openedWindow);
 }
 
 export function PostPage() {
@@ -347,6 +423,7 @@ export function PostPage() {
   const topic = post.topic;
   const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
   const canEditPost = profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && post.author_id === user?.id);
+  const discussionUrl = getDiscussionUrl(post);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
@@ -395,6 +472,22 @@ export function PostPage() {
                     <Share2 className="h-4 w-4" />
                     {'Поделиться'}
                   </Button>
+                  {discussionUrl ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const opened = openExternalUrl(discussionUrl);
+                        if (!opened) {
+                          toast.error('Не удалось открыть обсуждение');
+                        }
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {'Обсудить'}
+                    </Button>
+                  ) : null}
                   {canEditPost ? (
                     <Button asChild size="sm" variant="outline">
                       <AppLink to={`/admin/edit/${post.id}`}>
