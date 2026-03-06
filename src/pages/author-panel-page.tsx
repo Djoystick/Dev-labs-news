@@ -1,5 +1,5 @@
 import { ChevronRight, FilePenLine, LoaderCircle, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
@@ -25,12 +25,25 @@ type AuthorPost = {
 
 type TabKey = 'drafts' | 'published' | 'scheduled';
 type QuickAction = 'publish' | 'unschedule' | 'unpublish';
+type PostStatus = TabKey;
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: 'drafts', label: 'Черновики' },
   { key: 'published', label: 'Опубликовано' },
   { key: 'scheduled', label: 'Запланировано' },
 ];
+
+function getPostStatus(post: AuthorPost): PostStatus {
+  if (post.is_published) {
+    return 'published';
+  }
+
+  if (post.scheduled_at) {
+    return 'scheduled';
+  }
+
+  return 'drafts';
+}
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('ru-RU', {
@@ -139,18 +152,11 @@ export function AuthorPanelPage() {
     let query = supabase
       .from('posts')
       .select('id, title, excerpt, cover_url, created_at, updated_at, topic_id, author_id, is_published, scheduled_at, published_at')
+      .order('created_at', { ascending: false })
       .limit(100);
 
     if (!isAdmin) {
       query = query.eq('author_id', user.id);
-    }
-
-    if (activeTab === 'drafts') {
-      query = query.eq('is_published', false).is('scheduled_at', null).order('updated_at', { ascending: false }).order('created_at', { ascending: false });
-    } else if (activeTab === 'published') {
-      query = query.eq('is_published', true).order('published_at', { ascending: false }).order('created_at', { ascending: false });
-    } else {
-      query = query.eq('is_published', false).not('scheduled_at', 'is', null).order('scheduled_at', { ascending: true }).order('created_at', { ascending: false });
     }
 
     const { data, error: queryError } = await query;
@@ -160,7 +166,7 @@ export function AuthorPanelPage() {
     }
 
     setPosts((data ?? []) as AuthorPost[]);
-  }, [activeTab, canUseAuthorPanel, isAdmin, user?.id]);
+  }, [canUseAuthorPanel, isAdmin, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,7 +202,7 @@ export function AuthorPanelPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
+  }, [canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
 
   const runQuickAction = useCallback(
     async (postId: string, action: QuickAction) => {
@@ -239,6 +245,67 @@ export function AuthorPanelPage() {
   );
 
   const emptyStateTitle = activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных';
+  const stats = useMemo(() => {
+    let drafts = 0;
+    let published = 0;
+    let scheduled = 0;
+
+    posts.forEach((post) => {
+      const status = getPostStatus(post);
+      if (status === 'published') {
+        published += 1;
+      } else if (status === 'scheduled') {
+        scheduled += 1;
+      } else {
+        drafts += 1;
+      }
+    });
+
+    return {
+      drafts,
+      published,
+      scheduled,
+      total: posts.length,
+    };
+  }, [posts]);
+
+  const tabPosts = useMemo(() => {
+    const filtered = posts.filter((post) => getPostStatus(post) === activeTab);
+
+    if (activeTab === 'published') {
+      return [...filtered].sort((left, right) => {
+        const leftPublished = new Date(left.published_at ?? left.created_at).getTime();
+        const rightPublished = new Date(right.published_at ?? right.created_at).getTime();
+        if (leftPublished !== rightPublished) {
+          return rightPublished - leftPublished;
+        }
+
+        return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+      });
+    }
+
+    if (activeTab === 'scheduled') {
+      return [...filtered].sort((left, right) => {
+        const leftScheduled = new Date(left.scheduled_at ?? left.created_at).getTime();
+        const rightScheduled = new Date(right.scheduled_at ?? right.created_at).getTime();
+        if (leftScheduled !== rightScheduled) {
+          return leftScheduled - rightScheduled;
+        }
+
+        return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+      });
+    }
+
+    return [...filtered].sort((left, right) => {
+      const leftUpdated = new Date(left.updated_at ?? left.created_at).getTime();
+      const rightUpdated = new Date(right.updated_at ?? right.created_at).getTime();
+      if (leftUpdated !== rightUpdated) {
+        return rightUpdated - leftUpdated;
+      }
+
+      return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+    });
+  }, [activeTab, posts]);
 
   const getMetaLine = useCallback(
     (post: AuthorPost) => {
@@ -322,6 +389,25 @@ export function AuthorPanelPage() {
           <p className="mt-1 text-sm text-muted-foreground">Управляйте публикациями по статусам.</p>
         </div>
 
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Всего</p>
+            <p className="mt-1 text-xl font-semibold text-white">{stats.total}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Опубликовано</p>
+            <p className="mt-1 text-xl font-semibold text-emerald-200">{stats.published}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Черновики</p>
+            <p className="mt-1 text-xl font-semibold text-white">{stats.drafts}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Запланировано</p>
+            <p className="mt-1 text-xl font-semibold text-cyan-200">{stats.scheduled}</p>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {TAB_ITEMS.map((tab) => (
             <button
@@ -371,16 +457,16 @@ export function AuthorPanelPage() {
           </div>
         ) : null}
 
-        {!isLoadingPosts && !error && posts.length === 0 ? (
+        {!isLoadingPosts && !error && tabPosts.length === 0 ? (
           <StateCard
             title={emptyStateTitle}
             description="Когда появятся публикации этого типа, они отобразятся здесь."
           />
         ) : null}
 
-        {!isLoadingPosts && !error && posts.length > 0 ? (
+        {!isLoadingPosts && !error && tabPosts.length > 0 ? (
           <div className="divide-y divide-white/10">
-            {posts.map((post) => (
+            {tabPosts.map((post) => (
               <button
                 key={`${activeTab}:${post.id}:${post.updated_at}`}
                 type="button"
