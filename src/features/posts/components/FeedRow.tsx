@@ -3,6 +3,7 @@ import type { Post } from '@/types/db';
 import { normalizeHandle } from '@/lib/author-label';
 import { useAuthorHandles } from '@/features/profiles/use-author-handles';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
+import { usePostEmojiReaction } from '@/features/reactions/emoji-reactions';
 import type { ReactionSummary } from '@/features/reactions/api';
 
 function getReadingTime(content: string) {
@@ -51,6 +52,7 @@ export function FeedRow({
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
   const source = post.topic?.name ?? 'Источник';
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
+  const { currentReaction } = usePostEmojiReaction(post.id);
   const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
@@ -72,6 +74,12 @@ export function FeedRow({
                 <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85">Почему рекомендовано</p>
                 <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{recommendationReason}</p>
               </div>
+            ) : null}
+            {currentReaction ? (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-border/60 bg-secondary/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                <span aria-hidden="true">{currentReaction}</span>
+                <span>{'Ваша реакция'}</span>
+              </span>
             ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
               {getRelativeTime(post.created_at)}
