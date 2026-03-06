@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from '@/components/app/error-boundary';
 import { EnvGuard } from '@/components/app/env-guard';
+import { initTelegramWebAppRuntime } from '@/lib/telegram';
 import { ThemeProvider } from '@/providers/theme-provider';
 import { AuthProvider } from '@/providers/auth-provider';
 import { LibraryProvider } from '@/providers/library-provider';
@@ -16,6 +17,8 @@ const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error('Root element #root not found');
 }
+
+initTelegramWebAppRuntime();
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>

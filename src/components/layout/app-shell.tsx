@@ -15,7 +15,7 @@ export function AppShell({ children }: AppShellProps) {
   const showBottomBar = pathname === '/' || pathname === '/for-you' || pathname === '/digests' || pathname === '/profile';
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden pt-[var(--tma-content-safe-top)] pb-[var(--tma-safe-bottom)]">
       {showHeader ? <Header /> : null}
       <main
         id="app-scroll"

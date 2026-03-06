@@ -9,6 +9,10 @@
     --app-header-base-height: 3.25rem;
     --app-header-total-height: calc(var(--app-header-base-height) + env(safe-area-inset-top, 0px));
     --app-bottom-bar-height: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    --tma-safe-top: 0px;
+    --tma-safe-bottom: 0px;
+    --tma-content-safe-top: 0px;
+    --tma-content-safe-bottom: 0px;
     --background: 210 20% 98%;
     --foreground: 215 25% 14%;
     --card: 0 0% 100%;

@@ -1,5 +1,5 @@
 import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Users } from 'lucide-react';
-import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
+import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
 import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
@@ -72,6 +73,14 @@ export function ProfilePage() {
   const { theme, toggleTheme } = useTheme();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
+  const [fullscreenSupported, setFullscreenSupported] = useState(false);
+  const [fullscreenEnabled, setFullscreenEnabled] = useState(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+
+    return window.localStorage.getItem(telegramFullscreenStorageKey) !== '0';
+  });
   const telegramUser = useMemo(() => getTelegramUser(), []);
 
   const displayName = useMemo(() => {
@@ -94,6 +103,55 @@ export function ProfilePage() {
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
   const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
   const roleBadgeClass = profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
+
+  useEffect(() => {
+    const webApp = getTelegramWebApp();
+    const supportsFullscreen = Boolean(webApp?.requestFullscreen && webApp?.exitFullscreen);
+    setFullscreenSupported(supportsFullscreen);
+    setFullscreenEnabled(window.localStorage.getItem(telegramFullscreenStorageKey) !== '0');
+
+    if (!supportsFullscreen || !webApp?.onEvent) {
+      return;
+    }
+
+    const handleFullscreenChanged = () => {
+      if (typeof webApp.isFullscreen === 'boolean') {
+        setFullscreenEnabled(webApp.isFullscreen);
+      }
+    };
+
+    webApp.onEvent('fullscreenChanged', handleFullscreenChanged);
+
+    return () => {
+      webApp.offEvent?.('fullscreenChanged', handleFullscreenChanged);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const webApp = getTelegramWebApp();
+
+    if (!webApp?.requestFullscreen || !webApp?.exitFullscreen) {
+      window.alert('Не поддерживается');
+      return;
+    }
+
+    const previousEnabled = fullscreenEnabled;
+    const nextEnabled = !previousEnabled;
+
+    setFullscreenEnabled(nextEnabled);
+    window.localStorage.setItem(telegramFullscreenStorageKey, nextEnabled ? '1' : '0');
+
+    try {
+      const maybePromise = nextEnabled ? webApp.requestFullscreen() : webApp.exitFullscreen();
+      if (maybePromise && typeof (maybePromise as Promise<void>).then === 'function') {
+        await maybePromise;
+      }
+    } catch {
+      window.localStorage.setItem(telegramFullscreenStorageKey, previousEnabled ? '1' : '0');
+      setFullscreenEnabled(previousEnabled);
+      window.alert('Не поддерживается');
+    }
+  };
 
   if (loading) {
     return (
@@ -192,6 +250,16 @@ export function ProfilePage() {
             <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
             <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
             <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
+            {fullscreenSupported ? (
+              <ProfileRow
+                icon={Settings2}
+                title="Полный экран"
+                subtitle={fullscreenEnabled ? 'Включен' : 'Выключен'}
+                onClick={() => {
+                  void toggleFullscreen();
+                }}
+              />
+            ) : null}
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"
