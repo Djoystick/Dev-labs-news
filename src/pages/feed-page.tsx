@@ -83,6 +83,7 @@ export function FeedPage() {
 
     void markPostRead(openPost.id, {
       path: `/post/${openPost.id}`,
+      topicKey: openPost.topic?.id ?? openPost.topic_id ?? null,
       title: openPost.title,
       updatedAt: new Date().toISOString(),
     });

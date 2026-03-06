@@ -8,11 +8,13 @@ export type TopicPreference = 'more' | 'less';
 type RecommendationsPreferencesState = {
   dislikedTopics: string[];
   likedTopics: string[];
+  readTopics: Record<string, number>;
 };
 
 type RecommendationsPreferencesSnapshot = {
   dislikedTopics: string[];
   likedTopics: string[];
+  readTopics: Record<string, number>;
 };
 
 const listeners = new Set<() => void>();
@@ -27,6 +29,7 @@ function getDefaultState(): RecommendationsPreferencesState {
   return {
     dislikedTopics: [],
     likedTopics: [],
+    readTopics: {},
   };
 }
 
@@ -64,10 +67,32 @@ function sanitizeState(value: unknown): RecommendationsPreferencesState {
   const source = value as Partial<RecommendationsPreferencesState>;
   const likedTopics = sanitizeTopics(source.likedTopics);
   const dislikedTopics = sanitizeTopics(source.dislikedTopics).filter((topic) => !likedTopics.includes(topic));
+  const readTopicsSource = source.readTopics;
+  const readTopics: Record<string, number> = {};
+
+  if (readTopicsSource && typeof readTopicsSource === 'object' && !Array.isArray(readTopicsSource)) {
+    for (const [rawTopic, rawCount] of Object.entries(readTopicsSource as Record<string, unknown>)) {
+      const topic = rawTopic.trim();
+      if (!topic) {
+        continue;
+      }
+
+      const count = Number(rawCount);
+      if (!Number.isFinite(count) || count <= 0) {
+        continue;
+      }
+
+      readTopics[topic] = Math.min(9999, Math.floor(count));
+      if (Object.keys(readTopics).length >= maxTopics) {
+        break;
+      }
+    }
+  }
 
   return {
     dislikedTopics,
     likedTopics,
+    readTopics,
   };
 }
 
@@ -149,6 +174,7 @@ function getSnapshot(): RecommendationsPreferencesSnapshot {
   return {
     dislikedTopics: [...state.dislikedTopics],
     likedTopics: [...state.likedTopics],
+    readTopics: { ...state.readTopics },
   };
 }
 
@@ -159,6 +185,7 @@ export function likeTopic(topic: string) {
   }
 
   updateState((state) => ({
+    ...state,
     dislikedTopics: state.dislikedTopics.filter((item) => item !== normalizedTopic),
     likedTopics: [normalizedTopic, ...state.likedTopics.filter((item) => item !== normalizedTopic)].slice(0, maxTopics),
   }));
@@ -171,6 +198,7 @@ export function dislikeTopic(topic: string) {
   }
 
   updateState((state) => ({
+    ...state,
     dislikedTopics: [normalizedTopic, ...state.dislikedTopics.filter((item) => item !== normalizedTopic)].slice(0, maxTopics),
     likedTopics: state.likedTopics.filter((item) => item !== normalizedTopic),
   }));
@@ -183,9 +211,34 @@ export function clearTopicPreference(topic: string) {
   }
 
   updateState((state) => ({
+    ...state,
     dislikedTopics: state.dislikedTopics.filter((item) => item !== normalizedTopic),
     likedTopics: state.likedTopics.filter((item) => item !== normalizedTopic),
   }));
+}
+
+export function recordTopicRead(topic: string) {
+  const normalizedTopic = topic.trim();
+  if (!normalizedTopic) {
+    return;
+  }
+
+  updateState((state) => ({
+    ...state,
+    readTopics: {
+      ...state.readTopics,
+      [normalizedTopic]: Math.min(9999, (state.readTopics[normalizedTopic] ?? 0) + 1),
+    },
+  }));
+}
+
+export function getTopicReadCount(topic: string) {
+  const normalizedTopic = topic.trim();
+  if (!normalizedTopic) {
+    return 0;
+  }
+
+  return readState().readTopics[normalizedTopic] ?? 0;
 }
 
 export function getTopicPreference(topic: string): TopicPreference | null {
@@ -242,7 +295,17 @@ export function useRecommendationsPreferences() {
 
       return null;
     },
+    getTopicReadCount: (topic: string) => {
+      const normalizedTopic = topic.trim();
+      if (!normalizedTopic) {
+        return 0;
+      }
+
+      return snapshot.readTopics[normalizedTopic] ?? 0;
+    },
     likeTopic,
     likedTopics: snapshot.likedTopics,
+    readTopics: snapshot.readTopics,
+    recordTopicRead,
   };
 }

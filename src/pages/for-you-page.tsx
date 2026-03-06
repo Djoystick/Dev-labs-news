@@ -15,6 +15,7 @@ import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
 
 const defaultLimit = 20;
+const autoReadBoostThreshold = 2;
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -79,11 +80,46 @@ export function ForYouPage() {
   const navigate = useNavigate();
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
-  const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics } = useRecommendationsPreferences();
+  const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics, readTopics } = useRecommendationsPreferences();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const likedTopicsSet = useMemo(() => new Set(likedTopics), [likedTopics]);
   const dislikedTopicsSet = useMemo(() => new Set(dislikedTopics), [dislikedTopics]);
+  const topicAffinityCounts = useMemo(() => {
+    const mergedCounts = new Map<string, number>();
+
+    for (const [topicKey, count] of Object.entries(readTopics)) {
+      const normalizedTopicKey = topicKey.trim();
+      if (!normalizedTopicKey || !Number.isFinite(count) || count <= 0) {
+        continue;
+      }
+
+      mergedCounts.set(normalizedTopicKey, Math.max(0, Math.floor(count)));
+    }
+
+    const inferredCounts = new Map<string, number>();
+    const readIds = new Set(readPostIds);
+
+    for (const post of [...recommendedPosts, ...knownPosts]) {
+      if (!readIds.has(post.id)) {
+        continue;
+      }
+
+      const topicKey = getTopicKey(post);
+      if (!topicKey) {
+        continue;
+      }
+
+      inferredCounts.set(topicKey, (inferredCounts.get(topicKey) ?? 0) + 1);
+    }
+
+    for (const [topicKey, count] of inferredCounts) {
+      const currentCount = mergedCounts.get(topicKey) ?? 0;
+      mergedCounts.set(topicKey, Math.max(currentCount, count));
+    }
+
+    return mergedCounts;
+  }, [knownPosts, readPostIds, readTopics, recommendedPosts]);
   const postsAfterDislikedFilter = useMemo(() => {
     if (dislikedTopicsSet.size === 0) {
       return recommendedPosts;
@@ -96,24 +132,27 @@ export function ForYouPage() {
   }, [dislikedTopicsSet, recommendedPosts]);
   const { filteredPosts: postsAfterReadFilter, hiddenReadEnabled } = useFilteredFeedPosts(postsAfterDislikedFilter);
   const posts = useMemo(() => {
-    if (likedTopicsSet.size === 0) {
+    if (likedTopicsSet.size === 0 && topicAffinityCounts.size === 0) {
       return postsAfterReadFilter;
     }
 
-    const preferredPosts: Post[] = [];
+    const manualPreferredPosts: Post[] = [];
+    const autoReadPreferredPosts: Post[] = [];
     const regularPosts: Post[] = [];
 
     for (const post of postsAfterReadFilter) {
       const topicKey = getTopicKey(post);
       if (topicKey && likedTopicsSet.has(topicKey)) {
-        preferredPosts.push(post);
+        manualPreferredPosts.push(post);
+      } else if (topicKey && (topicAffinityCounts.get(topicKey) ?? 0) >= autoReadBoostThreshold) {
+        autoReadPreferredPosts.push(post);
       } else {
         regularPosts.push(post);
       }
     }
 
-    return [...preferredPosts, ...regularPosts];
-  }, [likedTopicsSet, postsAfterReadFilter]);
+    return [...manualPreferredPosts, ...autoReadPreferredPosts, ...regularPosts];
+  }, [likedTopicsSet, postsAfterReadFilter, topicAffinityCounts]);
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
   const isPreferenceFilteredEmpty = recommendedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
@@ -121,25 +160,6 @@ export function ForYouPage() {
 
   const recommendationReasons = useMemo(() => {
     const reasons = new Map<string, string>();
-    const readIds = new Set(readPostIds);
-    const topicStats = new Map<string, { count: number; name: string | null }>();
-
-    for (const post of [...recommendedPosts, ...knownPosts]) {
-      if (!readIds.has(post.id)) {
-        continue;
-      }
-
-      const topicKey = getTopicKey(post);
-      if (!topicKey) {
-        continue;
-      }
-
-      const current = topicStats.get(topicKey);
-      topicStats.set(topicKey, {
-        count: (current?.count ?? 0) + 1,
-        name: post.topic?.name ?? current?.name ?? null,
-      });
-    }
 
     for (const post of recommendedPosts) {
       const topicKey = getTopicKey(post);
@@ -154,9 +174,14 @@ export function ForYouPage() {
         continue;
       }
 
-      const topic = topicStats.get(topicKey);
-      if (topic?.count) {
-        reasons.set(post.id, topic.count >= 2 ? 'Вы часто читаете материалы по этой теме' : 'Похоже на темы, которые вы уже читали');
+      const affinityCount = topicAffinityCounts.get(topicKey) ?? 0;
+      if (affinityCount >= autoReadBoostThreshold) {
+        reasons.set(post.id, 'Вы часто читаете материалы по этой теме');
+        continue;
+      }
+
+      if (affinityCount > 0) {
+        reasons.set(post.id, 'Похоже на темы, которые вы уже читали');
         continue;
       }
 
@@ -164,7 +189,7 @@ export function ForYouPage() {
     }
 
     return reasons;
-  }, [knownPosts, likedTopicsSet, readPostIds, recommendedPosts]);
+  }, [likedTopicsSet, recommendedPosts, topicAffinityCounts]);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">

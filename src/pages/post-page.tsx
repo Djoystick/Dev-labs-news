@@ -213,6 +213,7 @@ export function PostPage() {
 
     void markPostRead(post.id, {
       path: location.pathname,
+      topicKey: post.topic?.id ?? post.topic_id ?? null,
       title: post.title,
       updatedAt: new Date().toISOString(),
     });

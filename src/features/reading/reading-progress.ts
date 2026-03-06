@@ -12,6 +12,7 @@ export type ContinueReading = {
 
 export type ReadingMarkMeta = {
   path?: string | null;
+  topicKey?: string | null;
   title?: string | null;
   updatedAt?: string | null;
 };
