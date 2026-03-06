@@ -23,6 +23,14 @@ type AuthorPost = {
   is_published: boolean;
   published_at: string | null;
   scheduled_at: string | null;
+  views_count?: number | null;
+  reads_count?: number | null;
+  read_count?: number | null;
+  views?: number | null;
+  likes_count?: number | null;
+  likes?: number | null;
+  dislikes_count?: number | null;
+  dislikes?: number | null;
 };
 
 type TabKey = 'drafts' | 'published' | 'scheduled';
@@ -150,6 +158,41 @@ function getScheduleValidationError(value: string) {
   }
 
   return null;
+}
+
+function resolveMetricValue(post: AuthorPost, keys: string[]) {
+  const source = post as Record<string, unknown>;
+
+  for (const key of keys) {
+    if (!(key in source)) {
+      continue;
+    }
+
+    const raw = source[key];
+    if (raw === null || raw === undefined || raw === '') {
+      continue;
+    }
+
+    const value = Number(raw);
+    if (Number.isFinite(value)) {
+      return Math.max(0, Math.trunc(value));
+    }
+  }
+
+  return null;
+}
+
+function getPostStats(post: AuthorPost) {
+  const views = resolveMetricValue(post, ['views_count', 'reads_count', 'read_count', 'views']);
+  const likes = resolveMetricValue(post, ['likes_count', 'likes']);
+  const dislikes = resolveMetricValue(post, ['dislikes_count', 'dislikes']);
+
+  return {
+    dislikes,
+    hasAny: views !== null || likes !== null || dislikes !== null,
+    likes,
+    views,
+  };
 }
 
 function getAppScrollContainer() {
@@ -695,6 +738,7 @@ export function AuthorPanelPage() {
             {tabPosts.map((post) => {
               const isRowBusy = actionBusyId === post.id || scheduleSavingId === post.id;
               const isScheduleEditorOpen = editingSchedulePostId === post.id;
+              const postStats = getPostStats(post);
 
               return (
               <div key={`${activeTab}:${post.id}:${post.updated_at}`}>
@@ -712,6 +756,13 @@ export function AuthorPanelPage() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     {getMetaLine(post)}
                   </p>
+                  {postStats.hasAny ? (
+                    <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-white/50">
+                      {postStats.views !== null ? <span>{`👁 ${postStats.views}`}</span> : null}
+                      {postStats.likes !== null ? <span>{`👍 ${postStats.likes}`}</span> : null}
+                      {postStats.dislikes !== null ? <span>{`👎 ${postStats.dislikes}`}</span> : null}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {activeTab === 'drafts' ? (
