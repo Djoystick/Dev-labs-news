@@ -254,7 +254,7 @@ export function AuthorPanelPage() {
 
         const scheduledDate = new Date(post.scheduled_at);
         const isOverdue = !Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() <= Date.now();
-        return `${isOverdue ? 'Запланировано (просрочено)' : 'Запланировано'} • ${formatDateTime(post.scheduled_at)}`;
+        return `${isOverdue ? 'Ожидает публикации' : 'Запланировано'} • ${formatDateTime(post.scheduled_at)}${isOverdue ? ' • обычно до 5 минут' : ''}`;
       }
 
       const updatedAt = post.updated_at ?? post.created_at;

@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings, Settings2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Users } from 'lucide-react';
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -135,18 +135,7 @@ export function ProfilePage() {
     <FlatPage className="py-6 sm:py-8">
       <div className="space-y-2">
         <FlatSection className="pt-0">
-          <div className="flex items-center justify-between gap-2">
-            <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-              <span className="sr-only">{'Назад'}</span>
-            </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => navigate('/topic-preferences')}>
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">{'Настройки разделов'}</span>
-            </Button>
-          </div>
-
-          <div className="mt-2 rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-sm text-white/60">{'Здравствуйте,'}</p>

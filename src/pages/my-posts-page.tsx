@@ -47,7 +47,7 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function getPostStatus(post: MyPost): { dateLabel: string; label: string; tone: StatusTone } {
+function getPostStatus(post: MyPost): { dateHint?: string; dateLabel: string; label: string; tone: StatusTone } {
   if (post.is_published) {
     return {
       dateLabel: formatDate(post.published_at ?? post.created_at),
@@ -62,7 +62,8 @@ function getPostStatus(post: MyPost): { dateLabel: string; label: string; tone: 
 
     return {
       dateLabel: formatDate(post.scheduled_at),
-      label: isOverdue ? 'Запланировано (просрочено)' : 'Запланировано',
+      dateHint: isOverdue ? 'обычно до 5 минут' : undefined,
+      label: isOverdue ? 'Ожидает публикации' : 'Запланировано',
       tone: isOverdue ? 'warn' : 'info',
     };
   }
@@ -280,7 +281,10 @@ export function MyPostsPage() {
                           >
                             {status.label}
                           </span>
-                          <span className="text-xs text-muted-foreground">{status.dateLabel}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {status.dateLabel}
+                            {status.dateHint ? ` • ${status.dateHint}` : ''}
+                          </span>
                         </div>
                         <div className="mt-2">
                           <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
