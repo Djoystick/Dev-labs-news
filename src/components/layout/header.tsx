@@ -73,7 +73,7 @@ export function Header() {
   }, [fallbackTopicOptions, isFeedRoute]);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
+    <header className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
       <Container className="py-2 sm:py-1.5">
         <div className="flex h-9 items-center gap-3 sm:h-12">
           <div className="flex min-w-0 flex-1 items-center gap-3">

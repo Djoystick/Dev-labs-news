@@ -639,7 +639,7 @@ export function DigestsPage() {
         </motion.section>
       </FlatPage>
 
-      <div className="fixed inset-x-0 top-0 z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
         <div className="w-full px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="no-scrollbar flex-1 overflow-x-auto">
