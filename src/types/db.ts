@@ -21,6 +21,7 @@ export type PostRow = {
   excerpt: string | null;
   content: string;
   cover_url: string | null;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
   author_id: string | null;
@@ -118,6 +119,7 @@ export type Database = {
           excerpt?: string | null;
           content: string;
           cover_url?: string | null;
+          is_published?: boolean;
           created_at?: string;
           updated_at?: string;
           author_id?: string | null;
@@ -131,6 +133,7 @@ export type Database = {
           excerpt?: string | null;
           content?: string;
           cover_url?: string | null;
+          is_published?: boolean;
           created_at?: string;
           updated_at?: string;
           author_id?: string | null;

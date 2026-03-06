@@ -19,6 +19,7 @@ import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { listTopics } from '@/features/topics/api';
 import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
@@ -33,6 +34,12 @@ type ReturnState = {
   returnScrollY?: number;
 };
 
+type PublishingMode = 'published' | 'draft' | 'scheduled';
+type EditablePost = Post & {
+  is_published?: boolean | null;
+  scheduled_at?: string | null;
+};
+
 const emptyValues: PostFormValues = {
   content: '',
   cover_url: '',
@@ -41,10 +48,45 @@ const emptyValues: PostFormValues = {
   topic_id: '',
 };
 
+function toDatetimeLocal(iso: string | null | undefined) {
+  if (!iso) {
+    return '';
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const pad = (value: number) => value.toString().padStart(2, '0');
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function resolvePublishingMode(post: EditablePost | null): PublishingMode {
+  if (!post) {
+    return 'published';
+  }
+
+  if (post.is_published === true) {
+    return 'published';
+  }
+
+  if (post.scheduled_at) {
+    const scheduledDate = new Date(post.scheduled_at);
+    if (!Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() > Date.now()) {
+      return 'scheduled';
+    }
+  }
+
+  return 'draft';
+}
+
 export function PostForm({ mode, post, userId }: PostFormProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile } = useAuth();
+  const editablePost = post ? (post as EditablePost) : null;
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
   const [topicsError, setTopicsError] = useState<string | null>(null);
@@ -52,6 +94,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [publishMode, setPublishMode] = useState<PublishingMode>('published');
+  const [scheduledLocal, setScheduledLocal] = useState('');
+  const [scheduledError, setScheduledError] = useState<string | null>(null);
 
   const form = useForm<PostFormValues>({
     defaultValues: emptyValues,
@@ -60,13 +105,27 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   useEffect(() => {
     form.reset({
-      content: post?.content ?? '',
-      cover_url: post?.cover_url ?? '',
-      excerpt: post?.excerpt ?? '',
-      title: post?.title ?? '',
-      topic_id: post?.topic_id ?? '',
+      content: editablePost?.content ?? '',
+      cover_url: editablePost?.cover_url ?? '',
+      excerpt: editablePost?.excerpt ?? '',
+      title: editablePost?.title ?? '',
+      topic_id: editablePost?.topic_id ?? '',
     });
-  }, [form, post]);
+  }, [editablePost, form]);
+
+  useEffect(() => {
+    if (mode === 'create') {
+      setPublishMode('published');
+      setScheduledLocal('');
+      setScheduledError(null);
+      return;
+    }
+
+    const nextMode = resolvePublishingMode(editablePost);
+    setPublishMode(nextMode);
+    setScheduledLocal(nextMode === 'scheduled' ? toDatetimeLocal(editablePost?.scheduled_at) : '');
+    setScheduledError(null);
+  }, [editablePost, mode]);
 
   useEffect(() => {
     let ignore = false;
@@ -99,8 +158,22 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }, []);
 
   const coverUrl = form.watch('cover_url');
-  const submitLabel = isSubmitting ? 'Сохранение…' : mode === 'create' ? 'Опубликовать' : 'Сохранить';
+  const submitLabel = isSubmitting
+    ? 'Сохранение…'
+    : publishMode === 'published'
+      ? mode === 'create'
+        ? 'Опубликовать'
+        : 'Сохранить и опубликовать'
+      : publishMode === 'draft'
+        ? 'Сохранить черновик'
+        : 'Запланировать';
   const canDeletePost = profile?.role === 'admin';
+  const publicationHint =
+    publishMode === 'published'
+      ? 'Публикация станет доступна сразу после сохранения.'
+      : publishMode === 'draft'
+        ? 'Материал сохранится как черновик без публикации.'
+        : 'Публикация выйдет автоматически в указанное время.';
 
   const returnState = useMemo(() => {
     const state = location.state as ReturnState | null;
@@ -186,15 +259,35 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
           <form
             className="space-y-8"
             onSubmit={form.handleSubmit(async (values) => {
-              setIsSubmitting(true);
               setSubmitError(null);
+              setScheduledError(null);
+
+              let scheduledAt: string | null = null;
+              if (publishMode === 'scheduled') {
+                if (!scheduledLocal.trim()) {
+                  setScheduledError('Укажите дату и время публикации.');
+                  return;
+                }
+
+                const scheduledDate = new Date(scheduledLocal);
+                if (Number.isNaN(scheduledDate.getTime())) {
+                  setScheduledError('Введите корректную дату и время публикации.');
+                  return;
+                }
+
+                scheduledAt = scheduledDate.toISOString();
+              }
+
+              setIsSubmitting(true);
 
               try {
                 const payload: PostMutationInput = {
-                  author_id: post?.author_id ?? userId,
+                  author_id: editablePost?.author_id ?? userId,
                   content: values.content,
                   cover_url: values.cover_url?.trim() || null,
                   excerpt: values.excerpt?.trim() || null,
+                  is_published: publishMode === 'published',
+                  scheduled_at: publishMode === 'scheduled' ? scheduledAt : null,
                   title: values.title.trim(),
                   topic_id: values.topic_id,
                 };
@@ -206,7 +299,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   return;
                 }
 
-                await updatePost(post!.id, payload);
+                await updatePost(editablePost!.id, payload);
                 toast.success('Новость сохранена.');
 
                 if (returnState?.returnTo === '/my-posts') {
@@ -322,12 +415,74 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
 
+            <div className="space-y-3 border-t border-border/70 pt-6">
+              <Label>{'Режим публикации'}</Label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPublishMode('published');
+                    setScheduledError(null);
+                  }}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-sm transition-colors',
+                    publishMode === 'published' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
+                  )}
+                >
+                  {'Опубликовать'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPublishMode('draft');
+                    setScheduledError(null);
+                  }}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-sm transition-colors',
+                    publishMode === 'draft' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
+                  )}
+                >
+                  {'Черновик'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPublishMode('scheduled');
+                    setScheduledError(null);
+                  }}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-sm transition-colors',
+                    publishMode === 'scheduled' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
+                  )}
+                >
+                  {'Запланировать'}
+                </button>
+              </div>
+              {publishMode === 'scheduled' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled-at">{'Дата и время публикации'}</Label>
+                  <Input
+                    id="scheduled-at"
+                    type="datetime-local"
+                    value={scheduledLocal}
+                    onChange={(event) => {
+                      setScheduledLocal(event.target.value);
+                      if (scheduledError) {
+                        setScheduledError(null);
+                      }
+                    }}
+                  />
+                </div>
+              ) : null}
+              {scheduledError ? <p className="text-sm text-destructive">{scheduledError}</p> : null}
+            </div>
+
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
-                {mode === 'create' ? 'Публикация станет доступна сразу после сохранения.' : 'Изменения применятся сразу после сохранения.'}
+                {publicationHint}
               </div>
               <div className="flex flex-wrap gap-3">
-                {mode === 'edit' && post && canDeletePost ? (
+                {mode === 'edit' && editablePost && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                     {'Удалить'}
