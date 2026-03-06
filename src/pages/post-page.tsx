@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock3, PencilLine } from 'lucide-react';
+import { ArrowLeft, Clock3, PencilLine, Share2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { toast } from 'sonner';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,39 @@ function DetailSkeleton() {
   );
 }
 
+async function copyPostLink(url: string) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(url);
+    return true;
+  }
+
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = url;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  textarea.style.pointerEvents = 'none';
+
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  } finally {
+    document.body.removeChild(textarea);
+  }
+
+  return copied;
+}
+
 export function PostPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -111,10 +145,52 @@ export function PostPage() {
   }, [post]);
 
   const readingTime = useMemo(() => (post ? getReadingTime(post.content) : 1), [post]);
+  const shareUrl = useMemo(() => {
+    if (!id) {
+      return '';
+    }
+
+    if (typeof window === 'undefined') {
+      return `/post/${id}`;
+    }
+
+    return new URL(`/post/${id}`, window.location.origin).toString();
+  }, [id]);
 
   const retry = useCallback(() => {
     setRetryToken((current) => current + 1);
   }, []);
+
+  const handleShare = useCallback(async () => {
+    if (!post || !shareUrl) {
+      return;
+    }
+
+    const sharePayload = {
+      text: post.title,
+      title: post.title,
+      url: shareUrl,
+    };
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share(sharePayload);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
+    const copied = await copyPostLink(shareUrl);
+    if (copied) {
+      toast.success('Ссылка скопирована');
+      return;
+    }
+
+    toast.error('Не удалось поделиться ссылкой');
+  }, [post, shareUrl]);
 
   useEffect(() => {
     const scrollEl = document.getElementById('app-scroll');
@@ -315,6 +391,10 @@ export function PostPage() {
                 <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
+                  <Button type="button" size="sm" variant="outline" onClick={() => void handleShare()}>
+                    <Share2 className="h-4 w-4" />
+                    {'Поделиться'}
+                  </Button>
                   {canEditPost ? (
                     <Button asChild size="sm" variant="outline">
                       <AppLink to={`/admin/edit/${post.id}`}>
