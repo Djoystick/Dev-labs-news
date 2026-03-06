@@ -40,10 +40,20 @@ function isRedirectStatus(status: number) {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
+function isAllowedTelegramRedirectHost(hostname: string) {
+  const normalizedHost = hostname.toLowerCase();
+
+  if (normalizedHost === 't.me' || normalizedHost === 'telegram.org' || normalizedHost === 'telegram.me' || normalizedHost === 'telesco.pe') {
+    return true;
+  }
+
+  return normalizedHost.endsWith('.telesco.pe');
+}
+
 function parseAllowedUserpicUrl(value: string) {
   try {
     const parsed = new URL(value);
-    if (parsed.protocol !== 'https:' || parsed.hostname !== 't.me' || !parsed.pathname.startsWith('/i/userpic/')) {
+    if (parsed.protocol !== 'https:' || parsed.hostname.toLowerCase() !== 't.me' || !parsed.pathname.startsWith('/i/userpic/')) {
       return null;
     }
 
@@ -54,24 +64,58 @@ function parseAllowedUserpicUrl(value: string) {
 }
 
 async function fetchAllowedUserpic(sourceUrl: URL) {
-  let upstream = await fetch(sourceUrl.toString(), { redirect: 'manual' });
+  let currentUrl = sourceUrl;
+  let lastRedirectLocation: string | null = null;
 
-  if (isRedirectStatus(upstream.status)) {
+  for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+    const upstream = await fetch(currentUrl.toString(), {
+      headers: {
+        Accept: 'image/*,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0',
+      },
+      redirect: 'manual',
+    });
+
+    if (!isRedirectStatus(upstream.status)) {
+      return {
+        finalUrl: currentUrl,
+        lastRedirectLocation,
+        response: upstream,
+      };
+    }
+
     const location = upstream.headers.get('location');
     if (!location) {
-      throw new Error('Redirect location is missing');
+      return {
+        finalUrl: currentUrl,
+        lastRedirectLocation,
+        response: upstream,
+      };
     }
 
-    const redirectedUrl = new URL(location, sourceUrl);
-    const allowedRedirectedUrl = parseAllowedUserpicUrl(redirectedUrl.toString());
-    if (!allowedRedirectedUrl) {
-      throw new Error('Redirect location is not allowed');
+    lastRedirectLocation = location;
+
+    if (redirectCount === 3) {
+      return {
+        finalUrl: currentUrl,
+        lastRedirectLocation,
+        response: upstream,
+      };
     }
 
-    upstream = await fetch(allowedRedirectedUrl.toString(), { redirect: 'manual' });
+    const nextUrl = new URL(location, currentUrl);
+    if (nextUrl.protocol !== 'https:' || !isAllowedTelegramRedirectHost(nextUrl.hostname)) {
+      return {
+        finalUrl: currentUrl,
+        lastRedirectLocation,
+        response: upstream,
+      };
+    }
+
+    currentUrl = nextUrl;
   }
 
-  return upstream;
+  throw new Error('Unexpected avatar redirect state');
 }
 
 function getSingleHeader(value: string | string[] | undefined) {
@@ -154,16 +198,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     try {
-      const fileResponse = await fetchAllowedUserpic(sourceUrl);
+      const upstreamResult = await fetchAllowedUserpic(sourceUrl);
+      const fileResponse = upstreamResult.response;
 
-      if (fileResponse.status === 404) {
-        setCacheHeaders(response);
-        response.status(204).end();
-        return;
+      response.setHeader('X-Avatar-Upstream-Status', String(fileResponse.status));
+      response.setHeader('X-Avatar-Upstream-Url', upstreamResult.finalUrl.href);
+      if (upstreamResult.lastRedirectLocation) {
+        response.setHeader('X-Avatar-Upstream-Location', upstreamResult.lastRedirectLocation);
       }
 
-      if (isRedirectStatus(fileResponse.status) || !fileResponse.ok) {
-        sendJson(response, 502, { error: 'Failed to fetch Telegram avatar file' });
+      if (fileResponse.status !== 200) {
+        setCacheHeaders(response);
+        response.status(204).end();
         return;
       }
 
@@ -175,7 +221,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       response.status(200).send(body);
       return;
     } catch {
-      sendJson(response, 502, { error: 'Failed to load Telegram avatar' });
+      response.setHeader('X-Avatar-Upstream-Status', '0');
+      response.setHeader('X-Avatar-Upstream-Url', sourceUrl.href);
+      setCacheHeaders(response);
+      response.status(204).end();
       return;
     }
   }
