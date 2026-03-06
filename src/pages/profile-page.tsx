@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -90,7 +90,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const { isAuthed, loading, profile, signOut, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { continueReading, hiddenReadEnabled, setHiddenReadEnabled } = useReadingProgress();
+  const { clearReadingHistory, continueReading, hiddenReadEnabled, setHiddenReadEnabled } = useReadingProgress();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
@@ -303,6 +303,7 @@ export function ProfilePage() {
               subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
               onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
             />
+            <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"

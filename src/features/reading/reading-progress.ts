@@ -255,6 +255,14 @@ export function clearContinueReading() {
   }));
 }
 
+export function clearReadingHistory() {
+  updateState((state) => ({
+    ...state,
+    continueReading: getDefaultContinueReading(),
+    readPostIds: [],
+  }));
+}
+
 export function subscribe(listener: () => void) {
   ensureStorageSubscription();
   listeners.add(listener);
@@ -271,6 +279,7 @@ export function useReadingProgress() {
 
   return {
     clearContinueReading,
+    clearReadingHistory,
     continueReading: snapshot.continueReading,
     getContinueReading,
     getHiddenReadEnabled,
