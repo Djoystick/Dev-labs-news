@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthDialog } from '@/components/auth/auth-dialog';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
+import { useReadingProgress } from '@/features/reading/reading-progress';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
 import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,24 @@ function getInitial(value: string | null | undefined) {
   }
 
   return normalizeHandle(value).trim().charAt(0).toUpperCase() || 'D';
+}
+
+function formatContinueReadingDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+  });
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -71,6 +90,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const { isAuthed, loading, profile, signOut, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { continueReading, hiddenReadEnabled, setHiddenReadEnabled } = useReadingProgress();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
@@ -103,6 +123,9 @@ export function ProfilePage() {
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
   const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
   const roleBadgeClass = profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
+  const continueReadingPath = continueReading.path?.trim() || (continueReading.postId ? `/post/${continueReading.postId}` : null);
+  const continueReadingSubtitleValue = formatContinueReadingDate(continueReading.updatedAt);
+  const continueReadingSubtitle = continueReadingSubtitleValue ? `Обновлено ${continueReadingSubtitleValue}` : undefined;
 
   useEffect(() => {
     const webApp = getTelegramWebApp();
@@ -233,6 +256,20 @@ export function ProfilePage() {
           </div>
         </FlatSection>
 
+        {continueReading.postId && continueReadingPath ? (
+          <FlatSection className="pt-2">
+            <SectionTitle>{'ПРОДОЛЖИТЬ ЧТЕНИЕ'}</SectionTitle>
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <ProfileRow
+                icon={History}
+                title={continueReading.title?.trim() || 'Открыть публикацию'}
+                subtitle={continueReadingSubtitle}
+                onClick={() => navigate(continueReadingPath)}
+              />
+            </div>
+          </FlatSection>
+        ) : null}
+
         <FlatSection className="pt-2">
           <SectionTitle>{'ВАШЕ'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
@@ -260,6 +297,12 @@ export function ProfilePage() {
                 }}
               />
             ) : null}
+            <ProfileRow
+              icon={EyeOff}
+              title="Скрывать прочитанное"
+              subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
+              onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
+            />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"

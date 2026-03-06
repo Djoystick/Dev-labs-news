@@ -5,8 +5,10 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
+import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
+import { useFilteredFeedPosts } from '@/features/reading/reading-progress';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -72,9 +74,11 @@ export function ForYouPage() {
   const navigate = useNavigate();
   const { topics } = useOutletContext<AppLayoutContext>();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
-  const posts = useMemo(() => attachTopics(data, topics), [data, topics]);
+  const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
+  const { filteredPosts: posts, hiddenReadEnabled } = useFilteredFeedPosts(recommendedPosts);
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
+  const isReadHiddenEmpty = hiddenReadEnabled && recommendedPosts.length > 0 && posts.length === 0;
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
@@ -96,13 +100,15 @@ export function ForYouPage() {
 
         {isLoading ? (
           <FeedRowsSkeleton />
-        ) : posts.length === 0 ? (
+        ) : recommendedPosts.length === 0 ? (
           <EmptyState
             title="Пока нет рекомендаций"
             description="Выберите разделы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."
             actionLabel="Повторить"
             onReset={retry}
           />
+        ) : isReadHiddenEmpty ? (
+          <StateCard title="Вы уже прочитали всё из этой ленты" description="Попробуйте отключить скрытие прочитанного в профиле." />
         ) : (
           <div className="divide-y divide-border/60">
             {posts.map((post) => (

@@ -13,6 +13,7 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { markPostRead } from '@/features/posts/mark-post-read';
+import { useFilteredFeedPosts } from '@/features/reading/reading-progress';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -64,11 +65,13 @@ export function FeedPage() {
   const { profile, user } = useAuth();
   const { topicFilters } = useReadingPreferences();
   const [openPost, setOpenPost] = useState<Post | null>(null);
-  const filteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
+  const topicFilteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
+  const { filteredPosts, hiddenReadEnabled } = useFilteredFeedPosts(topicFilteredPosts);
   const filteredPostIds = useMemo(() => filteredPosts.map((post) => post.id), [filteredPosts]);
   const { summariesById, toggle, isPending } = useReactions(filteredPostIds);
   const hasBackendPosts = posts.length > 0;
-  const isFiltersOnlyEmpty = hasBackendPosts && filteredPosts.length === 0;
+  const isFiltersOnlyEmpty = hasBackendPosts && topicFilteredPosts.length === 0;
+  const isReadHiddenEmpty = hasBackendPosts && topicFilteredPosts.length > 0 && filteredPosts.length === 0 && hiddenReadEnabled;
   const canEditOpenPost =
     profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && openPost?.author_id === user?.id);
 
@@ -77,8 +80,12 @@ export function FeedPage() {
       return;
     }
 
-    void markPostRead(openPost.id);
-  }, [openPost?.id]);
+    void markPostRead(openPost.id, {
+      path: `/post/${openPost.id}`,
+      title: openPost.title,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [openPost]);
 
   return (
     <>
@@ -124,6 +131,10 @@ export function FeedPage() {
                 description="По выбранным разделам материалов нет. Измените фильтры разделов через верхнюю панель."
                 title="Ничего не найдено"
               />
+            </motion.div>
+          ) : isReadHiddenEmpty ? (
+            <motion.div key="read-hidden-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
+              <StateCard title="Вы уже прочитали всё из этой ленты" description="Попробуйте отключить скрытие прочитанного в профиле." />
             </motion.div>
           ) : (
             <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

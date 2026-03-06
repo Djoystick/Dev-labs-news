@@ -211,8 +211,12 @@ export function PostPage() {
       return;
     }
 
-    void markPostRead(post.id);
-  }, [post?.id]);
+    void markPostRead(post.id, {
+      path: location.pathname,
+      title: post.title,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [location.pathname, post?.id, post?.title]);
 
   useEffect(() => {
     if (!post?.id || !user?.id) {

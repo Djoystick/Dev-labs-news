@@ -1,12 +1,17 @@
 import { getSupabaseClient } from '@/lib/supabase';
+import { markPostRead as markPostReadLocal, type ReadingMarkMeta } from '@/features/reading/reading-progress';
 
 const sentReadMarks = new Set<string>();
 
-export async function markPostRead(postId: string): Promise<void> {
+export async function markPostRead(postId: string, meta?: ReadingMarkMeta): Promise<void> {
   if (!postId || sentReadMarks.has(postId)) {
+    if (postId) {
+      markPostReadLocal(postId, meta);
+    }
     return;
   }
 
+  markPostReadLocal(postId, meta);
   sentReadMarks.add(postId);
 
   const supabase = getSupabaseClient();
