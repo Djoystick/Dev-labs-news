@@ -195,22 +195,36 @@ export function WebAppDebugPage() {
               <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramPhotoProxyUrl ?? '—'}</span>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-3"
-            onClick={() => {
-              const proxyUrl = telegramPhotoProxyUrl ?? telegramAvatarProxyUrl;
-              if (!proxyUrl) {
-                window.alert('Нет telegram user id');
-                return;
-              }
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!telegramPhotoProxyUrl) {
+                  window.alert('Нет photo_url');
+                  return;
+                }
 
-              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
-            }}
-          >
-            Открыть аватар (proxy)
-          </Button>
+                window.open(telegramPhotoProxyUrl, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              Открыть аватар (photo_url proxy)
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!telegramAvatarProxyUrl) {
+                  window.alert('Нет telegram user id');
+                  return;
+                }
+
+                window.open(telegramAvatarProxyUrl, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              Открыть аватар (tg_id)
+            </Button>
+          </div>
         </FlatSection>
 
         <FlatSection className="pt-2">

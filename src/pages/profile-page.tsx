@@ -11,7 +11,7 @@ import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
 import { useReadingProgress } from '@/features/reading/reading-progress';
 import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
-import { getTelegramAvatarUrl, getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
+import { getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
@@ -120,9 +120,11 @@ export function ProfilePage() {
   }, [profile, telegramUser, user?.email]);
 
   const avatarUrl = useMemo(() => {
-    const telegramPhotoUrl = getTelegramAvatarUrl(telegramUser);
-    if (telegramPhotoUrl && !avatarFailed) {
-      return getTelegramPhotoUrlProxy(telegramPhotoUrl, 'small');
+    const photoUrl = telegramUser?.photo_url ?? null;
+    const isSvgUserpic = Boolean(photoUrl && photoUrl.toLowerCase().endsWith('.svg'));
+
+    if (photoUrl && !isSvgUserpic && !avatarFailed) {
+      return getTelegramPhotoUrlProxy(photoUrl, 'small');
     }
 
     if (typeof telegramUser?.id === 'number') {
