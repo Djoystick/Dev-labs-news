@@ -143,24 +143,28 @@ export function ForYouPage() {
 
     for (const post of recommendedPosts) {
       const topicKey = getTopicKey(post);
-      const topicName = post.topic?.name ?? null;
 
       if (!topicKey) {
         reasons.set(post.id, 'Подобрано для вашей ленты');
         continue;
       }
 
-      const topic = topicStats.get(topicKey);
-      if (topic?.count) {
-        reasons.set(post.id, topicName ? `Вы часто читаете материалы по теме ${topicName}` : 'На основе ваших интересов по этой теме');
+      if (likedTopicsSet.has(topicKey)) {
+        reasons.set(post.id, 'Вы выбрали: больше таких тем');
         continue;
       }
 
-      reasons.set(post.id, topicStats.size > 0 ? 'Похоже на темы, которые вы уже читали' : 'Подобрано для вашей ленты');
+      const topic = topicStats.get(topicKey);
+      if (topic?.count) {
+        reasons.set(post.id, topic.count >= 2 ? 'Вы часто читаете материалы по этой теме' : 'Похоже на темы, которые вы уже читали');
+        continue;
+      }
+
+      reasons.set(post.id, 'Подобрано для вашей ленты');
     }
 
     return reasons;
-  }, [knownPosts, readPostIds, recommendedPosts]);
+  }, [knownPosts, likedTopicsSet, readPostIds, recommendedPosts]);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
