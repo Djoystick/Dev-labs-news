@@ -14,6 +14,7 @@ import { PostCard } from '@/features/posts/components/post-card';
 import { BookmarkButton } from '@/features/profile/components/bookmark-button';
 import { recordPostView } from '@/features/profile/api';
 import { getPost, getPosts } from '@/features/posts/api';
+import { EmojiReactionBar } from '@/features/reactions/components/emoji-reaction-bar';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useAuth } from '@/providers/auth-provider';
@@ -336,6 +337,7 @@ export function PostPage() {
               </div>
 
               <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
+              <EmojiReactionBar postId={post.id} />
 
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
             </div>
