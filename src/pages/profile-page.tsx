@@ -94,6 +94,7 @@ export function ProfilePage() {
   const { clearReadingHistory, continueReading, hiddenReadEnabled, setHiddenReadEnabled } = useReadingProgress();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(() => {
     if (typeof window === 'undefined') {
@@ -120,7 +121,7 @@ export function ProfilePage() {
 
   const avatarUrl = useMemo(() => {
     const telegramPhotoUrl = getTelegramAvatarUrl(telegramUser);
-    if (telegramPhotoUrl) {
+    if (telegramPhotoUrl && !avatarFailed) {
       return telegramPhotoUrl;
     }
 
@@ -129,7 +130,7 @@ export function ProfilePage() {
     }
 
     return null;
-  }, [telegramUser]);
+  }, [avatarFailed, telegramUser]);
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
@@ -239,7 +240,15 @@ export function ProfilePage() {
                 </div>
               </div>
               <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-white/10">
-                <AvatarImage src={avatarUrl ?? undefined} alt={displayName} />
+                <AvatarImage
+                  src={avatarUrl ?? undefined}
+                  alt={displayName}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={() => {
+                    setAvatarFailed(true);
+                  }}
+                />
                 <AvatarFallback className="flex h-full w-full items-center justify-center bg-cyan-500/20 text-lg font-semibold text-cyan-100">
                   {getInitial(displayName)}
                 </AvatarFallback>
