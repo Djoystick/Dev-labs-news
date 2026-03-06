@@ -132,7 +132,7 @@ export function ActivityPage() {
 
         const [{ data: reactions, error: reactionsError }, { count, error: readCountError }] = await Promise.all([
           reactionsTable.select('post_id, value, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(200),
-          readCountTable.select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+          readCountTable.select('post_id', { count: 'exact', head: true }).eq('user_id', user.id),
         ]);
 
         if (reactionsError) {
