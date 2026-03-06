@@ -16,10 +16,19 @@ const responseHeaders = {
 } as const;
 
 const TEST_TEXT = "✅ Тест уведомлений Dev-labs-news. Всё работает.";
+const encoder = new TextEncoder();
 
 type ProfileTelegramSettings = {
   telegram_notifications_enabled: boolean;
   telegram_user_id: number | string | null;
+};
+
+type TelegramUser = {
+  id: number;
+};
+
+type TelegramSendTestBody = {
+  initData?: string;
 };
 
 class HttpError extends Error {
@@ -46,41 +55,13 @@ function getEnvWithFallback(primary: string, fallback?: string) {
 function getRequiredServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
+  const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!url || !anon) {
+  if (!url || !anon || !serviceRoleKey) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { anon, url };
-}
-
-function getAuthorizationHeader(request: Request) {
-  const authorization = request.headers.get("Authorization");
-
-  if (!authorization) {
-    throw new HttpError(401, "Missing Authorization header");
-  }
-
-  return authorization;
-}
-
-async function getCurrentUserId(url: string, anon: string, authorization: string) {
-  const asUser = createClient(url, anon, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-    global: {
-      headers: { Authorization: authorization },
-    },
-  });
-  const { data, error } = await asUser.auth.getUser();
-
-  if (error || !data.user?.id) {
-    throw new HttpError(401, "Unauthorized");
-  }
-
-  return { asUser, userId: data.user.id };
+  return { anon, serviceRoleKey, url };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -96,6 +77,150 @@ function normalizeTelegramUserId(value: number | string | null): string | null {
   }
 
   return null;
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function signHmacSha256(key: string | Uint8Array, message: string): Promise<Uint8Array> {
+  const rawKey = typeof key === "string" ? encoder.encode(key) : key;
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(rawKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", cryptoKey, toArrayBuffer(encoder.encode(message)));
+
+  return new Uint8Array(signature);
+}
+
+function timingSafeEqual(left: string, right: string): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  let diff = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+
+  return diff === 0;
+}
+
+function parseTelegramUser(rawUser: string | null): TelegramUser {
+  if (!rawUser) {
+    throw new HttpError(401, "Invalid initData hash");
+  }
+
+  try {
+    const parsed = JSON.parse(rawUser) as { id?: number };
+    if (!Number.isInteger(parsed.id) || (parsed.id ?? 0) <= 0) {
+      throw new HttpError(401, "Invalid initData hash");
+    }
+
+    return { id: parsed.id as number };
+  } catch {
+    throw new HttpError(401, "Invalid initData hash");
+  }
+}
+
+async function verifyTelegramInitData(initData: string, botToken: string): Promise<TelegramUser> {
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+
+  if (!hash) {
+    throw new HttpError(401, "Invalid initData hash");
+  }
+
+  const dataCheckString = Array.from(params.entries())
+    .filter(([key]) => key !== "hash")
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+
+  const secretKey = await signHmacSha256("WebAppData", botToken);
+  const calculatedHash = bytesToHex(await signHmacSha256(secretKey, dataCheckString));
+
+  if (!timingSafeEqual(calculatedHash, hash)) {
+    throw new HttpError(401, "Invalid initData hash");
+  }
+
+  return parseTelegramUser(params.get("user"));
+}
+
+async function parseRequestBody(request: Request): Promise<TelegramSendTestBody> {
+  const rawBody = await request.text();
+  if (!rawBody.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(rawBody) as TelegramSendTestBody;
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+}
+
+async function resolveUserIdFromJwt(url: string, anon: string, authorization: string | null): Promise<string | null> {
+  if (!authorization || !/^Bearer\s+.+/iu.test(authorization.trim())) {
+    return null;
+  }
+
+  const asUser = createClient(url, anon, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      headers: { Authorization: authorization },
+    },
+  });
+
+  const { data, error } = await asUser.auth.getUser();
+  if (error || !data.user?.id) {
+    return null;
+  }
+
+  return data.user.id;
+}
+
+async function loadProfileByUserId(serviceClient: ReturnType<typeof createClient>, userId: string) {
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select("telegram_user_id, telegram_notifications_enabled")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new HttpError(500, error.message);
+  }
+
+  return (data as ProfileTelegramSettings | null) ?? null;
+}
+
+async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof createClient>, telegramUserId: number) {
+  const { data, error } = await serviceClient
+    .from("profiles")
+    .select("telegram_user_id, telegram_notifications_enabled")
+    .eq("telegram_user_id", telegramUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw new HttpError(500, error.message);
+  }
+
+  return (data as ProfileTelegramSettings | null) ?? null;
 }
 
 async function sendTelegramMessage(token: string, chatId: string, text: string) {
@@ -120,7 +245,7 @@ async function sendTelegramMessage(token: string, chatId: string, text: string) 
   let message = raw || "Telegram API returned an error.";
 
   try {
-    const parsed = JSON.parse(raw) as { description?: string; error_code?: number; ok?: boolean };
+    const parsed = JSON.parse(raw) as { description?: string; error_code?: number };
     if (typeof parsed.description === "string" && parsed.description.trim()) {
       message = parsed.description.trim();
     } else if (typeof parsed.error_code === "number") {
@@ -142,26 +267,41 @@ serve(async (request: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  const token = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim();
-  if (!token) {
+  const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim();
+  if (!botToken) {
     return jsonResponse({ error: "Missing env", missing: ["TELEGRAM_BOT_TOKEN"] }, 500);
   }
 
   try {
-    const authorization = getAuthorizationHeader(request);
-    const { anon, url } = getRequiredServerEnv();
-    const { asUser, userId } = await getCurrentUserId(url, anon, authorization);
-    const profileResult = await asUser
-      .from("profiles")
-      .select("telegram_user_id, telegram_notifications_enabled")
-      .eq("id", userId)
-      .maybeSingle();
+    const { anon, serviceRoleKey, url } = getRequiredServerEnv();
+    const serviceClient = createClient(url, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
-    if (profileResult.error) {
-      throw new HttpError(500, profileResult.error.message);
+    const body = await parseRequestBody(request);
+    const initData = typeof body.initData === "string" ? body.initData.trim() : "";
+
+    const authorization = request.headers.get("authorization") ?? request.headers.get("Authorization");
+    const jwtUserId = await resolveUserIdFromJwt(url, anon, authorization);
+
+    let settings: ProfileTelegramSettings | null = null;
+
+    if (jwtUserId) {
+      settings = await loadProfileByUserId(serviceClient, jwtUserId);
     }
 
-    const settings = profileResult.data as ProfileTelegramSettings | null;
+    if (!settings) {
+      if (!initData) {
+        return jsonResponse({ error: "Missing auth", hint: "Provide Authorization or initData" }, 401);
+      }
+
+      const telegramUser = await verifyTelegramInitData(initData, botToken);
+      settings = await loadProfileByTelegramUserId(serviceClient, telegramUser.id);
+    }
+
     const telegramUserId = normalizeTelegramUserId(settings?.telegram_user_id ?? null);
 
     if (!telegramUserId) {
@@ -172,7 +312,7 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const telegramSendResult = await sendTelegramMessage(token, telegramUserId, TEST_TEXT);
+    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT);
     if (!telegramSendResult.ok) {
       return jsonResponse(
         {

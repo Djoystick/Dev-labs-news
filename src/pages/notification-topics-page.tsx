@@ -329,18 +329,21 @@ export function NotificationTopicsPage() {
           token = refreshed?.session?.access_token ?? null;
         }
       }
+      const initData = window.Telegram?.WebApp?.initData || '';
+      const invokeConfig: {
+        body: { initData: string };
+        headers?: Record<string, string>;
+      } = {
+        body: { initData },
+      };
 
-      if (!token) {
-        toast.error('Нужно войти, чтобы отправить тест уведомлений');
-        return;
+      if (token) {
+        invokeConfig.headers = {
+          Authorization: `Bearer ${token}`,
+        };
       }
 
-      const { data, error } = await supabase.functions.invoke('telegram-send-test', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: {},
-      });
+      const { data, error } = await supabase.functions.invoke('telegram-send-test', invokeConfig);
 
       if (error) {
         toast.error(error.message || 'Не удалось отправить тест');
