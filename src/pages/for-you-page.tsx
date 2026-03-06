@@ -1,15 +1,17 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { useMemo } from 'react';
+import { RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
 import { useRecommendationsPreferences } from '@/features/recommendations/preferences';
+import { usePostSearch } from '@/features/search/post-search';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -81,6 +83,7 @@ export function ForYouPage() {
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
   const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics, readTopics } = useRecommendationsPreferences();
+  const [searchQuery, setSearchQuery] = useState('');
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const likedTopicsSet = useMemo(() => new Set(likedTopics), [likedTopics]);
@@ -153,10 +156,12 @@ export function ForYouPage() {
 
     return [...manualPreferredPosts, ...autoReadPreferredPosts, ...regularPosts];
   }, [likedTopicsSet, postsAfterReadFilter, topicAffinityCounts]);
-  const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
+  const { filteredPosts: searchedPosts, hasQuery } = usePostSearch(posts, searchQuery);
+  const postIds = useMemo(() => searchedPosts.map((post) => post.id), [searchedPosts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
   const isPreferenceFilteredEmpty = recommendedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
   const isReadHiddenEmpty = hiddenReadEnabled && postsAfterDislikedFilter.length > 0 && postsAfterReadFilter.length === 0;
+  const isSearchEmpty = hasQuery && posts.length > 0 && searchedPosts.length === 0;
 
   const recommendationReasons = useMemo(() => {
     const reasons = new Map<string, string>();
@@ -205,6 +210,20 @@ export function ForYouPage() {
             </div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Лента показывает материалы по выбранным разделам и скрывает статьи, которые вы уже сохранили.</p>
+          <div className="relative mt-4">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11 pr-24"
+              placeholder="Поиск по новостям"
+            />
+            {searchQuery.trim() ? (
+              <Button type="button" variant="ghost" size="sm" className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground" onClick={() => setSearchQuery('')}>
+                Очистить
+              </Button>
+            ) : null}
+          </div>
         </FlatSection>
 
         {error ? <InlineError message={error} onRetry={retry} /> : null}
@@ -227,9 +246,11 @@ export function ForYouPage() {
             actionLabel="Показать прочитанные"
             onAction={() => setHiddenReadEnabled(false)}
           />
+        ) : isSearchEmpty ? (
+          <StateCard title="Ничего не найдено" description="Попробуйте изменить запрос." />
         ) : (
           <div className="divide-y divide-border/60">
-            {posts.map((post) => {
+            {searchedPosts.map((post) => {
               const read = isPostRead(post.id);
               const topicKey = getTopicKey(post);
               const topicPreference = topicKey ? getTopicPreference(topicKey) : null;

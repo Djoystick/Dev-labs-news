@@ -14,6 +14,7 @@ import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { markPostRead } from '@/features/posts/mark-post-read';
 import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
+import { usePostSearch } from '@/features/search/post-search';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -56,23 +57,23 @@ export function FeedPage() {
     loadMore,
     posts,
     postsError,
-    query,
-    resultsCount,
     retryPosts,
     selectedTopic,
-    setQuery,
   } = useOutletContext<AppLayoutContext>();
   const { profile, user } = useAuth();
   const { topicFilters } = useReadingPreferences();
   const { setHiddenReadEnabled } = useReadingProgress();
   const [openPost, setOpenPost] = useState<Post | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const topicFilteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
   const { filteredPosts, hiddenReadEnabled } = useFilteredFeedPosts(topicFilteredPosts);
-  const filteredPostIds = useMemo(() => filteredPosts.map((post) => post.id), [filteredPosts]);
+  const { debouncedQuery, filteredPosts: searchedPosts, hasQuery } = usePostSearch(filteredPosts, searchQuery);
+  const filteredPostIds = useMemo(() => searchedPosts.map((post) => post.id), [searchedPosts]);
   const { summariesById, toggle, isPending } = useReactions(filteredPostIds);
   const hasBackendPosts = posts.length > 0;
   const isFiltersOnlyEmpty = hasBackendPosts && topicFilteredPosts.length === 0;
   const isReadHiddenEmpty = hasBackendPosts && topicFilteredPosts.length > 0 && filteredPosts.length === 0 && hiddenReadEnabled;
+  const isSearchEmpty = hasQuery && filteredPosts.length > 0 && searchedPosts.length === 0;
   const canEditOpenPost =
     profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && openPost?.author_id === user?.id);
 
@@ -96,7 +97,7 @@ export function FeedPage() {
           <div>
             <h1 className="text-3xl font-extrabold sm:text-4xl">{'Лента'}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {selectedTopic.name} {'•'} {filteredPosts.length} {'из'} {resultsCount}
+              {selectedTopic.name} {'•'} {searchedPosts.length} {'из'} {filteredPosts.length}
             </p>
           </div>
 
@@ -104,11 +105,16 @@ export function FeedPage() {
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="feed-search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11"
-              placeholder="Найти по заголовку или содержанию"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-12 rounded-[1.25rem] border-border/70 bg-background/85 pl-11 pr-24"
+              placeholder="Поиск по новостям"
             />
+            {searchQuery.trim() ? (
+              <Button type="button" variant="ghost" size="sm" className="absolute right-2 top-1/2 h-8 -translate-y-1/2 px-2 text-xs text-muted-foreground" onClick={() => setSearchQuery('')}>
+                Очистить
+              </Button>
+            ) : null}
           </div>
         </motion.section>
 
@@ -143,11 +149,15 @@ export function FeedPage() {
                 onAction={() => setHiddenReadEnabled(false)}
               />
             </motion.div>
+          ) : isSearchEmpty ? (
+            <motion.div key="search-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
+              <StateCard title="Ничего не найдено" description="Попробуйте изменить запрос." />
+            </motion.div>
           ) : (
             <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {isRefreshing ? <FeedRowsSkeleton /> : null}
               <div className="divide-y divide-border/60">
-                {filteredPosts.map((post) => {
+                {searchedPosts.map((post) => {
                   const read = isPostRead(post.id);
 
                   return (
@@ -181,7 +191,7 @@ export function FeedPage() {
                     {'Показать ещё'}
                   </Button>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{query ? 'Все найденные материалы уже показаны.' : 'Это конец текущей подборки.'}</p>
+                  <p className="text-sm text-muted-foreground">{debouncedQuery ? 'Все найденные материалы уже показаны.' : 'Это конец текущей подборки.'}</p>
                 )}
               </div>
             </motion.div>
