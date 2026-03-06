@@ -1,5 +1,5 @@
 export type TelegramUser = {
-  id?: number;
+  id: number;
   first_name?: string;
   last_name?: string;
   username?: string;
@@ -16,7 +16,23 @@ function normalizeUsername(value: string | undefined) {
 }
 
 export function getTelegramUser(): TelegramUser | null {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user ?? null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+  if (!user || typeof user.id !== 'number') {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    photo_url: typeof user.photo_url === 'string' ? user.photo_url : undefined,
+    username: user.username,
+  };
 }
 
 export function getTelegramDisplayName(user: TelegramUser | null): string | null {

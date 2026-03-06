@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
+import { getTelegramAvatarProxyUrl } from '@/lib/telegram-avatar';
+import { getTelegramUser } from '@/lib/telegram-user';
 
 type Insets = {
   top?: number;
@@ -81,6 +83,14 @@ export function WebAppDebugPage() {
   const [snapshot, setSnapshot] = useState<DebugSnapshot>(() => toSnapshot(getWebApp()));
   const [lastAction, setLastAction] = useState('—');
   const [homeScreenStatus, setHomeScreenStatus] = useState('—');
+  const telegramUser = useMemo(() => getTelegramUser(), []);
+  const telegramAvatarProxyUrl = useMemo(() => {
+    if (typeof telegramUser?.id !== 'number') {
+      return null;
+    }
+
+    return getTelegramAvatarProxyUrl(telegramUser.id, 'small');
+  }, [telegramUser]);
 
   const refreshSnapshot = useCallback(() => {
     setSnapshot(toSnapshot(getWebApp()));
@@ -151,6 +161,43 @@ export function WebAppDebugPage() {
               </div>
             ))}
           </div>
+        </FlatSection>
+
+        <FlatSection className="pt-2">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-cyan-300/80">Telegram user</h2>
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm text-white/70">id</span>
+              <span className="max-w-[65%] truncate text-right text-sm text-white">{typeof telegramUser?.id === 'number' ? telegramUser.id : 'нет'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm text-white/70">photo_url</span>
+              <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramUser?.photo_url?.trim() ? 'есть' : 'нет'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm text-white/70">URL photo_url</span>
+              <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramUser?.photo_url?.trim() || '—'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="text-sm text-white/70">Proxy URL</span>
+              <span className="max-w-[65%] truncate text-right text-sm text-white">{telegramAvatarProxyUrl ?? '—'}</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3"
+            onClick={() => {
+              if (!telegramAvatarProxyUrl) {
+                window.alert('Нет telegram user id');
+                return;
+              }
+
+              window.open(telegramAvatarProxyUrl, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            Открыть аватар (proxy)
+          </Button>
         </FlatSection>
 
         <FlatSection className="pt-2">
