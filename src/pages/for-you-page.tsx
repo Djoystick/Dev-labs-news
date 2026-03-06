@@ -70,16 +70,63 @@ function attachTopics(posts: Post[], topics: Array<Topic & { count: number }>) {
   }));
 }
 
+function getTopicKey(post: Post) {
+  return post.topic?.id ?? post.topic_id ?? null;
+}
+
 export function ForYouPage() {
   const navigate = useNavigate();
-  const { topics } = useOutletContext<AppLayoutContext>();
-  const { setHiddenReadEnabled } = useReadingProgress();
+  const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
+  const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const { filteredPosts: posts, hiddenReadEnabled } = useFilteredFeedPosts(recommendedPosts);
   const postIds = useMemo(() => posts.map((post) => post.id), [posts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
   const isReadHiddenEmpty = hiddenReadEnabled && recommendedPosts.length > 0 && posts.length === 0;
+
+  const recommendationReasons = useMemo(() => {
+    const reasons = new Map<string, string>();
+    const readIds = new Set(readPostIds);
+    const topicStats = new Map<string, { count: number; name: string | null }>();
+
+    for (const post of [...recommendedPosts, ...knownPosts]) {
+      if (!readIds.has(post.id)) {
+        continue;
+      }
+
+      const topicKey = getTopicKey(post);
+      if (!topicKey) {
+        continue;
+      }
+
+      const current = topicStats.get(topicKey);
+      topicStats.set(topicKey, {
+        count: (current?.count ?? 0) + 1,
+        name: post.topic?.name ?? current?.name ?? null,
+      });
+    }
+
+    for (const post of recommendedPosts) {
+      const topicKey = getTopicKey(post);
+      const topicName = post.topic?.name ?? null;
+
+      if (!topicKey) {
+        reasons.set(post.id, 'Подобрано для вашей ленты');
+        continue;
+      }
+
+      const topic = topicStats.get(topicKey);
+      if (topic?.count) {
+        reasons.set(post.id, topicName ? `Вы часто читаете материалы по теме ${topicName}` : 'На основе ваших интересов по этой теме');
+        continue;
+      }
+
+      reasons.set(post.id, topicStats.size > 0 ? 'Похоже на темы, которые вы уже читали' : 'Подобрано для вашей ленты');
+    }
+
+    return reasons;
+  }, [knownPosts, readPostIds, recommendedPosts]);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
@@ -133,6 +180,7 @@ export function ForYouPage() {
                     reactionSummary={summariesById.get(post.id)}
                     reactionsDisabled={isPending(post.id)}
                     onToggleReaction={toggle}
+                    recommendationReason={recommendationReasons.get(post.id) ?? 'Подобрано для вашей ленты'}
                   />
                 </div>
               );

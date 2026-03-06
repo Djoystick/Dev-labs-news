@@ -39,12 +39,14 @@ export function FeedRow({
   reactionSummary,
   reactionsDisabled = false,
   onToggleReaction,
+  recommendationReason,
 }: {
   post: Post;
   onOpen: (post: Post) => void;
   reactionSummary?: ReactionSummary | null;
   reactionsDisabled?: boolean;
   onToggleReaction?: (postId: string, value: -1 | 1) => void;
+  recommendationReason?: string;
 }) {
   const readingTime = post.content?.trim() ? getReadingTime(post.content) : null;
   const source = post.topic?.name ?? 'Источник';
@@ -65,6 +67,12 @@ export function FeedRow({
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-muted-foreground">{source}</p>
             <h3 className="mt-1 line-clamp-3 text-lg font-extrabold leading-tight sm:text-xl">{post.title}</h3>
+            {recommendationReason ? (
+              <div className="mt-2">
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85">Почему рекомендовано</p>
+                <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{recommendationReason}</p>
+              </div>
+            ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
               {getRelativeTime(post.created_at)}
               {readingTime ? ` • ${readingTime} мин чтения` : ''}
