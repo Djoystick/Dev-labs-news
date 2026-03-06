@@ -1,5 +1,5 @@
 import { ChevronRight, FilePenLine, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
@@ -15,32 +15,30 @@ type AuthorPost = {
   excerpt: string | null;
   cover_url: string | null;
   created_at: string;
+  updated_at: string;
   topic_id: string;
   author_id: string | null;
-  is_published?: boolean | null;
-  published_at?: string | null;
-  scheduled_at?: string | null;
-};
-
-type PostsSelectBuilder = {
-  order: (
-    column: string,
-    options: { ascending: boolean },
-  ) => Promise<{
-    data: AuthorPost[] | null;
-    error: { message: string } | null;
-  }>;
-  eq: (column: string, value: string) => PostsSelectBuilder;
-};
-
-type PostsQueryBuilder = {
-  select: (columns: string) => PostsSelectBuilder;
+  is_published: boolean;
+  published_at: string | null;
+  scheduled_at: string | null;
 };
 
 type TabKey = 'drafts' | 'published' | 'scheduled';
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
+  { key: 'drafts', label: 'Черновики' },
+  { key: 'published', label: 'Опубликовано' },
+  { key: 'scheduled', label: 'Запланировано' },
+];
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('ru-RU', {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function getAppScrollContainer() {
@@ -85,9 +83,6 @@ export function AuthorPanelPage() {
   const { isAuthed, loading, profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('drafts');
   const [posts, setPosts] = useState<AuthorPost[]>([]);
-  const [hasPublishedAt, setHasPublishedAt] = useState(false);
-  const [hasScheduledAt, setHasScheduledAt] = useState(false);
-  const [hasIsPublished, setHasIsPublished] = useState(false);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -128,40 +123,31 @@ export function AuthorPanelPage() {
     setError(null);
 
     const supabase = getSupabaseClient();
-    const postsTable = supabase.from('posts') as unknown as PostsQueryBuilder;
-    const selectCandidates = [
-      { columns: 'id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published, published_at, scheduled_at', hasPublishedAt: true, hasScheduledAt: true, hasIsPublished: true },
-      { columns: 'id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published, published_at', hasPublishedAt: true, hasScheduledAt: false, hasIsPublished: true },
-      { columns: 'id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published', hasPublishedAt: false, hasScheduledAt: false, hasIsPublished: true },
-      { columns: 'id, title, excerpt, cover_url, created_at, topic_id, author_id', hasPublishedAt: false, hasScheduledAt: false, hasIsPublished: false },
-    ];
+    let query = supabase
+      .from('posts')
+      .select('id, title, excerpt, cover_url, created_at, updated_at, topic_id, author_id, is_published, scheduled_at, published_at')
+      .limit(100);
 
-    let lastErrorMessage = 'Не удалось загрузить публикации.';
-
-    for (const candidate of selectCandidates) {
-      const baseQuery = postsTable.select(candidate.columns);
-      const queryResult = isAdmin ? await baseQuery.order('created_at', { ascending: false }) : await baseQuery.eq('author_id', user.id).order('created_at', { ascending: false });
-
-      if (queryResult.error) {
-        lastErrorMessage = queryResult.error.message;
-        const isMissingColumn = queryResult.error.message.toLowerCase().includes('column');
-
-        if (isMissingColumn) {
-          continue;
-        }
-
-        throw new Error(lastErrorMessage);
-      }
-
-      setPosts(queryResult.data ?? []);
-      setHasPublishedAt(candidate.hasPublishedAt);
-      setHasScheduledAt(candidate.hasScheduledAt);
-      setHasIsPublished(candidate.hasIsPublished);
-      return;
+    if (!isAdmin) {
+      query = query.eq('author_id', user.id);
     }
 
-    throw new Error(lastErrorMessage);
-  }, [canUseAuthorPanel, isAdmin, user?.id]);
+    if (activeTab === 'drafts') {
+      query = query.eq('is_published', false).is('scheduled_at', null).order('updated_at', { ascending: false }).order('created_at', { ascending: false });
+    } else if (activeTab === 'published') {
+      query = query.eq('is_published', true).order('published_at', { ascending: false }).order('created_at', { ascending: false });
+    } else {
+      query = query.eq('is_published', false).not('scheduled_at', 'is', null).order('scheduled_at', { ascending: true }).order('created_at', { ascending: false });
+    }
+
+    const { data, error: queryError } = await query;
+
+    if (queryError) {
+      throw new Error(queryError.message);
+    }
+
+    setPosts((data ?? []) as AuthorPost[]);
+  }, [activeTab, canUseAuthorPanel, isAdmin, user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,66 +181,31 @@ export function AuthorPanelPage() {
     return () => {
       cancelled = true;
     };
-  }, [canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
+  }, [activeTab, canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
 
-  const nowTs = Date.now();
-  const classified = useMemo(() => {
-    if (hasPublishedAt && hasScheduledAt) {
-      const drafts = posts.filter((post) => !post.published_at && !post.scheduled_at);
-      const published = posts.filter((post) => Boolean(post.published_at));
-      const scheduled = posts.filter((post) => !post.published_at && Boolean(post.scheduled_at) && new Date(post.scheduled_at ?? '').getTime() > nowTs);
-      return { drafts, published, scheduled, scheduledUnsupported: false };
-    }
+  const emptyStateTitle = activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных';
 
-    if (hasPublishedAt) {
-      const drafts = posts.filter((post) => !post.published_at);
-      const published = posts.filter((post) => Boolean(post.published_at));
-      return { drafts, published, scheduled: [] as AuthorPost[], scheduledUnsupported: true };
-    }
-
-    if (hasIsPublished) {
-      const drafts = posts.filter((post) => post.is_published !== true);
-      const published = posts.filter((post) => post.is_published === true);
-      return { drafts, published, scheduled: [] as AuthorPost[], scheduledUnsupported: true };
-    }
-
-    return { drafts: posts, published: [] as AuthorPost[], scheduled: [] as AuthorPost[], scheduledUnsupported: true };
-  }, [hasIsPublished, hasPublishedAt, hasScheduledAt, nowTs, posts]);
-
-  const tabItems = useMemo(
-    () => [
-      { key: 'drafts' as const, label: 'Черновики', count: classified.drafts.length },
-      { key: 'published' as const, label: 'Опубликовано', count: classified.published.length },
-      { key: 'scheduled' as const, label: 'Запланировано', count: classified.scheduled.length },
-    ],
-    [classified.drafts.length, classified.published.length, classified.scheduled.length],
-  );
-
-  const currentList = activeTab === 'drafts' ? classified.drafts : activeTab === 'published' ? classified.published : classified.scheduled;
-
-  const getStatusLabel = useCallback(
+  const getMetaLine = useCallback(
     (post: AuthorPost) => {
-      if (hasPublishedAt && hasScheduledAt) {
-        if (post.published_at) {
-          return 'Опубликовано';
+      if (activeTab === 'published') {
+        const date = post.published_at ?? post.created_at;
+        return `Опубликовано • ${formatDateTime(date)}`;
+      }
+
+      if (activeTab === 'scheduled') {
+        if (!post.scheduled_at) {
+          return `Запланировано • ${formatDateTime(post.created_at)}`;
         }
-        if (post.scheduled_at && new Date(post.scheduled_at).getTime() > nowTs) {
-          return 'Запланировано';
-        }
-        return 'Черновик';
+
+        const scheduledDate = new Date(post.scheduled_at);
+        const isOverdue = !Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() <= Date.now();
+        return `${isOverdue ? 'Запланировано (просрочено)' : 'Запланировано'} • ${formatDateTime(post.scheduled_at)}`;
       }
 
-      if (hasPublishedAt) {
-        return post.published_at ? 'Опубликовано' : 'Черновик';
-      }
-
-      if (hasIsPublished) {
-        return post.is_published ? 'Опубликовано' : 'Черновик';
-      }
-
-      return activeTab === 'published' ? 'Опубликовано' : activeTab === 'scheduled' ? 'Запланировано' : 'Черновик';
+      const updatedAt = post.updated_at ?? post.created_at;
+      return `Черновик • изменено ${formatDateTime(updatedAt)}`;
     },
-    [activeTab, hasIsPublished, hasPublishedAt, hasScheduledAt, nowTs],
+    [activeTab],
   );
 
   if (loading) {
@@ -317,7 +268,7 @@ export function AuthorPanelPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {tabItems.map((tab) => (
+          {TAB_ITEMS.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -327,8 +278,7 @@ export function AuthorPanelPage() {
                 activeTab === tab.key ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
               )}
             >
-              <span>{tab.label}</span>
-              <span className="text-xs text-white/60">{tab.count}</span>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -344,22 +294,18 @@ export function AuthorPanelPage() {
           </div>
         ) : null}
 
-        {!isLoadingPosts && !error && activeTab === 'scheduled' && classified.scheduledUnsupported ? (
-          <StateCard title="Планирование пока не поддерживается" description="Для текущей схемы публикаций вкладка запланированных пока недоступна." />
-        ) : null}
-
-        {!isLoadingPosts && !error && !(activeTab === 'scheduled' && classified.scheduledUnsupported) && currentList.length === 0 ? (
+        {!isLoadingPosts && !error && posts.length === 0 ? (
           <StateCard
-            title={activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных'}
+            title={emptyStateTitle}
             description="Когда появятся публикации этого типа, они отобразятся здесь."
           />
         ) : null}
 
-        {!isLoadingPosts && !error && !(activeTab === 'scheduled' && classified.scheduledUnsupported) && currentList.length > 0 ? (
+        {!isLoadingPosts && !error && posts.length > 0 ? (
           <div className="divide-y divide-white/10">
-            {currentList.map((post) => (
+            {posts.map((post) => (
               <button
-                key={`${activeTab}:${post.id}`}
+                key={`${activeTab}:${post.id}:${post.updated_at}`}
                 type="button"
                 className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-white/5 active:bg-white/10"
                 onClick={() => openEditor(post.id)}
@@ -371,7 +317,7 @@ export function AuthorPanelPage() {
                   <h2 className="line-clamp-2 text-lg font-bold leading-tight">{post.title}</h2>
                   {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {`${getStatusLabel(post)} • ${formatDate(post.created_at)}`}
+                    {getMetaLine(post)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
