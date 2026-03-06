@@ -48,6 +48,9 @@ export type Profile = {
   handle_norm: string | null;
   bio: string | null;
   telegram_id: string | null;
+  telegram_user_id: number | null;
+  telegram_notifications_enabled: boolean;
+  telegram_linked_at: string | null;
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
@@ -166,6 +169,9 @@ export type Database = {
           handle_norm?: string | null;
           bio?: string | null;
           telegram_id?: string | null;
+          telegram_user_id?: number | null;
+          telegram_notifications_enabled?: boolean;
+          telegram_linked_at?: string | null;
           username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
@@ -178,6 +184,9 @@ export type Database = {
           handle_norm?: string | null;
           bio?: string | null;
           telegram_id?: string | null;
+          telegram_user_id?: number | null;
+          telegram_notifications_enabled?: boolean;
+          telegram_linked_at?: string | null;
           username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
