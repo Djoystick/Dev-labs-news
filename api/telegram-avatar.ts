@@ -1,8 +1,9 @@
 import { Buffer } from 'node:buffer';
 
 type ApiRequest = {
+  headers?: Record<string, string | string[] | undefined>;
   method?: string;
-  query?: Record<string, string | string[] | undefined>;
+  url?: string;
 };
 
 type ApiResponse = {
@@ -35,7 +36,7 @@ type TelegramFileResult = {
   file_path?: string;
 };
 
-function getSingleQueryParam(value: string | string[] | undefined) {
+function getSingleHeader(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0] ?? '';
   }
@@ -107,15 +108,17 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return;
   }
 
-  const tgIdParam = getSingleQueryParam(request.query?.tg_id).trim();
+  const host = getSingleHeader(request.headers?.host) || 'localhost';
+  const requestUrl = new URL(request.url ?? '', `https://${host}`);
+  const tgIdParam = (requestUrl.searchParams.get('tg_id') ?? '').trim();
   const tgId = Number(tgIdParam);
 
   if (!tgIdParam || !Number.isInteger(tgId) || tgId <= 0) {
-    sendJson(response, 400, { error: 'Invalid tg_id' });
+    response.status(400).send('Missing tg_id');
     return;
   }
 
-  const sizeParam = getSingleQueryParam(request.query?.size).trim().toLowerCase();
+  const sizeParam = (requestUrl.searchParams.get('size') ?? 'small').trim().toLowerCase();
   const size: AvatarSize = sizeParam === 'medium' || sizeParam === 'large' ? sizeParam : 'small';
 
   try {
