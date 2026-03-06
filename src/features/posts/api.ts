@@ -21,6 +21,7 @@ function logSupabaseMutationError(scope: string, error: { code?: string; details
 type GetPostsParams = {
   page: number;
   pageSize: number;
+  publishedOnly?: boolean;
   query?: string;
   signal?: AbortSignal;
   sort?: PostSort;
@@ -74,6 +75,7 @@ function escapeIlike(value: string) {
 export async function getPosts({
   page,
   pageSize,
+  publishedOnly = false,
   query: searchQuery,
   signal,
   sort = 'newest',
@@ -95,6 +97,10 @@ export async function getPosts({
 
   if (topicId) {
     query = query.eq('topic_id', topicId);
+  }
+
+  if (publishedOnly) {
+    query = query.eq('is_published', true);
   }
 
   const normalizedQuery = searchQuery?.trim();

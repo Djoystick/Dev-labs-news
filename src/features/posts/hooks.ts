@@ -173,6 +173,7 @@ export function usePostFeed() {
         const response = await getPosts({
           page,
           pageSize,
+          publishedOnly: true,
           query: normalizedQuery || undefined,
           signal: controller.signal,
           sort,
