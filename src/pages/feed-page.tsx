@@ -13,7 +13,7 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { markPostRead } from '@/features/posts/mark-post-read';
-import { isPostRead, useFilteredFeedPosts } from '@/features/reading/reading-progress';
+import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
@@ -64,6 +64,7 @@ export function FeedPage() {
   } = useOutletContext<AppLayoutContext>();
   const { profile, user } = useAuth();
   const { topicFilters } = useReadingPreferences();
+  const { setHiddenReadEnabled } = useReadingProgress();
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const topicFilteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
   const { filteredPosts, hiddenReadEnabled } = useFilteredFeedPosts(topicFilteredPosts);
@@ -134,7 +135,12 @@ export function FeedPage() {
             </motion.div>
           ) : isReadHiddenEmpty ? (
             <motion.div key="read-hidden-empty" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }}>
-              <StateCard title="Вы уже прочитали всё из этой ленты" description="Попробуйте отключить скрытие прочитанного в профиле." />
+              <StateCard
+                title="Вы уже прочитали всё из этой ленты"
+                description="Попробуйте отключить скрытие прочитанного в профиле."
+                actionLabel="Показать прочитанные"
+                onAction={() => setHiddenReadEnabled(false)}
+              />
             </motion.div>
           ) : (
             <motion.div key="feed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

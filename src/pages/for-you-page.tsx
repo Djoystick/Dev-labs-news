@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
-import { isPostRead, useFilteredFeedPosts } from '@/features/reading/reading-progress';
+import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -73,6 +73,7 @@ function attachTopics(posts: Post[], topics: Array<Topic & { count: number }>) {
 export function ForYouPage() {
   const navigate = useNavigate();
   const { topics } = useOutletContext<AppLayoutContext>();
+  const { setHiddenReadEnabled } = useReadingProgress();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const { filteredPosts: posts, hiddenReadEnabled } = useFilteredFeedPosts(recommendedPosts);
@@ -108,7 +109,12 @@ export function ForYouPage() {
             onReset={retry}
           />
         ) : isReadHiddenEmpty ? (
-          <StateCard title="Вы уже прочитали всё из этой ленты" description="Попробуйте отключить скрытие прочитанного в профиле." />
+          <StateCard
+            title="Вы уже прочитали всё из этой ленты"
+            description="Попробуйте отключить скрытие прочитанного в профиле."
+            actionLabel="Показать прочитанные"
+            onAction={() => setHiddenReadEnabled(false)}
+          />
         ) : (
           <div className="divide-y divide-border/60">
             {posts.map((post) => {
