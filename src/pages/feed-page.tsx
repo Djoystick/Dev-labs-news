@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { FilePenLine, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { markPostRead } from '@/features/posts/mark-post-read';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { getVisiblePosts } from '@/features/topics/model';
+import { useAuth } from '@/providers/auth-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
 
@@ -45,6 +46,7 @@ function FeedRowsSkeleton() {
 }
 
 export function FeedPage() {
+  const navigate = useNavigate();
   const {
     hasMore,
     isLoading,
@@ -59,6 +61,7 @@ export function FeedPage() {
     selectedTopic,
     setQuery,
   } = useOutletContext<AppLayoutContext>();
+  const { profile, user } = useAuth();
   const { topicFilters } = useReadingPreferences();
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const filteredPosts = useMemo(() => getVisiblePosts(posts, topicFilters), [posts, topicFilters]);
@@ -66,6 +69,8 @@ export function FeedPage() {
   const { summariesById, toggle, isPending } = useReactions(filteredPostIds);
   const hasBackendPosts = posts.length > 0;
   const isFiltersOnlyEmpty = hasBackendPosts && filteredPosts.length === 0;
+  const canEditOpenPost =
+    profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && openPost?.author_id === user?.id);
 
   useEffect(() => {
     if (!openPost?.id) {
@@ -161,7 +166,24 @@ export function FeedPage() {
           {openPost ? (
             <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
               <FlatSection className="pt-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? 'Источник'}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{openPost.topic?.name ?? 'Источник'}</p>
+                  {canEditOpenPost ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      aria-label="Редактировать"
+                      onClick={() => {
+                        navigate(`/admin/edit/${openPost.id}`);
+                        setOpenPost(null);
+                      }}
+                    >
+                      <FilePenLine className="h-4 w-4" />
+                      {'Редактировать'}
+                    </Button>
+                  ) : null}
+                </div>
                 <h2 className="mt-2 text-2xl font-extrabold leading-tight sm:text-3xl">{openPost.title}</h2>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {new Date(openPost.created_at).toLocaleDateString('ru-RU', { dateStyle: 'medium' })}

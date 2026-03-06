@@ -75,7 +75,7 @@ export function PostPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin, user } = useAuth();
+  const { profile, user } = useAuth();
   const { motionEnabled, textSizeClassName, textWidthClassName } = useReadingPreferences();
   const [post, setPost] = useState<Post | null>(null);
   const [latestPosts, setLatestPosts] = useState<Post[]>([]);
@@ -264,6 +264,7 @@ export function PostPage() {
 
   const topic = post.topic;
   const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
+  const canEditPost = profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && post.author_id === user?.id);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
@@ -308,11 +309,11 @@ export function PostPage() {
                 <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
-                  {isAdmin ? (
+                  {canEditPost ? (
                     <Button asChild size="sm" variant="outline">
                       <AppLink to={`/admin/edit/${post.id}`}>
                         <PencilLine className="h-4 w-4" />
-                        Edit
+                        {'Редактировать'}
                       </AppLink>
                     </Button>
                   ) : null}
