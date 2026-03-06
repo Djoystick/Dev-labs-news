@@ -9,6 +9,7 @@ import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { normalizeHandle } from '@/lib/author-label';
 import { getSupabaseClient } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 
 type MyPost = {
@@ -17,10 +18,15 @@ type MyPost = {
   excerpt: string | null;
   cover_url: string | null;
   created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  scheduled_at: string | null;
   topic_id: string;
   author_id: string | null;
-  is_published?: boolean | null;
+  is_published: boolean;
 };
+
+type StatusTone = 'success' | 'info' | 'warn' | 'muted';
 
 type MyPostsSelectBuilder = {
   order: (
@@ -39,6 +45,33 @@ type MyPostsQueryBuilder = {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getPostStatus(post: MyPost): { dateLabel: string; label: string; tone: StatusTone } {
+  if (post.is_published) {
+    return {
+      dateLabel: formatDate(post.published_at ?? post.created_at),
+      label: 'Опубликовано',
+      tone: 'success',
+    };
+  }
+
+  if (post.scheduled_at) {
+    const scheduledTime = new Date(post.scheduled_at).getTime();
+    const isOverdue = Number.isFinite(scheduledTime) && scheduledTime <= Date.now();
+
+    return {
+      dateLabel: formatDate(post.scheduled_at),
+      label: isOverdue ? 'Запланировано (просрочено)' : 'Запланировано',
+      tone: isOverdue ? 'warn' : 'info',
+    };
+  }
+
+  return {
+    dateLabel: formatDate(post.updated_at ?? post.created_at),
+    label: 'Черновик',
+    tone: 'muted',
+  };
 }
 
 function getAppScrollContainer() {
@@ -116,7 +149,7 @@ export function MyPostsPage() {
 
     const supabase = getSupabaseClient();
     const postsTable = supabase.from('posts') as unknown as MyPostsQueryBuilder;
-    const baseQuery = postsTable.select('id, title, excerpt, cover_url, created_at, topic_id, author_id, is_published');
+    const baseQuery = postsTable.select('id, title, excerpt, cover_url, created_at, updated_at, published_at, scheduled_at, topic_id, author_id, is_published');
     const { data, error: queryError } = isAdmin
       ? await baseQuery.order('created_at', { ascending: false })
       : await baseQuery.eq('author_id', user.id).order('created_at', { ascending: false });
@@ -217,44 +250,63 @@ export function MyPostsPage() {
 
           {!isLoading && !error && posts.length > 0 ? (
             <div className="divide-y divide-border/60">
-              {posts.map((post) => (
-                <div key={post.id} className="py-4">
-                  <div className="flex items-start gap-4">
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
-                      {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="line-clamp-2 text-lg font-bold leading-tight">{post.title}</h2>
-                      {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {formatDate(post.created_at)}
-                        {` • ${normalizeHandle(undefined) ?? 'Автор'}`}
-                        {typeof post.is_published === 'boolean' ? ` • ${post.is_published ? 'Опубликовано' : 'Черновик'}` : ''}
-                      </p>
-                      <div className="mt-2">
-                        <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
+              {posts.map((post) => {
+                const status = getPostStatus(post);
+                return (
+                  <div key={post.id} className="py-4">
+                    <div className="flex items-start gap-4">
+                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
+                        {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="line-clamp-2 text-lg font-bold leading-tight">{post.title}</h2>
+                        {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {formatDate(post.created_at)}
+                          {` • ${normalizeHandle(undefined) ?? 'Автор'}`}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs',
+                              status.tone === 'success'
+                                ? 'bg-emerald-500/15 text-emerald-200'
+                                : status.tone === 'info'
+                                  ? 'bg-cyan-500/15 text-cyan-200'
+                                  : status.tone === 'warn'
+                                    ? 'bg-amber-500/15 text-amber-200'
+                                    : 'bg-white/10 text-white/70',
+                            )}
+                          >
+                            {status.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{status.dateLabel}</span>
+                        </div>
+                        <div className="mt-2">
+                          <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() =>
+                          navigate(`/admin/edit/${post.id}`, {
+                            state: {
+                              returnTo: '/my-posts',
+                              returnScrollY: getCurrentScrollY(),
+                            },
+                          })
+                        }
+                      >
+                        <FilePenLine className="h-4 w-4" />
+                        Edit
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() =>
-                        navigate(`/admin/edit/${post.id}`, {
-                          state: {
-                            returnTo: '/my-posts',
-                            returnScrollY: getCurrentScrollY(),
-                          },
-                        })
-                      }
-                    >
-                      <FilePenLine className="h-4 w-4" />
-                      Edit
-                    </Button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : null}
         </div>
