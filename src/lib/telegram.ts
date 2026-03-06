@@ -90,6 +90,7 @@ function applyTelegramSafeAreaVars() {
   setCssVar('--tma-safe-bottom', safeInset?.bottom);
   setCssVar('--tma-content-safe-top', contentSafeInset?.top ?? safeInset?.top);
   setCssVar('--tma-content-safe-bottom', contentSafeInset?.bottom ?? safeInset?.bottom);
+  document.documentElement.style.setProperty('--tma-header-extra', webApp?.isFullscreen ? '24px' : '0px');
 }
 
 function isFullscreenPreferenceEnabled() {

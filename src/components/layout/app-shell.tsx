@@ -19,7 +19,15 @@ export function AppShell({ children }: AppShellProps) {
       {showHeader ? <Header /> : null}
       <main
         id="app-scroll"
-        className={showHeader ? (showBottomBar ? 'app-header-offset app-bottom-nav-offset' : 'app-header-offset') : showBottomBar ? 'app-bottom-nav-offset' : undefined}
+        className={
+          showHeader
+            ? showBottomBar
+              ? 'app-header-offset app-bottom-nav-offset pt-[var(--tma-header-extra)]'
+              : 'app-header-offset pt-[var(--tma-header-extra)]'
+            : showBottomBar
+              ? 'app-bottom-nav-offset'
+              : undefined
+        }
       >
         {children}
       </main>

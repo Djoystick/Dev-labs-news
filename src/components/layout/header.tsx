@@ -76,7 +76,7 @@ export function Header() {
 
   return (
     <header className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/70 bg-background/95 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.55)] backdrop-blur-xl pt-[env(safe-area-inset-top,0px)]">
-      <Container className={isFullscreen ? 'pt-11 pb-2 sm:pb-1.5' : 'py-2 sm:py-1.5'}>
+      <Container className={isFullscreen ? 'pt-6 pb-2 sm:pb-1.5' : 'py-2 sm:py-1.5'}>
         <div className="flex h-9 items-center gap-3 sm:h-12">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <AppLink to="/" aria-label="Home" className="flex h-full items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
