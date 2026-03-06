@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { RefreshCw, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
@@ -9,6 +9,7 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { isPostRead, useFilteredFeedPosts, useReadingProgress } from '@/features/reading/reading-progress';
+import { useRecommendationsPreferences } from '@/features/recommendations/preferences';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import type { Post, Topic } from '@/types/db';
@@ -78,6 +79,7 @@ export function ForYouPage() {
   const navigate = useNavigate();
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
+  const { clearTopicPreference, dislikeTopic, getTopicPreference, likeTopic } = useRecommendationsPreferences();
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
   const { filteredPosts: posts, hiddenReadEnabled } = useFilteredFeedPosts(recommendedPosts);
@@ -182,6 +184,54 @@ export function ForYouPage() {
                     onToggleReaction={toggle}
                     recommendationReason={recommendationReasons.get(post.id) ?? 'Подобрано для вашей ленты'}
                   />
+                  {getTopicKey(post) ? (
+                    <div className="mt-1 flex items-center gap-2 pl-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 rounded-full px-2 text-xs ${getTopicPreference(getTopicKey(post) ?? '') === 'more' ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                        onClick={() => {
+                          const topicKey = getTopicKey(post);
+                          if (!topicKey) {
+                            return;
+                          }
+
+                          if (getTopicPreference(topicKey) === 'more') {
+                            clearTopicPreference(topicKey);
+                            return;
+                          }
+
+                          likeTopic(topicKey);
+                        }}
+                      >
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                        Больше такого
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-7 rounded-full px-2 text-xs ${getTopicPreference(getTopicKey(post) ?? '') === 'less' ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                        onClick={() => {
+                          const topicKey = getTopicKey(post);
+                          if (!topicKey) {
+                            return;
+                          }
+
+                          if (getTopicPreference(topicKey) === 'less') {
+                            clearTopicPreference(topicKey);
+                            return;
+                          }
+
+                          dislikeTopic(topicKey);
+                        }}
+                      >
+                        <ThumbsDown className="h-3.5 w-3.5" />
+                        Меньше такого
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
