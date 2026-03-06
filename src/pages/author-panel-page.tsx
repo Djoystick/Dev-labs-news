@@ -26,11 +26,22 @@ type AuthorPost = {
 type TabKey = 'drafts' | 'published' | 'scheduled';
 type QuickAction = 'publish' | 'unschedule' | 'unpublish';
 type PostStatus = TabKey;
+type SortMode = 'newest' | 'oldest' | 'scheduled';
+
+const AUTHOR_SORT_STORAGE_KEY = 'devlabs.author.sort.v1';
+const AUTHOR_TOPIC_STORAGE_KEY = 'devlabs.author.topic.v1';
+const ALL_TOPICS_VALUE = '__all__';
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
   { key: 'drafts', label: 'Черновики' },
   { key: 'published', label: 'Опубликовано' },
   { key: 'scheduled', label: 'Запланировано' },
+];
+
+const SORT_ITEMS: Array<{ key: SortMode; label: string }> = [
+  { key: 'newest', label: 'Новые сначала' },
+  { key: 'oldest', label: 'Старые сначала' },
+  { key: 'scheduled', label: 'По расписанию' },
 ];
 
 function getPostStatus(post: AuthorPost): PostStatus {
@@ -43,6 +54,53 @@ function getPostStatus(post: AuthorPost): PostStatus {
   }
 
   return 'drafts';
+}
+
+function getDateWeight(value: string | null | undefined) {
+  if (!value) {
+    return 0;
+  }
+
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function getPostFreshnessWeight(post: AuthorPost) {
+  return getDateWeight(post.updated_at ?? post.created_at);
+}
+
+function getStoredSortMode(): SortMode {
+  if (typeof window === 'undefined') {
+    return 'newest';
+  }
+
+  const raw = window.sessionStorage.getItem(AUTHOR_SORT_STORAGE_KEY);
+  if (raw === 'newest' || raw === 'oldest' || raw === 'scheduled') {
+    return raw;
+  }
+
+  return 'newest';
+}
+
+function getStoredTopicFilter(): string {
+  if (typeof window === 'undefined') {
+    return ALL_TOPICS_VALUE;
+  }
+
+  const raw = window.sessionStorage.getItem(AUTHOR_TOPIC_STORAGE_KEY);
+  return raw && raw.length > 0 ? raw : ALL_TOPICS_VALUE;
+}
+
+function formatTopicLabel(topic: string) {
+  if (!topic) {
+    return topic;
+  }
+
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(topic)) {
+    return `#${topic.slice(0, 8)}`;
+  }
+
+  return topic;
 }
 
 function formatDateTime(value: string) {
@@ -96,6 +154,8 @@ export function AuthorPanelPage() {
   const location = useLocation();
   const { isAuthed, loading, profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('drafts');
+  const [sortMode, setSortMode] = useState<SortMode>(() => getStoredSortMode());
+  const [topicFilter, setTopicFilter] = useState<string>(() => getStoredTopicFilter());
   const [posts, setPosts] = useState<AuthorPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +166,43 @@ export function AuthorPanelPage() {
 
   const isAdmin = profile?.role === 'admin';
   const canUseAuthorPanel = profile?.role === 'admin' || profile?.role === 'editor';
+  const topicOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        posts
+          .map((post) => post.topic_id?.trim())
+          .filter((topic): topic is string => Boolean(topic)),
+      ),
+    ).sort((left, right) => left.localeCompare(right, 'ru'));
+  }, [posts]);
+  const canFilterByTopic = topicOptions.length > 0;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.sessionStorage.setItem(AUTHOR_SORT_STORAGE_KEY, sortMode);
+  }, [sortMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.sessionStorage.setItem(AUTHOR_TOPIC_STORAGE_KEY, topicFilter);
+  }, [topicFilter]);
+
+  useEffect(() => {
+    if (!canFilterByTopic && topicFilter !== ALL_TOPICS_VALUE) {
+      setTopicFilter(ALL_TOPICS_VALUE);
+      return;
+    }
+
+    if (canFilterByTopic && topicFilter !== ALL_TOPICS_VALUE && !topicOptions.includes(topicFilter)) {
+      setTopicFilter(ALL_TOPICS_VALUE);
+    }
+  }, [canFilterByTopic, topicFilter, topicOptions]);
 
   const onClose = useCallback(() => {
     if (location.key && location.key !== 'default') {
@@ -270,42 +367,42 @@ export function AuthorPanelPage() {
   }, [posts]);
 
   const tabPosts = useMemo(() => {
-    const filtered = posts.filter((post) => getPostStatus(post) === activeTab);
+    const byTab = posts.filter((post) => getPostStatus(post) === activeTab);
+    const byTopic =
+      canFilterByTopic && topicFilter !== ALL_TOPICS_VALUE ? byTab.filter((post) => post.topic_id === topicFilter) : byTab;
+    const withIndex = byTopic.map((post, index) => ({ index, post }));
 
-    if (activeTab === 'published') {
-      return [...filtered].sort((left, right) => {
-        const leftPublished = new Date(left.published_at ?? left.created_at).getTime();
-        const rightPublished = new Date(right.published_at ?? right.created_at).getTime();
-        if (leftPublished !== rightPublished) {
-          return rightPublished - leftPublished;
+    withIndex.sort((left, right) => {
+      if (sortMode === 'scheduled') {
+        const leftHasScheduled = Boolean(left.post.scheduled_at);
+        const rightHasScheduled = Boolean(right.post.scheduled_at);
+
+        if (leftHasScheduled !== rightHasScheduled) {
+          return leftHasScheduled ? -1 : 1;
         }
 
-        return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
-      });
-    }
+        if (leftHasScheduled && rightHasScheduled) {
+          const leftScheduled = getDateWeight(left.post.scheduled_at);
+          const rightScheduled = getDateWeight(right.post.scheduled_at);
 
-    if (activeTab === 'scheduled') {
-      return [...filtered].sort((left, right) => {
-        const leftScheduled = new Date(left.scheduled_at ?? left.created_at).getTime();
-        const rightScheduled = new Date(right.scheduled_at ?? right.created_at).getTime();
-        if (leftScheduled !== rightScheduled) {
-          return leftScheduled - rightScheduled;
+          if (leftScheduled !== rightScheduled) {
+            return leftScheduled - rightScheduled;
+          }
         }
+      } else {
+        const leftFreshness = getPostFreshnessWeight(left.post);
+        const rightFreshness = getPostFreshnessWeight(right.post);
 
-        return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
-      });
-    }
-
-    return [...filtered].sort((left, right) => {
-      const leftUpdated = new Date(left.updated_at ?? left.created_at).getTime();
-      const rightUpdated = new Date(right.updated_at ?? right.created_at).getTime();
-      if (leftUpdated !== rightUpdated) {
-        return rightUpdated - leftUpdated;
+        if (leftFreshness !== rightFreshness) {
+          return sortMode === 'oldest' ? leftFreshness - rightFreshness : rightFreshness - leftFreshness;
+        }
       }
 
-      return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+      return left.index - right.index;
     });
-  }, [activeTab, posts]);
+
+    return withIndex.map((item) => item.post);
+  }, [activeTab, canFilterByTopic, posts, sortMode, topicFilter]);
 
   const getMetaLine = useCallback(
     (post: AuthorPost) => {
@@ -422,6 +519,40 @@ export function AuthorPanelPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {SORT_ITEMS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setSortMode(item.key)}
+              className={cn(
+                'inline-flex items-center rounded-full px-3 py-1.5 text-xs transition-colors',
+                sortMode === item.key ? 'bg-white/10 text-white' : 'bg-white/5 text-white/75 hover:bg-white/10',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          {canFilterByTopic ? (
+            <label className="ml-auto inline-flex items-center gap-2 text-xs text-white/60">
+              <span className="whitespace-nowrap">Тема</span>
+              <select
+                value={topicFilter}
+                onChange={(event) => setTopicFilter(event.target.value)}
+                className="h-8 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white outline-none transition-colors hover:bg-white/10"
+              >
+                <option value={ALL_TOPICS_VALUE}>Все темы</option>
+                {topicOptions.map((topic) => (
+                  <option key={topic} value={topic}>
+                    {formatTopicLabel(topic)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
 
         {isLoadingPosts ? <AuthorPanelSkeleton /> : null}
