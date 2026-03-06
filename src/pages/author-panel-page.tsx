@@ -1,8 +1,10 @@
 import { ChevronRight, FilePenLine, LoaderCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -113,6 +115,43 @@ function formatDateTime(value: string) {
   });
 }
 
+function toDatetimeLocal(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const pad = (input: number) => input.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function getDefaultScheduleLocal() {
+  const date = new Date(Date.now() + 30 * 60 * 1000);
+  date.setSeconds(0, 0);
+  return toDatetimeLocal(date.toISOString());
+}
+
+function getScheduleValidationError(value: string) {
+  if (!value.trim()) {
+    return 'Укажите дату и время публикации.';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'Введите корректную дату и время.';
+  }
+
+  if (date.getTime() <= Date.now()) {
+    return 'Дата публикации должна быть позже текущего времени.';
+  }
+
+  return null;
+}
+
 function getAppScrollContainer() {
   return document.getElementById('app-scroll') as HTMLElement | null;
 }
@@ -163,6 +202,10 @@ export function AuthorPanelPage() {
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [lastFailedAction, setLastFailedAction] = useState<{ action: QuickAction; postId: string } | null>(null);
+  const [editingSchedulePostId, setEditingSchedulePostId] = useState<string | null>(null);
+  const [editingScheduleValue, setEditingScheduleValue] = useState('');
+  const [scheduleEditorError, setScheduleEditorError] = useState<string | null>(null);
+  const [scheduleSavingId, setScheduleSavingId] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'admin';
   const canUseAuthorPanel = profile?.role === 'admin' || profile?.role === 'editor';
@@ -203,6 +246,12 @@ export function AuthorPanelPage() {
       setTopicFilter(ALL_TOPICS_VALUE);
     }
   }, [canFilterByTopic, topicFilter, topicOptions]);
+
+  useEffect(() => {
+    setEditingSchedulePostId(null);
+    setEditingScheduleValue('');
+    setScheduleEditorError(null);
+  }, [activeTab]);
 
   const onClose = useCallback(() => {
     if (location.key && location.key !== 'default') {
@@ -339,6 +388,52 @@ export function AuthorPanelPage() {
       }
     },
     [loadPosts, updatePostFields],
+  );
+
+  const openScheduleEditor = useCallback((post: AuthorPost) => {
+    const nextValue = toDatetimeLocal(post.scheduled_at) || getDefaultScheduleLocal();
+    setEditingSchedulePostId(post.id);
+    setEditingScheduleValue(nextValue);
+    setScheduleEditorError(null);
+    setActionError(null);
+  }, []);
+
+  const closeScheduleEditor = useCallback(() => {
+    setEditingSchedulePostId(null);
+    setEditingScheduleValue('');
+    setScheduleEditorError(null);
+  }, []);
+
+  const saveSchedule = useCallback(
+    async (post: AuthorPost) => {
+      const validationError = getScheduleValidationError(editingScheduleValue);
+      if (validationError) {
+        setScheduleEditorError(validationError);
+        toast.error(validationError);
+        return;
+      }
+
+      const iso = new Date(editingScheduleValue).toISOString();
+      setScheduleSavingId(post.id);
+      setActionError(null);
+
+      try {
+        await updatePostFields(post.id, {
+          is_published: false,
+          scheduled_at: iso,
+        });
+
+        await loadPosts();
+        closeScheduleEditor();
+        toast.success(activeTab === 'drafts' ? 'Публикация запланирована.' : 'Время публикации обновлено.');
+      } catch {
+        setActionError('Не удалось сохранить дату публикации. Попробуйте ещё раз.');
+        toast.error('Не удалось сохранить дату публикации.');
+      } finally {
+        setScheduleSavingId(null);
+      }
+    },
+    [activeTab, closeScheduleEditor, editingScheduleValue, loadPosts, updatePostFields],
   );
 
   const emptyStateTitle = activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных';
@@ -597,9 +692,13 @@ export function AuthorPanelPage() {
 
         {!isLoadingPosts && !error && tabPosts.length > 0 ? (
           <div className="divide-y divide-white/10">
-            {tabPosts.map((post) => (
+            {tabPosts.map((post) => {
+              const isRowBusy = actionBusyId === post.id || scheduleSavingId === post.id;
+              const isScheduleEditorOpen = editingSchedulePostId === post.id;
+
+              return (
+              <div key={`${activeTab}:${post.id}:${post.updated_at}`}>
               <button
-                key={`${activeTab}:${post.id}:${post.updated_at}`}
                 type="button"
                 className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-white/5 active:bg-white/10"
                 onClick={() => openEditor(post.id)}
@@ -616,11 +715,12 @@ export function AuthorPanelPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {activeTab === 'drafts' ? (
+                    <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
-                      disabled={actionBusyId === post.id}
+                      disabled={isRowBusy}
                       onClick={(event) => {
                         event.stopPropagation();
                         void runQuickAction(post.id, 'publish');
@@ -629,6 +729,19 @@ export function AuthorPanelPage() {
                       {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
                       {'Опубликовать'}
                     </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={isRowBusy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openScheduleEditor(post);
+                      }}
+                    >
+                      {'Запланировать...'}
+                    </Button>
+                    </div>
                   ) : null}
                   {activeTab === 'scheduled' ? (
                     <>
@@ -636,7 +749,7 @@ export function AuthorPanelPage() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={actionBusyId === post.id}
+                        disabled={isRowBusy}
                         onClick={(event) => {
                           event.stopPropagation();
                           void runQuickAction(post.id, 'publish');
@@ -649,7 +762,7 @@ export function AuthorPanelPage() {
                         type="button"
                         size="sm"
                         variant="ghost"
-                        disabled={actionBusyId === post.id}
+                        disabled={isRowBusy}
                         onClick={(event) => {
                           event.stopPropagation();
                           void runQuickAction(post.id, 'unschedule');
@@ -658,6 +771,18 @@ export function AuthorPanelPage() {
                         {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
                         {'Снять'}
                       </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isRowBusy}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openScheduleEditor(post);
+                        }}
+                      >
+                        {'Изменить время...'}
+                      </Button>
                     </>
                   ) : null}
                   {activeTab === 'published' ? (
@@ -665,7 +790,7 @@ export function AuthorPanelPage() {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      disabled={actionBusyId === post.id}
+                      disabled={isRowBusy}
                       onClick={(event) => {
                         event.stopPropagation();
                         void runQuickAction(post.id, 'unpublish');
@@ -679,7 +804,7 @@ export function AuthorPanelPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    disabled={actionBusyId === post.id}
+                    disabled={isRowBusy}
                     onClick={(event) => {
                       event.stopPropagation();
                       openEditor(post.id);
@@ -691,7 +816,41 @@ export function AuthorPanelPage() {
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </div>
               </button>
-            ))}
+              {isScheduleEditorOpen ? (
+                <div className="pb-4 pl-24 pr-2 sm:pl-28 sm:pr-4">
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <label className="block text-xs text-white/70">Дата и время публикации</label>
+                    <Input
+                      type="datetime-local"
+                      value={editingScheduleValue}
+                      onChange={(event) => {
+                        setEditingScheduleValue(event.target.value);
+                        setScheduleEditorError(null);
+                      }}
+                    />
+                    {scheduleEditorError ? <p className="text-xs text-destructive">{scheduleEditorError}</p> : null}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={scheduleSavingId === post.id}
+                        onClick={() => {
+                          void saveSchedule(post);
+                        }}
+                      >
+                        {scheduleSavingId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+                        {'Сохранить'}
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" disabled={scheduleSavingId === post.id} onClick={closeScheduleEditor}>
+                        {'Отмена'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              </div>
+              );
+            })}
           </div>
         ) : null}
       </div>
