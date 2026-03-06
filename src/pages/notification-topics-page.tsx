@@ -311,7 +311,7 @@ export function NotificationTopicsPage() {
   }, [isTelegramActionPending, isTelegramLinked, telegramNotificationsEnabled, user?.id]);
 
   const sendTelegramTest = useCallback(async () => {
-    if (!user?.id || !isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending) {
+    if (!isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending) {
       return;
     }
 
@@ -319,18 +319,25 @@ export function NotificationTopicsPage() {
 
     try {
       const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      let token = sessionData?.session?.access_token ?? null;
 
-      if (!session?.access_token) {
+      if (!token) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          token = refreshed?.session?.access_token ?? null;
+        }
+      }
+
+      if (!token) {
         toast.error('Нужно войти, чтобы отправить тест уведомлений');
         return;
       }
 
       const { data, error } = await supabase.functions.invoke('telegram-send-test', {
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: {},
       });
@@ -351,7 +358,7 @@ export function NotificationTopicsPage() {
     } finally {
       setTelegramAction(null);
     }
-  }, [isTelegramActionPending, isTelegramLinked, telegramNotificationsEnabled, user?.id]);
+  }, [isTelegramActionPending, isTelegramLinked, telegramNotificationsEnabled]);
 
   const openBot = useCallback(() => {
     if (!botUsername || typeof window === 'undefined') {
@@ -424,7 +431,7 @@ export function NotificationTopicsPage() {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={!user || !isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending}
+                  disabled={!isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending}
                   onClick={() => void sendTelegramTest()}
                 >
                   <Send className="mr-1 h-4 w-4" />
