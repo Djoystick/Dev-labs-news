@@ -1,4 +1,4 @@
-import { Bell, Send, X } from 'lucide-react';
+﻿import { Bell, Send, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -59,12 +59,12 @@ function parseTelegramUserId(value: number | string | null | undefined): number 
 
 function formatLinkedAt(value: string | null) {
   if (!value) {
-    return 'Не привязан';
+    return 'РќРµ РїСЂРёРІСЏР·Р°РЅ';
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Не привязан';
+    return 'РќРµ РїСЂРёРІСЏР·Р°РЅ';
   }
 
   return date.toLocaleString('ru-RU', {
@@ -187,7 +187,7 @@ export function NotificationTopicsPage() {
         if (!cancelled) {
           setTopics([]);
           setSubscribedTopicIds([]);
-          setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить настройки уведомлений.');
+          setLoadError(error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё СѓРІРµРґРѕРјР»РµРЅРёР№.');
         }
       } finally {
         if (!cancelled) {
@@ -228,7 +228,7 @@ export function NotificationTopicsPage() {
           }
 
           setSubscribedTopicIds((current) => current.filter((id) => id !== topicId));
-          toast.success('Подписка отключена.');
+          toast.success('РџРѕРґРїРёСЃРєР° РѕС‚РєР»СЋС‡РµРЅР°.');
         } else {
           const { error } = await subscriptionsTable.insert({ user_id: user.id, topic_id: topicId });
 
@@ -237,10 +237,10 @@ export function NotificationTopicsPage() {
           }
 
           setSubscribedTopicIds((current) => (current.includes(topicId) ? current : [...current, topicId]));
-          toast.success('Подписка включена.');
+          toast.success('РџРѕРґРїРёСЃРєР° РІРєР»СЋС‡РµРЅР°.');
         }
       } catch (error) {
-        toast.error(getErrorMessage(error, 'Не удалось изменить подписку на тему.'));
+        toast.error(getErrorMessage(error, 'РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РјРµРЅРёС‚СЊ РїРѕРґРїРёСЃРєСѓ РЅР° С‚РµРјСѓ.'));
       } finally {
         setBusyTopicId(null);
       }
@@ -272,9 +272,9 @@ export function NotificationTopicsPage() {
 
       setLinkedTelegramUserId(telegramRuntimeUserId);
       setTelegramLinkedAt(linkedAt);
-      toast.success('Telegram успешно привязан.');
+      toast.success('Telegram СѓСЃРїРµС€РЅРѕ РїСЂРёРІСЏР·Р°РЅ.');
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось привязать Telegram.'));
+      toast.error(getErrorMessage(error, 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРІСЏР·Р°С‚СЊ Telegram.'));
     } finally {
       setTelegramAction(null);
     }
@@ -302,9 +302,9 @@ export function NotificationTopicsPage() {
       }
 
       setTelegramNotificationsEnabled(nextValue);
-      toast.success(nextValue ? 'Уведомления в Telegram включены.' : 'Уведомления в Telegram выключены.');
+      toast.success(nextValue ? 'РЈРІРµРґРѕРјР»РµРЅРёСЏ РІ Telegram РІРєР»СЋС‡РµРЅС‹.' : 'РЈРІРµРґРѕРјР»РµРЅРёСЏ РІ Telegram РІС‹РєР»СЋС‡РµРЅС‹.');
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось изменить настройки Telegram.'));
+      toast.error(getErrorMessage(error, 'РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РјРµРЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё Telegram.'));
     } finally {
       setTelegramAction(null);
     }
@@ -319,12 +319,25 @@ export function NotificationTopicsPage() {
 
     try {
       const supabase = getSupabaseClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        toast.error('Нужно войти, чтобы отправить тест уведомлений');
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('telegram-send-test', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: {},
       });
 
       if (error) {
-        throw error;
+        toast.error(error.message || 'Не удалось отправить тест');
+        return;
       }
 
       const payload = data as InvokeResponse;
@@ -334,8 +347,7 @@ export function NotificationTopicsPage() {
 
       toast.success(payload?.message || 'Тест отправлен.');
     } catch (error) {
-      const message = getErrorMessage(error, 'Не удалось отправить тест. Откройте бота и нажмите Start, затем повторите попытку.');
-      toast.error(message.includes('Start') ? message : `${message} Нажмите Start у бота и попробуйте снова.`);
+      toast.error(getErrorMessage(error, 'Не удалось отправить тест'));
     } finally {
       setTelegramAction(null);
     }
@@ -351,10 +363,10 @@ export function NotificationTopicsPage() {
 
   const pageDescription = useMemo(() => {
     if (!user) {
-      return 'Выберите темы, чтобы получать уведомления по новым публикациям.';
+      return 'Р’С‹Р±РµСЂРёС‚Рµ С‚РµРјС‹, С‡С‚РѕР±С‹ РїРѕР»СѓС‡Р°С‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ РїРѕ РЅРѕРІС‹Рј РїСѓР±Р»РёРєР°С†РёСЏРј.';
     }
 
-    return subscribedTopicIds.length > 0 ? `Подписок: ${subscribedTopicIds.length}` : 'Пока нет подписок на темы.';
+    return subscribedTopicIds.length > 0 ? `РџРѕРґРїРёСЃРѕРє: ${subscribedTopicIds.length}` : 'РџРѕРєР° РЅРµС‚ РїРѕРґРїРёСЃРѕРє РЅР° С‚РµРјС‹.';
   }, [subscribedTopicIds.length, user]);
 
   return (
@@ -362,8 +374,8 @@ export function NotificationTopicsPage() {
       <div className="space-y-5">
         <div className="border-b border-border/60 pb-4">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-3xl font-extrabold">Уведомления по темам</h1>
-            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+            <h1 className="text-3xl font-extrabold">РЈРІРµРґРѕРјР»РµРЅРёСЏ РїРѕ С‚РµРјР°Рј</h1>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Р—Р°РєСЂС‹С‚СЊ">
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -371,31 +383,31 @@ export function NotificationTopicsPage() {
         </div>
 
         <div className="space-y-3 rounded-xl border border-white/10 bg-transparent p-4">
-          <h2 className="text-base font-semibold text-white">Telegram уведомления</h2>
+          <h2 className="text-base font-semibold text-white">Telegram СѓРІРµРґРѕРјР»РµРЅРёСЏ</h2>
 
-          {!user ? <p className="text-sm text-white/70">Войдите, чтобы настроить уведомления в Telegram.</p> : null}
+          {!user ? <p className="text-sm text-white/70">Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РЅР°СЃС‚СЂРѕРёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ РІ Telegram.</p> : null}
 
           {user && !telegramRuntimeUserId ? (
-            <p className="text-sm text-white/70">Откройте приложение внутри Telegram, чтобы подключить уведомления.</p>
+            <p className="text-sm text-white/70">РћС‚РєСЂРѕР№С‚Рµ РїСЂРёР»РѕР¶РµРЅРёРµ РІРЅСѓС‚СЂРё Telegram, С‡С‚РѕР±С‹ РїРѕРґРєР»СЋС‡РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ.</p>
           ) : null}
 
           {user && telegramRuntimeUserId ? (
             <>
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white">{isTelegramLinked ? 'Telegram привязан' : 'Telegram не привязан'}</p>
-                  <p className="text-xs text-white/60">ID в Telegram: {telegramRuntimeUserId}</p>
-                  <p className="text-xs text-white/50">Привязка: {formatLinkedAt(telegramLinkedAt)}</p>
+                  <p className="text-sm font-medium text-white">{isTelegramLinked ? 'Telegram РїСЂРёРІСЏР·Р°РЅ' : 'Telegram РЅРµ РїСЂРёРІСЏР·Р°РЅ'}</p>
+                  <p className="text-xs text-white/60">ID РІ Telegram: {telegramRuntimeUserId}</p>
+                  <p className="text-xs text-white/50">РџСЂРёРІСЏР·РєР°: {formatLinkedAt(telegramLinkedAt)}</p>
                 </div>
                 <Button type="button" size="sm" variant="outline" disabled={isTelegramActionPending} onClick={() => void linkTelegram()}>
-                  {telegramAction === 'link' ? 'Сохраняем...' : 'Привязать Telegram'}
+                  {telegramAction === 'link' ? 'РЎРѕС…СЂР°РЅСЏРµРј...' : 'РџСЂРёРІСЏР·Р°С‚СЊ Telegram'}
                 </Button>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-white">Уведомления в Telegram</p>
-                  <p className="text-xs text-white/60">{telegramNotificationsEnabled ? 'Включены' : 'Выключены'}</p>
+                  <p className="text-sm font-medium text-white">РЈРІРµРґРѕРјР»РµРЅРёСЏ РІ Telegram</p>
+                  <p className="text-xs text-white/60">{telegramNotificationsEnabled ? 'Р’РєР»СЋС‡РµРЅС‹' : 'Р’С‹РєР»СЋС‡РµРЅС‹'}</p>
                 </div>
                 <Button
                   type="button"
@@ -404,7 +416,7 @@ export function NotificationTopicsPage() {
                   disabled={!isTelegramLinked || isTelegramActionPending}
                   onClick={() => void toggleTelegramNotifications()}
                 >
-                  {telegramAction === 'toggle' ? 'Сохраняем...' : telegramNotificationsEnabled ? 'Выключить' : 'Включить'}
+                  {telegramAction === 'toggle' ? 'РЎРѕС…СЂР°РЅСЏРµРј...' : telegramNotificationsEnabled ? 'Р’С‹РєР»СЋС‡РёС‚СЊ' : 'Р’РєР»СЋС‡РёС‚СЊ'}
                 </Button>
               </div>
 
@@ -412,18 +424,18 @@ export function NotificationTopicsPage() {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={!isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending}
+                  disabled={!user || !isTelegramLinked || !telegramNotificationsEnabled || isTelegramActionPending}
                   onClick={() => void sendTelegramTest()}
                 >
                   <Send className="mr-1 h-4 w-4" />
-                  {telegramAction === 'test' ? 'Отправляем...' : 'Отправить тест'}
+                  {telegramAction === 'test' ? 'РћС‚РїСЂР°РІР»СЏРµРј...' : 'РћС‚РїСЂР°РІРёС‚СЊ С‚РµСЃС‚'}
                 </Button>
                 {botUsername ? (
                   <Button type="button" size="sm" variant="outline" onClick={openBot}>
-                    {'Открыть бота'}
+                    {'РћС‚РєСЂС‹С‚СЊ Р±РѕС‚Р°'}
                   </Button>
                 ) : (
-                  <p className="text-xs text-white/60">Откройте бота и нажмите Start, чтобы получать сообщения.</p>
+                  <p className="text-xs text-white/60">РћС‚РєСЂРѕР№С‚Рµ Р±РѕС‚Р° Рё РЅР°Р¶РјРёС‚Рµ Start, С‡С‚РѕР±С‹ РїРѕР»СѓС‡Р°С‚СЊ СЃРѕРѕР±С‰РµРЅРёСЏ.</p>
                 )}
               </div>
             </>
@@ -432,7 +444,7 @@ export function NotificationTopicsPage() {
 
         {loading ? <NotificationTopicsSkeleton /> : null}
 
-        {!loading && !user ? <StateCard title="Войдите, чтобы настроить уведомления" description="Подписки доступны только авторизованным пользователям." /> : null}
+        {!loading && !user ? <StateCard title="Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РЅР°СЃС‚СЂРѕРёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ" description="РџРѕРґРїРёСЃРєРё РґРѕСЃС‚СѓРїРЅС‹ С‚РѕР»СЊРєРѕ Р°РІС‚РѕСЂРёР·РѕРІР°РЅРЅС‹Рј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј." /> : null}
 
         {!loading && user && isLoading ? <NotificationTopicsSkeleton /> : null}
 
@@ -440,13 +452,13 @@ export function NotificationTopicsPage() {
           <div className="border-y border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
             <p>{loadError}</p>
             <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setReloadKey((value) => value + 1)}>
-              {'Повторить'}
+              {'РџРѕРІС‚РѕСЂРёС‚СЊ'}
             </Button>
           </div>
         ) : null}
 
         {!loading && user && !isLoading && !loadError && topics.length === 0 ? (
-          <StateCard title="Темы не найдены" description="Пока нет тем для подписки." />
+          <StateCard title="РўРµРјС‹ РЅРµ РЅР°Р№РґРµРЅС‹" description="РџРѕРєР° РЅРµС‚ С‚РµРј РґР»СЏ РїРѕРґРїРёСЃРєРё." />
         ) : null}
 
         {!loading && user && !isLoading && !loadError && topics.length > 0 ? (
@@ -467,7 +479,7 @@ export function NotificationTopicsPage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-white">{topic.name}</p>
-                    <p className="mt-0.5 text-xs text-white/60">{isSubscribed ? 'Подписан(а)' : 'Не подписан(а)'}</p>
+                    <p className="mt-0.5 text-xs text-white/60">{isSubscribed ? 'РџРѕРґРїРёСЃР°РЅ(Р°)' : 'РќРµ РїРѕРґРїРёСЃР°РЅ(Р°)'}</p>
                   </div>
                   <span
                     className={cn(
@@ -476,7 +488,7 @@ export function NotificationTopicsPage() {
                     )}
                   >
                     {isBusy ? <Bell className="h-3.5 w-3.5 animate-pulse" /> : <Bell className="h-3.5 w-3.5" />}
-                    {isSubscribed ? 'Вкл' : 'Выкл'}
+                    {isSubscribed ? 'Р’РєР»' : 'Р’С‹РєР»'}
                   </span>
                 </button>
               );
@@ -487,4 +499,6 @@ export function NotificationTopicsPage() {
     </FlatPage>
   );
 }
+
+
 
