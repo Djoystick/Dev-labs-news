@@ -1,0 +1,26 @@
+name: Publish due posts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call publish_due_posts RPC
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$SUPABASE_SERVICE_ROLE_KEY"
+          URL="$SUPABASE_URL/rest/v1/rpc/publish_due_posts"
+          echo "Calling: $URL"
+          resp=$(curl -sS -X POST "$URL" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "content-type: application/json" \
+            --data '{}')
+          echo "Response: $resp"
