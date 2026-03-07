@@ -1,45 +1,12 @@
-name: Notify topic subscribers
+name: Notify topic subscribers (disabled)
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
 jobs:
-  run:
+  disabled:
     runs-on: ubuntu-latest
     steps:
-      - name: Call telegram-notify-topics
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_NOTIFY_FUNCTION_URL: ${{ secrets.SUPABASE_NOTIFY_FUNCTION_URL }}
+      - name: Legacy topic notifications are disabled
         run: |
-          set -euo pipefail
-          echo "::add-mask::$CRON_SECRET"
-          if [ -z "${SUPABASE_NOTIFY_FUNCTION_URL:-}" ]; then
-            echo "SUPABASE_NOTIFY_FUNCTION_URL is not set"
-            exit 1
-          fi
-          if [ -z "${CRON_SECRET:-}" ]; then
-            echo "CRON_SECRET is not set"
-            exit 1
-          fi
-
-          response_file=$(mktemp)
-          status=$(curl -sS -o "$response_file" -w "%{http_code}" \
-            -X POST "$SUPABASE_NOTIFY_FUNCTION_URL" \
-            -H "content-type: application/json" \
-            -H "x-cron-secret: $CRON_SECRET" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            --data '{}')
-
-          echo "HTTP status: $status"
-          echo "Response:"
-          cat "$response_file"
-          echo
-
-          if [ "$status" -ne 200 ]; then
-            exit 1
-          fi
+          echo "Legacy topic Telegram notifications are disabled."
