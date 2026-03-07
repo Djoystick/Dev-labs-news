@@ -96,11 +96,23 @@ function normalizeBotUsername(value: string | null | undefined) {
   return normalized || null;
 }
 
+function normalizeMiniAppShortName(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
+  return normalized || null;
+}
+
 function getRequiredServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
+  const miniAppShortName = normalizeMiniAppShortName(
+    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
+  );
   const cronSecret = Deno.env.get("CRON_SECRET");
   const appBaseUrl = sanitizeBaseUrl(Deno.env.get("APP_BASE_URL") ?? null);
 
@@ -108,7 +120,7 @@ function getRequiredServerEnv() {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { appBaseUrl, botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl };
+  return { appBaseUrl, botToken, botUsername, miniAppShortName, cronSecret, serviceRoleKey, supabaseUrl };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -130,12 +142,17 @@ function hasText(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function buildMiniAppPostUrl(botUsername: string | null, postId: string) {
+function buildMiniAppPostUrl(botUsername: string | null, miniAppShortName: string | null, postId: string) {
   if (!botUsername) {
     return null;
   }
 
-  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(`post_${postId}`)}`;
+  const encodedPayload = encodeURIComponent(`post_${postId}`);
+  if (miniAppShortName) {
+    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
+  }
+
+  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
 }
 
 function buildNotificationText(post: PostCandidate, appBaseUrl: string | null) {
@@ -149,8 +166,8 @@ function buildNotificationText(post: PostCandidate, appBaseUrl: string | null) {
   return `News for your topic: ${title}`;
 }
 
-function buildNotificationReplyMarkup(post: PostCandidate, botUsername: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppPostUrl(botUsername, post.id);
+function buildNotificationReplyMarkup(post: PostCandidate, botUsername: string | null, miniAppShortName: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppPostUrl(botUsername, miniAppShortName, post.id);
   if (!miniAppUrl) {
     return null;
   }
@@ -258,7 +275,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { appBaseUrl, botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
+    const { appBaseUrl, botToken, botUsername, miniAppShortName, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
     ensureCronAuthorized(request, cronSecret);
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -369,7 +386,7 @@ serve(async (request: Request) => {
 
       const sendBatch = recipientsToSend.slice(0, remainingBudget);
       const messageText = buildNotificationText(post, appBaseUrl);
-      const replyMarkup = buildNotificationReplyMarkup(post, botUsername);
+      const replyMarkup = buildNotificationReplyMarkup(post, botUsername, miniAppShortName);
 
       for (const recipient of sendBatch) {
         const chatId = normalizeTelegramUserId(recipient.telegram_user_id);

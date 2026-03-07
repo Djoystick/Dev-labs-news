@@ -61,12 +61,15 @@ function getRequiredServerEnv() {
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
+  const miniAppShortName = normalizeMiniAppShortName(
+    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
+  );
 
   if (!url || !anon || !serviceRoleKey) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { anon, botUsername, serviceRoleKey, url };
+  return { anon, botUsername, miniAppShortName, serviceRoleKey, url };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -93,12 +96,26 @@ function normalizeBotUsername(value: string | null | undefined) {
   return normalized || null;
 }
 
-function buildMiniAppStartAppUrl(botUsername: string | null, startPayload: string) {
+function normalizeMiniAppShortName(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
+  return normalized || null;
+}
+
+function buildMiniAppStartAppUrl(botUsername: string | null, miniAppShortName: string | null, startPayload: string) {
   if (!botUsername) {
     return null;
   }
 
-  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(startPayload)}`;
+  const encodedPayload = encodeURIComponent(startPayload);
+  if (miniAppShortName) {
+    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
+  }
+
+  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -245,8 +262,8 @@ async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof crea
   return (data as ProfileTelegramSettings | null) ?? null;
 }
 
-function buildNotificationReplyMarkup(botUsername: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppStartAppUrl(botUsername, "for_you");
+function buildNotificationReplyMarkup(botUsername: string | null, miniAppShortName: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppStartAppUrl(botUsername, miniAppShortName, "for_you");
   if (!miniAppUrl) {
     return null;
   }
@@ -261,6 +278,14 @@ function buildNotificationReplyMarkup(botUsername: string | null): TelegramReply
       ],
     ],
   };
+}
+
+function buildTestMessageText(baseText: string, deepLink: string | null) {
+  if (!deepLink) {
+    return baseText;
+  }
+
+  return `${baseText}\n\nDeep link: ${deepLink}`;
 }
 
 function toInlineReplyMarkup(replyMarkup: TelegramReplyMarkup | null): TelegramReplyMarkup | null {
@@ -350,7 +375,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { anon, botUsername, serviceRoleKey, url } = getRequiredServerEnv();
+    const { anon, botUsername, miniAppShortName, serviceRoleKey, url } = getRequiredServerEnv();
     const serviceClient = createClient(url, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -389,8 +414,14 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const replyMarkup = buildNotificationReplyMarkup(botUsername);
-    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT, replyMarkup);
+    const deepLink = buildMiniAppStartAppUrl(botUsername, miniAppShortName, "for_you");
+    console.log("telegram-send-test deep-link", {
+      deepLink: deepLink ?? null,
+      hasMiniAppShortName: Boolean(miniAppShortName),
+    });
+    const replyMarkup = buildNotificationReplyMarkup(botUsername, miniAppShortName);
+    const messageText = buildTestMessageText(TEST_TEXT, deepLink);
+    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, messageText, replyMarkup);
     if (!telegramSendResult.ok) {
       return jsonResponse(
         {
