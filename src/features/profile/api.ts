@@ -4,7 +4,8 @@ import type { Favorite, Post, Profile, ReadingHistoryEntry } from '@/types/db';
 
 const postSelect =
   'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
-const profileSelect = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
+const profileSelect =
+  'id, role, handle, handle_norm, bio, telegram_id, telegram_user_id, telegram_notifications_enabled, telegram_linked_at, for_you_digest_enabled, for_you_digest_threshold, username, full_name, avatar_url, created_at';
 const favoriteSelect = `id, user_id, post_id, created_at, post:posts(${postSelect})`;
 const historySelect = `id, user_id, post_id, last_read_at, read_count, post:posts(${postSelect})`;
 
@@ -59,6 +60,31 @@ export async function updateProfileDetails(
 
   if (error) {
     throw new Error(getProfileErrorMessage(error));
+  }
+
+  return data as Profile;
+}
+
+export async function updateForYouDigestSettings(
+  userId: string,
+  values: {
+    for_you_digest_enabled: boolean;
+    for_you_digest_threshold: 10 | 20 | 30;
+  },
+) {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      for_you_digest_enabled: values.for_you_digest_enabled,
+      for_you_digest_threshold: values.for_you_digest_threshold,
+    })
+    .eq('id', userId)
+    .select(profileSelect)
+    .single();
+
+  if (error) {
+    throw new Error(`Не удалось сохранить настройки подборки. ${error.message}`);
   }
 
   return data as Profile;

@@ -1,13 +1,14 @@
 import { Activity, ArrowLeft, Bell, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
-import { getProfileDisplayName, normalizeHandle } from '@/features/profile/api';
+import { getProfileDisplayName, normalizeHandle, updateForYouDigestSettings } from '@/features/profile/api';
 import { useReadingProgress } from '@/features/reading/reading-progress';
 import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
@@ -15,6 +16,24 @@ import { getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
+
+type DigestThreshold = 10 | 20 | 30;
+const digestThresholdOptions: DigestThreshold[] = [10, 20, 30];
+
+function normalizeDigestThreshold(value: number | null | undefined): DigestThreshold {
+  return value === 20 || value === 30 ? value : 10;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  return fallback;
+}
 
 function getInitial(value: string | null | undefined) {
   if (!value) {
@@ -89,12 +108,15 @@ function ProfileRow({ icon: Icon, title, subtitle, onClick, to, right, titleClas
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const { isAuthed, loading, profile, signOut, user } = useAuth();
+  const { isAuthed, loading, profile, refreshProfile, signOut, user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { clearReadingHistory, continueReading, hiddenReadEnabled, setHiddenReadEnabled } = useReadingProgress();
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [digestEnabled, setDigestEnabled] = useState(false);
+  const [digestSaving, setDigestSaving] = useState(false);
+  const [digestThreshold, setDigestThreshold] = useState<DigestThreshold>(10);
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(() => {
     if (typeof window === 'undefined') {
@@ -143,6 +165,15 @@ export function ProfilePage() {
   const continueReadingSubtitle = continueReadingSubtitleValue ? `Обновлено ${continueReadingSubtitleValue}` : undefined;
 
   useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    setDigestEnabled(Boolean(profile.for_you_digest_enabled));
+    setDigestThreshold(normalizeDigestThreshold(profile.for_you_digest_threshold));
+  }, [profile]);
+
+  useEffect(() => {
     const webApp = getTelegramWebApp();
     const supportsFullscreen = Boolean(webApp?.requestFullscreen && webApp?.exitFullscreen);
     setFullscreenSupported(supportsFullscreen);
@@ -164,6 +195,35 @@ export function ProfilePage() {
       webApp.offEvent?.('fullscreenChanged', handleFullscreenChanged);
     };
   }, []);
+
+  const persistDigestSettings = async (nextEnabled: boolean, nextThreshold: DigestThreshold, successMessage: string) => {
+    if (!user?.id || digestSaving) {
+      return;
+    }
+
+    const previousEnabled = digestEnabled;
+    const previousThreshold = digestThreshold;
+    const normalizedThreshold = normalizeDigestThreshold(nextThreshold);
+
+    setDigestEnabled(nextEnabled);
+    setDigestThreshold(normalizedThreshold);
+    setDigestSaving(true);
+
+    try {
+      await updateForYouDigestSettings(user.id, {
+        for_you_digest_enabled: nextEnabled,
+        for_you_digest_threshold: normalizedThreshold,
+      });
+      await refreshProfile();
+      toast.success(successMessage);
+    } catch (error) {
+      setDigestEnabled(previousEnabled);
+      setDigestThreshold(previousThreshold);
+      toast.error(getErrorMessage(error, 'Не удалось сохранить настройки digest-уведомлений.'));
+    } finally {
+      setDigestSaving(false);
+    }
+  };
 
   const toggleFullscreen = async () => {
     const webApp = getTelegramWebApp();
@@ -301,6 +361,66 @@ export function ProfilePage() {
             <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
             <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
             {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Панель автора" onClick={() => navigate('/author')} /> : null}
+          </div>
+        </FlatSection>
+
+        <FlatSection className="pt-2">
+          <SectionTitle>{'DIGEST «ДЛЯ ТЕБЯ»'}</SectionTitle>
+          <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">Уведомлять о подборке</p>
+                <p className="mt-1 text-xs text-white/60">Когда подборка в «Для тебя» накопит нужное число новых материалов.</p>
+              </div>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
+                  digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
+                )}
+                onClick={() => {
+                  void persistDigestSettings(
+                    !digestEnabled,
+                    digestThreshold,
+                    !digestEnabled ? 'Digest-уведомления включены.' : 'Digest-уведомления отключены.',
+                  );
+                }}
+                disabled={digestSaving}
+              >
+                {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Порог новых материалов</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {digestThresholdOptions.map((option) => {
+                  const selected = digestThreshold === option;
+
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      className={cn(
+                        'h-10 rounded-lg border text-sm font-semibold transition',
+                        selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
+                      )}
+                      onClick={() => {
+                        if (option === digestThreshold) {
+                          return;
+                        }
+
+                        void persistDigestSettings(digestEnabled, option, 'Порог digest-уведомлений обновлён.');
+                      }}
+                      disabled={digestSaving}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-white/55">Уведомление приходит, когда в «Для тебя» накопилось выбранное количество новых материалов.</p>
+            </div>
           </div>
         </FlatSection>
 

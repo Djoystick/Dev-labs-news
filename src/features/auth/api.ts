@@ -3,7 +3,8 @@ import { getEnv } from '@/lib/env';
 import { getTelegramInitData } from '@/lib/telegram';
 import type { Profile } from '@/types/db';
 
-const profileSelect = 'id, role, handle, handle_norm, bio, telegram_id, username, full_name, avatar_url, created_at';
+const profileSelect =
+  'id, role, handle, handle_norm, bio, telegram_id, telegram_user_id, telegram_notifications_enabled, telegram_linked_at, for_you_digest_enabled, for_you_digest_threshold, username, full_name, avatar_url, created_at';
 
 export type TelegramAuthResult = {
   ok: true;
