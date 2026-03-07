@@ -219,7 +219,7 @@ export function ProfilePage() {
     } catch (error) {
       setDigestEnabled(previousEnabled);
       setDigestThreshold(previousThreshold);
-      toast.error(getErrorMessage(error, 'Не удалось сохранить настройки digest-уведомлений.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить настройки умной ленты.'));
     } finally {
       setDigestSaving(false);
     }
@@ -327,14 +327,6 @@ export function ProfilePage() {
                   {'Мои публикации'}
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => navigate('/topic-preferences')}
-                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
-              >
-                <Settings2 className="h-4 w-4" />
-                {'Разделы'}
-              </button>
             </div>
           </div>
         </FlatSection>
@@ -365,12 +357,12 @@ export function ProfilePage() {
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <SectionTitle>{'DIGEST «ДЛЯ ТЕБЯ»'}</SectionTitle>
+          <SectionTitle>{'УМНАЯ ЛЕНТА'}</SectionTitle>
           <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white">Уведомлять о подборке</p>
-                <p className="mt-1 text-xs text-white/60">Когда подборка в «Для тебя» накопит нужное число новых материалов.</p>
+                <p className="mt-1 text-xs text-white/60">Когда в умной ленте накопится нужное число новых материалов.</p>
               </div>
               <button
                 type="button"
@@ -382,13 +374,25 @@ export function ProfilePage() {
                   void persistDigestSettings(
                     !digestEnabled,
                     digestThreshold,
-                    !digestEnabled ? 'Digest-уведомления включены.' : 'Digest-уведомления отключены.',
+                    !digestEnabled ? 'Уведомления о подборке включены.' : 'Уведомления о подборке отключены.',
                   );
                 }}
                 disabled={digestSaving}
               >
                 {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
               </button>
+            </div>
+
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <button
+                type="button"
+                onClick={() => navigate('/topic-preferences')}
+                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+              >
+                <Settings2 className="h-4 w-4" />
+                {'Разделы'}
+              </button>
+              <p className="mt-2 text-xs text-white/60">Разделы определяют содержимое умной ленты.</p>
             </div>
 
             <div className="mt-4">
@@ -410,7 +414,7 @@ export function ProfilePage() {
                           return;
                         }
 
-                        void persistDigestSettings(digestEnabled, option, 'Порог digest-уведомлений обновлён.');
+                        void persistDigestSettings(digestEnabled, option, 'Порог уведомлений о подборке обновлён.');
                       }}
                       disabled={digestSaving}
                     >
@@ -419,7 +423,7 @@ export function ProfilePage() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs text-white/55">Уведомление приходит, когда в «Для тебя» накопилось выбранное количество новых материалов.</p>
+              <p className="mt-3 text-xs text-white/55">Уведомление приходит, когда в умной ленте накопилось выбранное количество новых материалов.</p>
             </div>
           </div>
         </FlatSection>

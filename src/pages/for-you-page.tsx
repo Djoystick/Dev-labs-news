@@ -287,7 +287,7 @@ export function ForYouPage() {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Умная лента</p>
                 <h1 className="mt-1 text-3xl font-extrabold leading-tight sm:text-4xl">Умная лента</h1>
               </div>
             </div>
@@ -298,7 +298,7 @@ export function ForYouPage() {
               </Button>
               {isInfoOpen ? (
                 <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-border/70 bg-background/95 p-3 text-xs leading-5 text-muted-foreground shadow-xl">
-                  Подборка настраивается в Профиле через кнопку «Разделы».
+                  Умная лента настраивается в Профиле через кнопку «Разделы».
                 </div>
               ) : null}
             </div>
@@ -343,7 +343,7 @@ export function ForYouPage() {
         ) : isProfileSectionsEmpty ? (
           <StateCard
             title="Выберите разделы в профиле"
-            description="Умная лента и digest-подборки используют разделы из Профиля."
+            description="Умная лента и уведомления о подборке используют разделы из Профиля."
             actionLabel="Открыть разделы"
             onAction={() => navigate('/topic-preferences')}
           />

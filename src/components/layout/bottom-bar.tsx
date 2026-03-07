@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 const items = [
   { href: '/', icon: Home, label: 'Лента' },
-  { href: '/for-you', icon: Sparkles, label: 'Для тебя' },
+  { href: '/for-you', icon: Sparkles, label: 'Умная лента' },
   { href: '/digests', icon: FileStack, label: 'Сводки' },
   { href: '/profile', icon: UserRound, label: 'Профиль' },
 ] as const;
