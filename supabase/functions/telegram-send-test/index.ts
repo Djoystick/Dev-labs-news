@@ -284,20 +284,37 @@ function buildNotificationReplyMarkup(postId: string, botUsername: string | null
   };
 }
 
+function toInlineReplyMarkup(replyMarkup: TelegramReplyMarkup | null): TelegramReplyMarkup | null {
+  if (!replyMarkup || !Array.isArray(replyMarkup.inline_keyboard)) {
+    return null;
+  }
+
+  return {
+    inline_keyboard: replyMarkup.inline_keyboard.map((row) =>
+      row.map((button) => ({
+        text: button.text,
+        url: button.url,
+      })),
+    ),
+  };
+}
+
 async function sendTelegramMessage(token: string, chatId: string, text: string, replyMarkup: TelegramReplyMarkup | null) {
+  const inlineReplyMarkup = toInlineReplyMarkup(replyMarkup);
   const payload: Record<string, unknown> = {
     chat_id: chatId,
     text,
     disable_web_page_preview: true,
   };
 
-  if (replyMarkup) {
-    payload.reply_markup = replyMarkup;
+  if (inlineReplyMarkup) {
+    payload.reply_markup = inlineReplyMarkup;
   }
 
   console.log("telegram-send-test sendMessage payload", {
-    hasReplyMarkup: Boolean(replyMarkup),
-    hasInlineKeyboard: Boolean(replyMarkup?.inline_keyboard?.length),
+    hasReplyMarkup: Boolean(inlineReplyMarkup),
+    hasInlineKeyboard: Boolean(inlineReplyMarkup?.inline_keyboard?.length),
+    replyMarkupKeys: inlineReplyMarkup ? Object.keys(inlineReplyMarkup) : [],
   });
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
