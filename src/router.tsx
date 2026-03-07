@@ -28,6 +28,9 @@ const AdminPublicationRulesPage = lazy(() =>
 const TopicPreferencesOnboardingPage = lazy(() =>
   import('@/pages/onboarding/TopicPreferencesOnboarding').then((module) => ({ default: module.TopicPreferencesOnboardingPage })),
 );
+const WelcomeOnboardingPage = lazy(() =>
+  import('@/pages/onboarding/welcome-onboarding-page').then((module) => ({ default: module.WelcomeOnboardingPage })),
+);
 
 function RouteFallback() {
   return (
@@ -74,5 +77,6 @@ export const router = createBrowserRouter([
       { path: 'admin/publication-rules', element: withSuspense(AdminPublicationRulesPage) },
     ],
   },
+  { path: '/onboarding/welcome', element: withSuspense(WelcomeOnboardingPage) },
   { path: '/onboarding/topics', element: withSuspense(TopicPreferencesOnboardingPage) },
 ]);

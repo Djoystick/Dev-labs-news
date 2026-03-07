@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Container } from '@/components/layout/container';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isWelcomeOnboardingDone, markWelcomeOnboardingDone } from '@/features/onboarding/welcome';
 import { fetchMyTopicIds } from '@/features/topics/api';
-import { isTopicsOnboardingDone } from '@/features/topics/onboarding';
+import { getTelegramEnvironment } from '@/lib/telegram';
 import { useAuth } from '@/providers/auth-provider';
 
 type OnboardingGateProps = {
@@ -12,13 +13,20 @@ type OnboardingGateProps = {
 
 export function OnboardingGate({ children }: OnboardingGateProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthed, loading, user } = useAuth();
   const [checking, setChecking] = useState(true);
-  const checkedUserRef = useRef<{ hasTopics: boolean; userId: string } | null>(null);
+  const checkedUserRef = useRef<{ shouldShow: boolean; userId: string } | null>(null);
+  const isOnboardingRoute = location.pathname.startsWith('/onboarding');
 
   useEffect(() => {
     if (loading) {
       setChecking(true);
+      return;
+    }
+
+    if (isOnboardingRoute) {
+      setChecking(false);
       return;
     }
 
@@ -27,7 +35,12 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
       return;
     }
 
-    if (isTopicsOnboardingDone()) {
+    if (getTelegramEnvironment() !== 'telegram') {
+      setChecking(false);
+      return;
+    }
+
+    if (isWelcomeOnboardingDone(user.id)) {
       setChecking(false);
       return;
     }
@@ -35,8 +48,8 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
     const cachedCheck = checkedUserRef.current;
 
     if (cachedCheck?.userId === user.id) {
-      if (!cachedCheck.hasTopics) {
-        void navigate('/onboarding/topics', { replace: true });
+      if (cachedCheck.shouldShow) {
+        void navigate('/onboarding/welcome', { replace: true });
         return;
       }
 
@@ -53,14 +66,16 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
           return;
         }
 
-        const hasTopics = topicIds.length > 0;
-        checkedUserRef.current = { hasTopics, userId: user.id };
+        const shouldShowWelcome = topicIds.length === 0;
+        checkedUserRef.current = { shouldShow: shouldShowWelcome, userId: user.id };
 
-        if (!hasTopics) {
-          void navigate('/onboarding/topics', { replace: true });
+        if (shouldShowWelcome) {
+          setChecking(false);
+          void navigate('/onboarding/welcome', { replace: true });
           return;
         }
 
+        markWelcomeOnboardingDone(user.id);
         setChecking(false);
       })
       .catch(() => {
@@ -72,7 +87,7 @@ export function OnboardingGate({ children }: OnboardingGateProps) {
     return () => {
       active = false;
     };
-  }, [isAuthed, loading, navigate, user?.id]);
+  }, [isAuthed, isOnboardingRoute, loading, navigate, user?.id]);
 
   if (checking) {
     return (
