@@ -15,16 +15,12 @@ const responseHeaders = {
   "Content-Type": "application/json",
 } as const;
 
-const TEST_TEXT = "✅ Тест уведомлений Dev-labs-news. Всё работает.";
+const TEST_TEXT = "Ваша подборка готова";
 const encoder = new TextEncoder();
 
 type ProfileTelegramSettings = {
   telegram_notifications_enabled: boolean;
   telegram_user_id: number | string | null;
-};
-
-type PublishedPostCandidate = {
-  id: string;
 };
 
 type TelegramReplyMarkup = {
@@ -97,12 +93,12 @@ function normalizeBotUsername(value: string | null | undefined) {
   return normalized || null;
 }
 
-function buildMiniAppPostUrl(botUsername: string | null, postId: string) {
+function buildMiniAppStartAppUrl(botUsername: string | null, startPayload: string) {
   if (!botUsername) {
     return null;
   }
 
-  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(`post_${postId}`)}`;
+  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(startPayload)}`;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -249,25 +245,8 @@ async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof crea
   return (data as ProfileTelegramSettings | null) ?? null;
 }
 
-async function loadLatestPublishedPostId(serviceClient: ReturnType<typeof createClient>) {
-  const { data, error } = await serviceClient
-    .from("posts")
-    .select("id")
-    .eq("is_published", true)
-    .not("published_at", "is", null)
-    .order("published_at", { ascending: false })
-    .limit(1);
-
-  if (error) {
-    throw new HttpError(500, error.message);
-  }
-
-  const [post] = (data ?? []) as PublishedPostCandidate[];
-  return post?.id ?? null;
-}
-
-function buildNotificationReplyMarkup(postId: string, botUsername: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppPostUrl(botUsername, postId);
+function buildNotificationReplyMarkup(botUsername: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppStartAppUrl(botUsername, "for_you");
   if (!miniAppUrl) {
     return null;
   }
@@ -276,7 +255,7 @@ function buildNotificationReplyMarkup(postId: string, botUsername: string | null
     inline_keyboard: [
       [
         {
-          text: "Открыть в Mini App",
+          text: "Открыть подборку",
           url: miniAppUrl,
         },
       ],
@@ -410,8 +389,7 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const latestPostId = await loadLatestPublishedPostId(serviceClient);
-    const replyMarkup = latestPostId ? buildNotificationReplyMarkup(latestPostId, botUsername) : null;
+    const replyMarkup = buildNotificationReplyMarkup(botUsername);
     const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT, replyMarkup);
     if (!telegramSendResult.ok) {
       return jsonResponse(

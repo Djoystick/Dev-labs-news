@@ -95,6 +95,24 @@ export function getPostIdFromTelegramStartParam(startParam: string | null | unde
   return match?.[1] ?? null;
 }
 
+export function getPathFromTelegramStartParam(startParam: string | null | undefined) {
+  const normalized = normalizeStartParam(startParam);
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === 'for_you') {
+    return '/for-you';
+  }
+
+  const postId = getPostIdFromTelegramStartParam(normalized);
+  if (!postId) {
+    return null;
+  }
+
+  return `/post/${postId}`;
+}
+
 export function initTelegramWebApp() {
   const webApp = getTelegramWebApp();
 

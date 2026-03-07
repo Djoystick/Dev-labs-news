@@ -3,7 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingGate } from '@/app/OnboardingGate';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePostFeed } from '@/features/posts/hooks';
-import { getPostIdFromTelegramStartParam, getTelegramStartParam } from '@/lib/telegram';
+import { getPathFromTelegramStartParam, getTelegramStartParam } from '@/lib/telegram';
 import type { Post, PostSort, Topic } from '@/types/db';
 
 export type AppLayoutContext = {
@@ -43,12 +43,11 @@ function AppContent() {
 
     startParamHandledRef.current = true;
 
-    const postId = getPostIdFromTelegramStartParam(getTelegramStartParam());
-    if (!postId) {
+    const targetPath = getPathFromTelegramStartParam(getTelegramStartParam());
+    if (!targetPath) {
       return;
     }
 
-    const targetPath = `/post/${postId}`;
     if (location.pathname === targetPath) {
       return;
     }
