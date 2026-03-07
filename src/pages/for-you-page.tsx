@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Info, RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
@@ -20,6 +20,7 @@ import type { Post, Topic } from '@/types/db';
 
 const defaultLimit = 20;
 const autoReadBoostThreshold = 2;
+const forYouProfileSectionsCtaDismissedStorageKey = 'devlabs.for-you.profile-sections-cta-dismissed.v1';
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -88,6 +89,7 @@ export function ForYouPage() {
   const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics, readTopics } = useRecommendationsPreferences();
   const [searchQuery, setSearchQuery] = usePersistentSearchQuery(forYouSearchStorageKey);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isProfileSectionsCtaDismissed, setIsProfileSectionsCtaDismissed] = useState(false);
   const [preferredTopicIds, setPreferredTopicIds] = useState<string[] | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
@@ -123,6 +125,34 @@ export function ForYouPage() {
       controller.abort();
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsProfileSectionsCtaDismissed(false);
+      return;
+    }
+
+    const storageKey = `${forYouProfileSectionsCtaDismissedStorageKey}:${user.id}`;
+    try {
+      setIsProfileSectionsCtaDismissed(window.localStorage.getItem(storageKey) === '1');
+    } catch {
+      setIsProfileSectionsCtaDismissed(false);
+    }
+  }, [user?.id]);
+
+  const handleOpenTopicPreferences = () => {
+    if (user?.id) {
+      const storageKey = `${forYouProfileSectionsCtaDismissedStorageKey}:${user.id}`;
+      try {
+        window.localStorage.setItem(storageKey, '1');
+      } catch {
+        // no-op: storage can be unavailable in private mode
+      }
+    }
+
+    setIsProfileSectionsCtaDismissed(true);
+    void navigate('/topic-preferences');
+  };
 
   const profileScopedPosts = useMemo(() => {
     if (!user?.id || preferredTopicIds === null) {
@@ -250,7 +280,7 @@ export function ForYouPage() {
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
-        <FlatSection className="pt-0 sm:pt-0">
+        <FlatSection className="pt-2 sm:pt-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center text-primary">
@@ -263,7 +293,7 @@ export function ForYouPage() {
             </div>
             <div className="relative shrink-0">
               <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-full border border-border/70 text-sm" onClick={() => setIsInfoOpen((value) => !value)}>
-                <span aria-hidden="true">🛈</span>
+                <Info className="h-4 w-4 text-muted-foreground" />
                 <span className="sr-only">Как работает подборка</span>
               </Button>
               {isInfoOpen ? (
@@ -274,9 +304,11 @@ export function ForYouPage() {
             </div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Материалы подбираются по разделам из профиля и вашей активности.</p>
-          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => navigate('/topic-preferences')}>
-            Разделы в профиле
-          </Button>
+          {!isProfileSectionsCtaDismissed ? (
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={handleOpenTopicPreferences}>
+              Разделы в профиле
+            </Button>
+          ) : null}
           <div className="relative mt-4">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
