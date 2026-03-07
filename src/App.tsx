@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingGate } from '@/app/OnboardingGate';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePostFeed } from '@/features/posts/hooks';
+import { getPostIdFromTelegramStartParam, getTelegramStartParam } from '@/lib/telegram';
 import type { Post, PostSort, Topic } from '@/types/db';
 
 export type AppLayoutContext = {
@@ -30,8 +31,30 @@ export type AppLayoutContext = {
 
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
   const feed = usePostFeed();
   const isOnboardingRoute = location.pathname.startsWith('/onboarding');
+  const startParamHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (startParamHandledRef.current) {
+      return;
+    }
+
+    startParamHandledRef.current = true;
+
+    const postId = getPostIdFromTelegramStartParam(getTelegramStartParam());
+    if (!postId) {
+      return;
+    }
+
+    const targetPath = `/post/${postId}`;
+    if (location.pathname === targetPath) {
+      return;
+    }
+
+    void navigate(targetPath, { replace: true });
+  }, [location.pathname, navigate]);
 
   const content = <Outlet context={{ ...feed } satisfies AppLayoutContext} />;
 

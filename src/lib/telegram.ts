@@ -33,6 +33,7 @@ declare global {
         initDataUnsafe?: {
           auth_date?: number;
           hash?: string;
+          start_param?: string;
           user?: TelegramWebAppUser;
         };
         onEvent?: (eventName: string, handler: TelegramEventHandler) => void;
@@ -59,6 +60,39 @@ export function getTelegramInitData() {
 
 export function getTelegramUser() {
   return getTelegramWebApp()?.initDataUnsafe?.user ?? null;
+}
+
+function normalizeStartParam(value: string | null | undefined) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+export function getTelegramStartParam() {
+  const fromInitData = normalizeStartParam(getTelegramWebApp()?.initDataUnsafe?.start_param);
+  if (fromInitData) {
+    return fromInitData;
+  }
+
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const query = new URLSearchParams(window.location.search);
+  return normalizeStartParam(query.get('tgWebAppStartParam'));
+}
+
+export function getPostIdFromTelegramStartParam(startParam: string | null | undefined) {
+  const normalized = normalizeStartParam(startParam);
+  if (!normalized) {
+    return null;
+  }
+
+  const match = /^post_([^/?#]+)$/u.exec(normalized);
+  return match?.[1] ?? null;
 }
 
 export function initTelegramWebApp() {

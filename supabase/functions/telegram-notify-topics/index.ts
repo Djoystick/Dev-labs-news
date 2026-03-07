@@ -49,6 +49,10 @@ type Summary = {
   totalRecipients: number;
 };
 
+type TelegramReplyMarkup = {
+  inline_keyboard: Array<Array<{ text: string; url: string }>>;
+};
+
 class HttpError extends Error {
   status: number;
 
@@ -83,10 +87,20 @@ function sanitizeBaseUrl(baseUrl: string | null): string | null {
   return normalized.replace(/\/+$/u, "");
 }
 
+function normalizeBotUsername(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/^@+/u, "");
+  return normalized || null;
+}
+
 function getRequiredServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const botUsername = normalizeBotUsername(Deno.env.get("VITE_TELEGRAM_BOT_USERNAME") ?? null);
   const cronSecret = Deno.env.get("CRON_SECRET");
   const appBaseUrl = sanitizeBaseUrl(Deno.env.get("APP_BASE_URL") ?? null);
 
@@ -94,7 +108,7 @@ function getRequiredServerEnv() {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { appBaseUrl, botToken, cronSecret, serviceRoleKey, supabaseUrl };
+  return { appBaseUrl, botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -116,6 +130,14 @@ function hasText(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function buildMiniAppPostUrl(botUsername: string | null, postId: string) {
+  if (!botUsername) {
+    return null;
+  }
+
+  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(`post_${postId}`)}`;
+}
+
 function buildNotificationText(post: PostCandidate, appBaseUrl: string | null) {
   const title = hasText(post.title) ? post.title.trim() : "New publication";
   const postUrl = appBaseUrl ? `${appBaseUrl}/post/${post.id}` : null;
@@ -127,18 +149,47 @@ function buildNotificationText(post: PostCandidate, appBaseUrl: string | null) {
   return `News for your topic: ${title}`;
 }
 
-async function sendTelegramMessage(botToken: string, chatId: string, text: string) {
+function buildNotificationReplyMarkup(post: PostCandidate, botUsername: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppPostUrl(botUsername, post.id);
+  if (!miniAppUrl) {
+    return null;
+  }
+
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "Открыть в Mini App",
+          url: miniAppUrl,
+        },
+      ],
+    ],
+  };
+}
+
+async function sendTelegramMessage(
+  botToken: string,
+  chatId: string,
+  text: string,
+  replyMarkup: TelegramReplyMarkup | null,
+) {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    disable_web_page_preview: true,
+    text,
+  };
+
+  if (replyMarkup) {
+    body.reply_markup = replyMarkup;
+  }
+
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        chat_id: chatId,
-        disable_web_page_preview: true,
-        text,
-      }),
+      body: JSON.stringify(body),
     });
 
     const payload = await response.json().catch(() => null) as { description?: string; ok?: boolean } | null;
@@ -171,7 +222,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { appBaseUrl, botToken, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
+    const { appBaseUrl, botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
     ensureCronAuthorized(request, cronSecret);
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -282,6 +333,7 @@ serve(async (request: Request) => {
 
       const sendBatch = recipientsToSend.slice(0, remainingBudget);
       const messageText = buildNotificationText(post, appBaseUrl);
+      const replyMarkup = buildNotificationReplyMarkup(post, botUsername);
 
       for (const recipient of sendBatch) {
         const chatId = normalizeTelegramUserId(recipient.telegram_user_id);
@@ -290,7 +342,7 @@ serve(async (request: Request) => {
           continue;
         }
 
-        const sendResult = await sendTelegramMessage(botToken, chatId, messageText);
+        const sendResult = await sendTelegramMessage(botToken, chatId, messageText, replyMarkup);
         if (!sendResult.ok) {
           console.error("telegram-notify-topics send failed", {
             chatId,
