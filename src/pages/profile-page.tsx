@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bell, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Trash2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -316,18 +316,6 @@ export function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {canManageOwnPosts ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/my-posts')}
-                  className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
-                >
-                  <FilePenLine className="h-4 w-4" />
-                  {'Мои публикации'}
-                </button>
-              ) : null}
-            </div>
           </div>
         </FlatSection>
 
@@ -346,18 +334,16 @@ export function ProfilePage() {
         ) : null}
 
         <FlatSection className="pt-2">
-          <SectionTitle>{'ВАШЕ'}</SectionTitle>
+          <SectionTitle>{'Главное'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
             <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
-            {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Мои публикации" onClick={() => navigate('/my-posts')} /> : null}
             <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
             <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
-            {canManageOwnPosts ? <ProfileRow icon={FilePenLine} title="Панель автора" onClick={() => navigate('/author')} /> : null}
           </div>
         </FlatSection>
 
         <FlatSection className="pt-2">
-          <SectionTitle>{'УМНАЯ ЛЕНТА'}</SectionTitle>
+          <SectionTitle>{'Умная лента'}</SectionTitle>
           <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -428,13 +414,19 @@ export function ProfilePage() {
           </div>
         </FlatSection>
 
+        {canManageOwnPosts ? (
+          <FlatSection className="pt-2">
+            <SectionTitle>{'Мой контент'}</SectionTitle>
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <ProfileRow icon={FilePenLine} title="Мои публикации" onClick={() => navigate('/my-posts')} />
+              <ProfileRow icon={FilePenLine} title="Панель автора" onClick={() => navigate('/author')} />
+            </div>
+          </FlatSection>
+        ) : null}
+
         <FlatSection className="pt-2">
-          <SectionTitle>{'НАСТРОЙКИ'}</SectionTitle>
+          <SectionTitle>{'Приложение'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
-            <ProfileRow icon={Bell} title="Уведомления" subtitle="Темы" onClick={() => navigate('/notification-topics')} />
-            <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
-            <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
             {fullscreenSupported ? (
               <ProfileRow
                 icon={Settings2}
@@ -451,19 +443,28 @@ export function ProfilePage() {
               subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
               onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
             />
-            <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
             <ProfileRow
               icon={MoonStar}
               title="Цветовая схема"
               subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'}
               onClick={toggleTheme}
             />
+            <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
+            <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
+          </div>
+        </FlatSection>
+
+        <FlatSection className="pt-2">
+          <SectionTitle>{'Помощь и информация'}</SectionTitle>
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
+            <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
           </div>
         </FlatSection>
 
         {isAdminUser ? (
           <FlatSection className="pt-2">
-            <SectionTitle>{'АДМИН'}</SectionTitle>
+            <SectionTitle>{'Администрирование'}</SectionTitle>
             <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
               <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} />
               <ProfileRow icon={ScrollText} title="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
@@ -472,7 +473,7 @@ export function ProfilePage() {
         ) : null}
 
         <FlatSection className="border-b-0 pt-2">
-          <SectionTitle>{'АККАУНТ'}</SectionTitle>
+          <SectionTitle>{'Аккаунт'}</SectionTitle>
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
             <ProfileRow
               icon={LogOut}
