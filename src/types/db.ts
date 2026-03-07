@@ -51,10 +51,21 @@ export type Profile = {
   telegram_user_id: number | null;
   telegram_notifications_enabled: boolean;
   telegram_linked_at: string | null;
+  for_you_digest_enabled: boolean;
+  for_you_digest_threshold: number;
   username: string | null;
   full_name: string | null;
   avatar_url: string | null;
   created_at: string;
+};
+
+export type ForYouDigestStateRow = {
+  user_id: string;
+  current_bucket: number;
+  last_notified_count: number;
+  last_notified_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type FavoriteRow = {
@@ -172,6 +183,8 @@ export type Database = {
           telegram_user_id?: number | null;
           telegram_notifications_enabled?: boolean;
           telegram_linked_at?: string | null;
+          for_you_digest_enabled?: boolean;
+          for_you_digest_threshold?: number;
           username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
@@ -187,12 +200,42 @@ export type Database = {
           telegram_user_id?: number | null;
           telegram_notifications_enabled?: boolean;
           telegram_linked_at?: string | null;
+          for_you_digest_enabled?: boolean;
+          for_you_digest_threshold?: number;
           username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
           created_at?: string;
         };
         Relationships: [];
+      };
+      for_you_digest_state: {
+        Row: ForYouDigestStateRow;
+        Insert: {
+          user_id: string;
+          current_bucket?: number;
+          last_notified_count?: number;
+          last_notified_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          current_bucket?: number;
+          last_notified_count?: number;
+          last_notified_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'for_you_digest_state_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       publication_rules: {
         Row: PublicationRule;
@@ -286,6 +329,15 @@ export type Database = {
         Returns: Array<{
           id: string;
           handle: string;
+        }>;
+      };
+      get_for_you_digest_stats: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: Array<{
+          candidate_count: number;
+          newest_post_created_at: string | null;
         }>;
       };
       get_post_reaction_summaries: {
