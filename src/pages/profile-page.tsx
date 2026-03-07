@@ -62,7 +62,7 @@ function formatContinueReadingDate(value: string | null | undefined) {
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <p className="mb-2 mt-6 text-xs font-bold uppercase tracking-[0.24em] text-cyan-300/80">{children}</p>;
+  return <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-[0.24em] text-cyan-300/80">{children}</p>;
 }
 
 type ProfileRowProps = {
@@ -289,7 +289,7 @@ export function ProfilePage() {
 
   return (
     <FlatPage className="py-6 sm:py-8">
-      <div className="space-y-2">
+      <div className="space-y-1">
         <FlatSection className="pt-0">
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
             <div className="flex items-start justify-between gap-4">
