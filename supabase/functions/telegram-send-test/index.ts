@@ -23,6 +23,14 @@ type ProfileTelegramSettings = {
   telegram_user_id: number | string | null;
 };
 
+type PublishedPostCandidate = {
+  id: string;
+};
+
+type TelegramReplyMarkup = {
+  inline_keyboard: Array<Array<{ text: string; url: string }>>;
+};
+
 type TelegramUser = {
   id: number;
 };
@@ -56,12 +64,13 @@ function getRequiredServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
+  const botUsername = normalizeBotUsername(Deno.env.get("VITE_TELEGRAM_BOT_USERNAME") ?? null);
 
   if (!url || !anon || !serviceRoleKey) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { anon, serviceRoleKey, url };
+  return { anon, botUsername, serviceRoleKey, url };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -77,6 +86,23 @@ function normalizeTelegramUserId(value: number | string | null): string | null {
   }
 
   return null;
+}
+
+function normalizeBotUsername(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().replace(/^@+/u, "");
+  return normalized || null;
+}
+
+function buildMiniAppPostUrl(botUsername: string | null, postId: string) {
+  if (!botUsername) {
+    return null;
+  }
+
+  return `https://t.me/${botUsername}?startapp=${encodeURIComponent(`post_${postId}`)}`;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -223,18 +249,59 @@ async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof crea
   return (data as ProfileTelegramSettings | null) ?? null;
 }
 
-async function sendTelegramMessage(token: string, chatId: string, text: string) {
+async function loadLatestPublishedPostId(serviceClient: ReturnType<typeof createClient>) {
+  const { data, error } = await serviceClient
+    .from("posts")
+    .select("id")
+    .eq("is_published", true)
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    throw new HttpError(500, error.message);
+  }
+
+  const [post] = (data ?? []) as PublishedPostCandidate[];
+  return post?.id ?? null;
+}
+
+function buildNotificationReplyMarkup(postId: string, botUsername: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppPostUrl(botUsername, postId);
+  if (!miniAppUrl) {
+    return null;
+  }
+
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "Открыть в Mini App",
+          url: miniAppUrl,
+        },
+      ],
+    ],
+  };
+}
+
+async function sendTelegramMessage(token: string, chatId: string, text: string, replyMarkup: TelegramReplyMarkup | null) {
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+  };
+
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
+
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const telegramResp = await fetch(url, {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (telegramResp.ok) {
@@ -273,7 +340,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { anon, serviceRoleKey, url } = getRequiredServerEnv();
+    const { anon, botUsername, serviceRoleKey, url } = getRequiredServerEnv();
     const serviceClient = createClient(url, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -312,7 +379,9 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT);
+    const latestPostId = await loadLatestPublishedPostId(serviceClient);
+    const replyMarkup = latestPostId ? buildNotificationReplyMarkup(latestPostId, botUsername) : null;
+    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT, replyMarkup);
     if (!telegramSendResult.ok) {
       return jsonResponse(
         {
