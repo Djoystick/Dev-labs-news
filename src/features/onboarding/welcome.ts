@@ -1,7 +1,8 @@
-const WELCOME_ONBOARDING_STORAGE_PREFIX = 'devlabs.onboarding.welcome.v1';
+const WELCOME_ONBOARDING_STORAGE_NAMESPACE = 'devlabs.onboarding.welcome';
+export const WELCOME_ONBOARDING_VERSION = 'v1';
 
 function getWelcomeOnboardingStorageKey(userId: string) {
-  return `${WELCOME_ONBOARDING_STORAGE_PREFIX}:${userId}`;
+  return `${WELCOME_ONBOARDING_STORAGE_NAMESPACE}.${WELCOME_ONBOARDING_VERSION}:${userId}`;
 }
 
 function getAvailableStorages() {
@@ -57,4 +58,3 @@ export function markWelcomeOnboardingDone(userId: string) {
     }
   }
 }
-
