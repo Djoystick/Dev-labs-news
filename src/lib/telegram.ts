@@ -16,6 +16,14 @@ type TelegramSafeAreaInsets = {
 
 type TelegramEventHandler = (...args: unknown[]) => void;
 
+export type TelegramLaunchIntent = {
+  startParam: string | null;
+  startParamFromInitData: string | null;
+  startParamFromQuery: string | null;
+  startParamFromUnsafe: string | null;
+  targetPath: string | null;
+};
+
 export const telegramFullscreenStorageKey = 'tma_fullscreen_enabled';
 
 declare global {
@@ -71,18 +79,45 @@ function normalizeStartParam(value: string | null | undefined) {
   return normalized || null;
 }
 
-export function getTelegramStartParam() {
-  const fromInitData = normalizeStartParam(getTelegramWebApp()?.initDataUnsafe?.start_param);
-  if (fromInitData) {
-    return fromInitData;
+function getStartParamFromUnsafe() {
+  return normalizeStartParam(getTelegramWebApp()?.initDataUnsafe?.start_param);
+}
+
+function getStartParamFromInitData() {
+  const initData = normalizeStartParam(getTelegramWebApp()?.initData);
+  if (!initData) {
+    return null;
   }
 
+  try {
+    const params = new URLSearchParams(initData);
+    return normalizeStartParam(params.get('start_param'));
+  } catch {
+    return null;
+  }
+}
+
+function getStartParamFromQuery() {
   if (typeof window === 'undefined') {
     return null;
   }
 
   const query = new URLSearchParams(window.location.search);
   return normalizeStartParam(query.get('tgWebAppStartParam'));
+}
+
+export function getTelegramStartParam() {
+  const fromUnsafe = getStartParamFromUnsafe();
+  if (fromUnsafe) {
+    return fromUnsafe;
+  }
+
+  const fromInitData = getStartParamFromInitData();
+  if (fromInitData) {
+    return fromInitData;
+  }
+
+  return getStartParamFromQuery();
 }
 
 export function getPostIdFromTelegramStartParam(startParam: string | null | undefined) {
@@ -111,6 +146,21 @@ export function getPathFromTelegramStartParam(startParam: string | null | undefi
   }
 
   return `/post/${postId}`;
+}
+
+export function resolveTelegramLaunchIntent(): TelegramLaunchIntent {
+  const startParamFromUnsafe = getStartParamFromUnsafe();
+  const startParamFromInitData = getStartParamFromInitData();
+  const startParamFromQuery = getStartParamFromQuery();
+  const startParam = startParamFromUnsafe ?? startParamFromInitData ?? startParamFromQuery;
+
+  return {
+    startParam,
+    startParamFromInitData,
+    startParamFromQuery,
+    startParamFromUnsafe,
+    targetPath: getPathFromTelegramStartParam(startParam),
+  };
 }
 
 export function initTelegramWebApp() {
