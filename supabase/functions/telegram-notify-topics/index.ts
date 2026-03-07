@@ -265,6 +265,10 @@ function ensureCronAuthorized(request: Request, expectedSecret: string) {
   }
 }
 
+function isLegacyTopicNotificationsEnabled() {
+  return Deno.env.get("ENABLE_LEGACY_TOPIC_NOTIFICATIONS") === "1";
+}
+
 serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: responseHeaders });
@@ -275,8 +279,29 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { appBaseUrl, botToken, botUsername, miniAppShortName, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) {
+      throw new HttpError(500, "Server misconfigured");
+    }
     ensureCronAuthorized(request, cronSecret);
+
+    if (!isLegacyTopicNotificationsEnabled()) {
+      console.log("telegram-notify-topics skipped: legacy topic notifications are disabled");
+      return jsonResponse({
+        ok: true,
+        legacyDisabled: true,
+        message: "Legacy topic notifications are disabled. Use telegram-notify-for-you-digest.",
+        errorsCount: 0,
+        processedPosts: 0,
+        sent: 0,
+        skippedAlreadySent: 0,
+        skippedDisabled: 0,
+        totalRecipients: 0,
+        runLimit: MAX_SEND_PER_RUN,
+      });
+    }
+
+    const { appBaseUrl, botToken, botUsername, miniAppShortName, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
