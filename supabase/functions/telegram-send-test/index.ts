@@ -280,14 +280,6 @@ function buildNotificationReplyMarkup(botUsername: string | null, miniAppShortNa
   };
 }
 
-function buildTestMessageText(baseText: string, deepLink: string | null) {
-  if (!deepLink) {
-    return baseText;
-  }
-
-  return `${baseText}\n\nDeep link: ${deepLink}`;
-}
-
 function toInlineReplyMarkup(replyMarkup: TelegramReplyMarkup | null): TelegramReplyMarkup | null {
   if (!replyMarkup || !Array.isArray(replyMarkup.inline_keyboard)) {
     return null;
@@ -414,14 +406,8 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const deepLink = buildMiniAppStartAppUrl(botUsername, miniAppShortName, "for_you");
-    console.log("telegram-send-test deep-link", {
-      deepLink: deepLink ?? null,
-      hasMiniAppShortName: Boolean(miniAppShortName),
-    });
     const replyMarkup = buildNotificationReplyMarkup(botUsername, miniAppShortName);
-    const messageText = buildTestMessageText(TEST_TEXT, deepLink);
-    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, messageText, replyMarkup);
+    const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT, replyMarkup);
     if (!telegramSendResult.ok) {
       return jsonResponse(
         {
