@@ -81,6 +81,74 @@ function getTopicKey(post: Post) {
   return post.topic?.id ?? post.topic_id ?? null;
 }
 
+function softDiversifyByTopic(posts: Post[], maxStreak = 2) {
+  if (posts.length <= 2) {
+    return posts;
+  }
+
+  const queues = new Map<string, Post[]>();
+  const topicOrder: string[] = [];
+
+  for (const post of posts) {
+    const topicKey = getTopicKey(post) ?? `__no_topic__:${post.id}`;
+    const queue = queues.get(topicKey);
+    if (queue) {
+      queue.push(post);
+      continue;
+    }
+
+    queues.set(topicKey, [post]);
+    topicOrder.push(topicKey);
+  }
+
+  const result: Post[] = [];
+  let lastTopic: string | null = null;
+  let streak = 0;
+
+  while (result.length < posts.length) {
+    let selectedTopic: string | null = null;
+
+    for (const topicKey of topicOrder) {
+      const queue = queues.get(topicKey);
+      if (!queue || queue.length === 0) {
+        continue;
+      }
+
+      if (lastTopic && topicKey === lastTopic && streak >= maxStreak) {
+        continue;
+      }
+
+      selectedTopic = topicKey;
+      break;
+    }
+
+    if (!selectedTopic) {
+      selectedTopic = topicOrder.find((topicKey) => (queues.get(topicKey)?.length ?? 0) > 0) ?? null;
+    }
+
+    if (!selectedTopic) {
+      break;
+    }
+
+    const queue = queues.get(selectedTopic);
+    const nextPost = queue?.shift();
+    if (!nextPost) {
+      continue;
+    }
+
+    result.push(nextPost);
+
+    if (selectedTopic === lastTopic) {
+      streak += 1;
+    } else {
+      lastTopic = selectedTopic;
+      streak = 1;
+    }
+  }
+
+  return result.length === posts.length ? result : posts;
+}
+
 export function ForYouPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -216,7 +284,7 @@ export function ForYouPage() {
   const { filteredPosts: postsAfterReadFilter, hiddenReadEnabled } = useFilteredFeedPosts(postsAfterDislikedFilter);
   const posts = useMemo(() => {
     if (likedTopicsSet.size === 0 && topicAffinityCounts.size === 0) {
-      return postsAfterReadFilter;
+      return softDiversifyByTopic(postsAfterReadFilter);
     }
 
     const manualPreferredPosts: Post[] = [];
@@ -234,7 +302,11 @@ export function ForYouPage() {
       }
     }
 
-    return [...manualPreferredPosts, ...autoReadPreferredPosts, ...regularPosts];
+    return [
+      ...softDiversifyByTopic(manualPreferredPosts),
+      ...softDiversifyByTopic(autoReadPreferredPosts),
+      ...softDiversifyByTopic(regularPosts),
+    ];
   }, [likedTopicsSet, postsAfterReadFilter, topicAffinityCounts]);
   const { filteredPosts: searchedPosts, hasQuery } = usePostSearch(posts, searchQuery);
   const postIds = useMemo(() => searchedPosts.map((post) => post.id), [searchedPosts]);
