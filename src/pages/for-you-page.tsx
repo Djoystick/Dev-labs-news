@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
@@ -14,6 +14,8 @@ import { useRecommendationsPreferences } from '@/features/recommendations/prefer
 import { forYouSearchStorageKey, usePersistentSearchQuery, usePostSearch } from '@/features/search/post-search';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
+import { fetchMyTopicIds } from '@/features/topics/api';
+import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
 const defaultLimit = 20;
@@ -80,13 +82,60 @@ function getTopicKey(post: Post) {
 
 export function ForYouPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
   const { clearTopicPreference, dislikeTopic, dislikedTopics, getTopicPreference, likeTopic, likedTopics, readTopics } = useRecommendationsPreferences();
   const [searchQuery, setSearchQuery] = usePersistentSearchQuery(forYouSearchStorageKey);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [preferredTopicIds, setPreferredTopicIds] = useState<string[] | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const { data, error, isLoading, retry } = useRecommendedPosts(defaultLimit);
   const recommendedPosts = useMemo(() => attachTopics(data, topics), [data, topics]);
+  const preferredTopicIdSet = useMemo(() => new Set(preferredTopicIds ?? []), [preferredTopicIds]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPreferredTopicIds(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setPreferredTopicIds(null);
+
+    void fetchMyTopicIds(user.id, controller.signal)
+      .then((topicIds) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPreferredTopicIds(topicIds);
+      })
+      .catch(() => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setPreferredTopicIds(null);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [user?.id]);
+
+  const profileScopedPosts = useMemo(() => {
+    if (!user?.id || preferredTopicIds === null) {
+      return recommendedPosts;
+    }
+
+    if (preferredTopicIdSet.size === 0) {
+      return [];
+    }
+
+    return recommendedPosts.filter((post) => preferredTopicIdSet.has(post.topic_id));
+  }, [preferredTopicIdSet, preferredTopicIds, recommendedPosts, user?.id]);
+
   const likedTopicsSet = useMemo(() => new Set(likedTopics), [likedTopics]);
   const dislikedTopicsSet = useMemo(() => new Set(dislikedTopics), [dislikedTopics]);
   const topicAffinityCounts = useMemo(() => {
@@ -126,14 +175,14 @@ export function ForYouPage() {
   }, [knownPosts, readPostIds, readTopics, recommendedPosts]);
   const postsAfterDislikedFilter = useMemo(() => {
     if (dislikedTopicsSet.size === 0) {
-      return recommendedPosts;
+      return profileScopedPosts;
     }
 
-    return recommendedPosts.filter((post) => {
+    return profileScopedPosts.filter((post) => {
       const topicKey = getTopicKey(post);
       return !topicKey || !dislikedTopicsSet.has(topicKey);
     });
-  }, [dislikedTopicsSet, recommendedPosts]);
+  }, [dislikedTopicsSet, profileScopedPosts]);
   const { filteredPosts: postsAfterReadFilter, hiddenReadEnabled } = useFilteredFeedPosts(postsAfterDislikedFilter);
   const posts = useMemo(() => {
     if (likedTopicsSet.size === 0 && topicAffinityCounts.size === 0) {
@@ -160,14 +209,15 @@ export function ForYouPage() {
   const { filteredPosts: searchedPosts, hasQuery } = usePostSearch(posts, searchQuery);
   const postIds = useMemo(() => searchedPosts.map((post) => post.id), [searchedPosts]);
   const { summariesById, toggle, isPending } = useReactions(postIds);
-  const isPreferenceFilteredEmpty = recommendedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
+  const isProfileSectionsEmpty = Boolean(user?.id && preferredTopicIds !== null && preferredTopicIds.length === 0);
+  const isPreferenceFilteredEmpty = profileScopedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
   const isReadHiddenEmpty = hiddenReadEnabled && postsAfterDislikedFilter.length > 0 && postsAfterReadFilter.length === 0;
   const isSearchEmpty = hasQuery && posts.length > 0 && searchedPosts.length === 0;
 
   const recommendationReasons = useMemo(() => {
     const reasons = new Map<string, string>();
 
-    for (const post of recommendedPosts) {
+    for (const post of profileScopedPosts) {
       const topicKey = getTopicKey(post);
 
       if (!topicKey) {
@@ -195,22 +245,38 @@ export function ForYouPage() {
     }
 
     return reasons;
-  }, [likedTopicsSet, recommendedPosts, topicAffinityCounts]);
+  }, [likedTopicsSet, profileScopedPosts, topicAffinityCounts]);
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
       <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
         <FlatSection className="pt-0 sm:pt-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center text-primary">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
+                <h1 className="mt-1 text-3xl font-extrabold leading-tight sm:text-4xl">Умная лента</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Для тебя</p>
-              <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Рекомендации для вас</h1>
+            <div className="relative shrink-0">
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-full border border-border/70 text-sm" onClick={() => setIsInfoOpen((value) => !value)}>
+                <span aria-hidden="true">🛈</span>
+                <span className="sr-only">Как работает подборка</span>
+              </Button>
+              {isInfoOpen ? (
+                <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-border/70 bg-background/95 p-3 text-xs leading-5 text-muted-foreground shadow-xl">
+                  Подборка настраивается в Профиле через кнопку «Разделы».
+                </div>
+              ) : null}
             </div>
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">Лента показывает материалы по выбранным разделам и скрывает статьи, которые вы уже сохранили.</p>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Материалы подбираются по разделам из профиля и вашей активности.</p>
+          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => navigate('/topic-preferences')}>
+            Разделы в профиле
+          </Button>
           <div className="relative mt-4">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -242,7 +308,14 @@ export function ForYouPage() {
 
         {isLoading ? (
           <FeedRowsSkeleton />
-        ) : recommendedPosts.length === 0 ? (
+        ) : isProfileSectionsEmpty ? (
+          <StateCard
+            title="Выберите разделы в профиле"
+            description="Умная лента и digest-подборки используют разделы из Профиля."
+            actionLabel="Открыть разделы"
+            onAction={() => navigate('/topic-preferences')}
+          />
+        ) : profileScopedPosts.length === 0 ? (
           <EmptyState
             title="Пока нет рекомендаций"
             description="Выберите разделы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."

@@ -137,7 +137,7 @@ export function TopicPreferencesPage() {
         </div>
 
         <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-          {'Обновите разделы, которые влияют на ваши рекомендации и будущие уведомления.'}
+          {'Эти разделы формируют вкладку «Для тебя» и будущие digest-уведомления. Обычная Лента настраивается отдельно на своём экране.'}
         </p>
       </FlatSection>
 
