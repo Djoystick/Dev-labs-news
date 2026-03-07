@@ -18,16 +18,26 @@ type TelegramEventHandler = (...args: unknown[]) => void;
 
 export type TelegramLaunchIntent = {
   startParam: string | null;
+  startParamFromHash: string | null;
+  startParamFromHref: string | null;
   startParamFromInitData: string | null;
   startParamFromQuery: string | null;
   startParamFromUnsafe: string | null;
   targetPath: string | null;
 };
 
+export type TelegramEarlyLaunchDebug = {
+  earlyCapturedLaunchTarget: string | null;
+  rawHash: string;
+  rawSearch: string;
+};
+
 export const telegramFullscreenStorageKey = 'tma_fullscreen_enabled';
+export const telegramLaunchTargetStorageKey = 'telegram_launch_target';
 
 declare global {
   interface Window {
+    __devLabsEarlyLaunchDebug?: TelegramEarlyLaunchDebug;
     __devLabsTmaRuntimeInitialized?: boolean;
     Telegram?: {
       WebApp?: {
@@ -79,6 +89,15 @@ function normalizeStartParam(value: string | null | undefined) {
   return normalized || null;
 }
 
+function getStartParamFromSearchParams(params: URLSearchParams) {
+  const fromTelegram = normalizeStartParam(params.get('tgWebAppStartParam'));
+  if (fromTelegram) {
+    return fromTelegram;
+  }
+
+  return normalizeStartParam(params.get('start_param'));
+}
+
 function getStartParamFromUnsafe() {
   return normalizeStartParam(getTelegramWebApp()?.initDataUnsafe?.start_param);
 }
@@ -103,7 +122,71 @@ function getStartParamFromQuery() {
   }
 
   const query = new URLSearchParams(window.location.search);
-  return normalizeStartParam(query.get('tgWebAppStartParam'));
+  return getStartParamFromSearchParams(query);
+}
+
+function getStartParamFromHash() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const rawHash = window.location.hash;
+  if (!rawHash) {
+    return null;
+  }
+
+  const normalizedHash = rawHash.replace(/^#/u, '');
+  if (!normalizedHash) {
+    return null;
+  }
+
+  const fromHashParams = getStartParamFromSearchParams(new URLSearchParams(normalizedHash));
+  if (fromHashParams) {
+    return fromHashParams;
+  }
+
+  const queryIndex = normalizedHash.indexOf('?');
+  if (queryIndex >= 0 && queryIndex + 1 < normalizedHash.length) {
+    const fromHashQuery = getStartParamFromSearchParams(new URLSearchParams(normalizedHash.slice(queryIndex + 1)));
+    if (fromHashQuery) {
+      return fromHashQuery;
+    }
+  }
+
+  return null;
+}
+
+function getStartParamFromHref() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const hrefUrl = new URL(window.location.href);
+    const fromSearch = getStartParamFromSearchParams(hrefUrl.searchParams);
+    if (fromSearch) {
+      return fromSearch;
+    }
+
+    const hashValue = hrefUrl.hash.replace(/^#/u, '');
+    if (!hashValue) {
+      return null;
+    }
+
+    const fromHash = getStartParamFromSearchParams(new URLSearchParams(hashValue));
+    if (fromHash) {
+      return fromHash;
+    }
+
+    const queryIndex = hashValue.indexOf('?');
+    if (queryIndex >= 0 && queryIndex + 1 < hashValue.length) {
+      return getStartParamFromSearchParams(new URLSearchParams(hashValue.slice(queryIndex + 1)));
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 export function getTelegramStartParam() {
@@ -117,7 +200,17 @@ export function getTelegramStartParam() {
     return fromInitData;
   }
 
-  return getStartParamFromQuery();
+  const fromQuery = getStartParamFromQuery();
+  if (fromQuery) {
+    return fromQuery;
+  }
+
+  const fromHash = getStartParamFromHash();
+  if (fromHash) {
+    return fromHash;
+  }
+
+  return getStartParamFromHref();
 }
 
 export function getPostIdFromTelegramStartParam(startParam: string | null | undefined) {
@@ -152,15 +245,79 @@ export function resolveTelegramLaunchIntent(): TelegramLaunchIntent {
   const startParamFromUnsafe = getStartParamFromUnsafe();
   const startParamFromInitData = getStartParamFromInitData();
   const startParamFromQuery = getStartParamFromQuery();
-  const startParam = startParamFromUnsafe ?? startParamFromInitData ?? startParamFromQuery;
+  const startParamFromHash = getStartParamFromHash();
+  const startParamFromHref = getStartParamFromHref();
+  const startParam = startParamFromUnsafe ?? startParamFromInitData ?? startParamFromQuery ?? startParamFromHash ?? startParamFromHref;
 
   return {
     startParam,
+    startParamFromHash,
+    startParamFromHref,
     startParamFromInitData,
     startParamFromQuery,
     startParamFromUnsafe,
     targetPath: getPathFromTelegramStartParam(startParam),
   };
+}
+
+export function captureTelegramLaunchTargetEarly() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const launchIntent = resolveTelegramLaunchIntent();
+  const snapshot: TelegramEarlyLaunchDebug = {
+    earlyCapturedLaunchTarget: launchIntent.targetPath,
+    rawHash: window.location.hash ?? '',
+    rawSearch: window.location.search ?? '',
+  };
+
+  window.__devLabsEarlyLaunchDebug = snapshot;
+
+  if (!launchIntent.targetPath) {
+    return snapshot;
+  }
+
+  try {
+    window.sessionStorage.setItem(telegramLaunchTargetStorageKey, launchIntent.targetPath);
+  } catch {
+    // no-op: launch target persistence is best-effort only
+  }
+
+  return snapshot;
+}
+
+export function getStoredTelegramLaunchTarget() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const value = window.sessionStorage.getItem(telegramLaunchTargetStorageKey);
+    return normalizeStartParam(value);
+  } catch {
+    return null;
+  }
+}
+
+export function clearStoredTelegramLaunchTarget() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(telegramLaunchTargetStorageKey);
+  } catch {
+    // no-op
+  }
+}
+
+export function getTelegramEarlyLaunchDebug() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.__devLabsEarlyLaunchDebug ?? null;
 }
 
 export function initTelegramWebApp() {
