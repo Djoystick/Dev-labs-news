@@ -64,7 +64,7 @@ function getRequiredServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
-  const botUsername = normalizeBotUsername(Deno.env.get("VITE_TELEGRAM_BOT_USERNAME") ?? null);
+  const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
 
   if (!url || !anon || !serviceRoleKey) {
     throw new HttpError(500, "Server misconfigured");
@@ -295,6 +295,11 @@ async function sendTelegramMessage(token: string, chatId: string, text: string, 
     payload.reply_markup = replyMarkup;
   }
 
+  console.log("telegram-send-test sendMessage payload", {
+    hasReplyMarkup: Boolean(replyMarkup),
+    hasInlineKeyboard: Boolean(replyMarkup?.inline_keyboard?.length),
+  });
+
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const telegramResp = await fetch(url, {
     method: "POST",
@@ -304,22 +309,31 @@ async function sendTelegramMessage(token: string, chatId: string, text: string, 
     body: JSON.stringify(payload),
   });
 
-  if (telegramResp.ok) {
+  const raw = await telegramResp.text();
+  let parsed: { description?: string; error_code?: number; ok?: boolean } | null = null;
+  if (raw) {
+    try {
+      parsed = JSON.parse(raw) as { description?: string; error_code?: number; ok?: boolean };
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (telegramResp.ok && parsed?.ok !== false) {
     return { message: null, ok: true };
   }
 
-  const raw = await telegramResp.text();
+  console.error("telegram-send-test Telegram API error", {
+    responseStatus: telegramResp.status,
+    responseText: raw || null,
+  });
+
   let message = raw || "Telegram API returned an error.";
 
-  try {
-    const parsed = JSON.parse(raw) as { description?: string; error_code?: number };
-    if (typeof parsed.description === "string" && parsed.description.trim()) {
-      message = parsed.description.trim();
-    } else if (typeof parsed.error_code === "number") {
-      message = `Telegram error code ${parsed.error_code}`;
-    }
-  } catch {
-    // Keep raw text for diagnostics when JSON parsing fails.
+  if (typeof parsed?.description === "string" && parsed.description.trim()) {
+    message = parsed.description.trim();
+  } else if (typeof parsed?.error_code === "number") {
+    message = `Telegram error code ${parsed.error_code}`;
   }
 
   return { message, ok: false };

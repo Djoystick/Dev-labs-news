@@ -100,7 +100,7 @@ function getRequiredServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  const botUsername = normalizeBotUsername(Deno.env.get("VITE_TELEGRAM_BOT_USERNAME") ?? null);
+  const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
   const cronSecret = Deno.env.get("CRON_SECRET");
   const appBaseUrl = sanitizeBaseUrl(Deno.env.get("APP_BASE_URL") ?? null);
 
@@ -173,15 +173,20 @@ async function sendTelegramMessage(
   text: string,
   replyMarkup: TelegramReplyMarkup | null,
 ) {
-  const body: Record<string, unknown> = {
+  const payload: Record<string, unknown> = {
     chat_id: chatId,
     disable_web_page_preview: true,
     text,
   };
 
   if (replyMarkup) {
-    body.reply_markup = replyMarkup;
+    payload.reply_markup = replyMarkup;
   }
+
+  console.log("telegram-notify-topics sendMessage payload", {
+    hasReplyMarkup: Boolean(replyMarkup),
+    hasInlineKeyboard: Boolean(replyMarkup?.inline_keyboard?.length),
+  });
 
   try {
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -189,15 +194,29 @@ async function sendTelegramMessage(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
 
-    const payload = await response.json().catch(() => null) as { description?: string; ok?: boolean } | null;
-    if (response.ok && payload?.ok !== false) {
+    const raw = await response.text();
+    let telegramPayload: { description?: string; ok?: boolean } | null = null;
+    if (raw) {
+      try {
+        telegramPayload = JSON.parse(raw) as { description?: string; ok?: boolean } | null;
+      } catch {
+        telegramPayload = null;
+      }
+    }
+
+    if (response.ok && telegramPayload?.ok !== false) {
       return { error: null, ok: true };
     }
 
-    const description = hasText(payload?.description) ? payload.description : "Telegram API returned an error.";
+    console.error("telegram-notify-topics Telegram API error", {
+      responseStatus: response.status,
+      responseText: raw || null,
+    });
+
+    const description = hasText(telegramPayload?.description) ? telegramPayload.description : "Telegram API returned an error.";
     return { error: description, ok: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Telegram sendMessage failed.";
