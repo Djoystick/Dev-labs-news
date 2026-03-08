@@ -722,7 +722,7 @@ export function AuthorPanelPage() {
               <Select
                 value={topicFilter}
                 onChange={(event) => setTopicFilter(event.target.value)}
-                className="h-8 min-w-[12rem] rounded-full border-white/10 bg-white/5 px-3 text-xs text-white hover:bg-white/10"
+                className="author-topic-filter-select h-8 min-w-[12rem] rounded-full border-white/10 bg-white/5 px-3 text-xs text-white hover:bg-white/10"
               >
                 <option value={ALL_TOPICS_VALUE}>Все темы</option>
                 {topicOptions.map((topic) => (

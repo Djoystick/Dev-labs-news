@@ -132,6 +132,20 @@ html[data-reduce-motion='true'] *::after {
 }
 
 @layer utilities {
+  .author-topic-filter-select {
+    color-scheme: dark;
+  }
+
+  .author-topic-filter-select option {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
+  .author-topic-filter-select option:checked {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+
   .safe-pb {
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
   }
