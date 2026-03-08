@@ -3,7 +3,6 @@ const forYouStartPayload = 'for_you';
 
 export type TelegramMiniAppConfig = {
   botUsername?: string | null;
-  miniAppShortName?: string | null;
 };
 
 function normalizePostId(value: string | null | undefined) {
@@ -21,15 +20,6 @@ function normalizeBotUsername(value: string | null | undefined) {
   }
 
   const normalized = value.trim().replace(/^@+/u, '');
-  return normalized || null;
-}
-
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, '').replace(/\/+$/u, '');
   return normalized || null;
 }
 
@@ -89,12 +79,7 @@ export function buildMiniAppStartLink(startPayload: string, config: TelegramMini
     return null;
   }
 
-  const miniAppShortName = normalizeMiniAppShortName(config.miniAppShortName ?? null);
   const encodedPayload = encodeURIComponent(normalizedPayload);
-
-  if (miniAppShortName) {
-    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
-  }
 
   return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
 }

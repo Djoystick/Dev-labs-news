@@ -6,7 +6,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildMiniAppForYouUrl,
   normalizeBotUsername,
-  normalizeMiniAppShortName,
 } from "../_shared/miniapp-links.ts";
 
 const corsHeaders = {
@@ -66,15 +65,12 @@ function getRequiredServerEnv() {
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
-  const miniAppShortName = normalizeMiniAppShortName(
-    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
-  );
 
   if (!url || !anon || !serviceRoleKey) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { anon, botUsername, miniAppShortName, serviceRoleKey, url };
+  return { anon, botUsername, serviceRoleKey, url };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -236,8 +232,8 @@ async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof crea
   return (data as ProfileTelegramSettings | null) ?? null;
 }
 
-function buildNotificationReplyMarkup(botUsername: string | null, miniAppShortName: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppForYouUrl(botUsername, miniAppShortName);
+function buildNotificationReplyMarkup(botUsername: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppForYouUrl(botUsername);
   if (!miniAppUrl) {
     return null;
   }
@@ -341,7 +337,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { anon, botUsername, miniAppShortName, serviceRoleKey, url } = getRequiredServerEnv();
+    const { anon, botUsername, serviceRoleKey, url } = getRequiredServerEnv();
     const serviceClient = createClient(url, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -380,7 +376,7 @@ serve(async (request: Request) => {
       throw new HttpError(400, "Уведомления в Telegram выключены. Включите их в настройках.");
     }
 
-    const replyMarkup = buildNotificationReplyMarkup(botUsername, miniAppShortName);
+    const replyMarkup = buildNotificationReplyMarkup(botUsername);
     const telegramSendResult = await sendTelegramMessage(botToken, telegramUserId, TEST_TEXT, replyMarkup);
     if (!telegramSendResult.ok) {
       return jsonResponse(

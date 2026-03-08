@@ -6,7 +6,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildMiniAppPostUrl,
   normalizeBotUsername,
-  normalizeMiniAppShortName,
 } from "../_shared/miniapp-links.ts";
 
 const MAX_SEND_PER_RUN = 100;
@@ -97,9 +96,6 @@ function getRequiredServerEnv() {
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
-  const miniAppShortName = normalizeMiniAppShortName(
-    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
-  );
   const cronSecret = Deno.env.get("CRON_SECRET");
   const appBaseUrl = sanitizeBaseUrl(Deno.env.get("APP_BASE_URL") ?? null);
 
@@ -107,7 +103,7 @@ function getRequiredServerEnv() {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { appBaseUrl, botToken, botUsername, miniAppShortName, cronSecret, serviceRoleKey, supabaseUrl };
+  return { appBaseUrl, botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -144,8 +140,8 @@ function buildNotificationText(post: PostCandidate, appBaseUrl: string | null, m
   return `News for your topic: ${title}`;
 }
 
-function buildNotificationReplyMarkup(post: PostCandidate, botUsername: string | null, miniAppShortName: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppPostUrl(botUsername, miniAppShortName, post.id);
+function buildNotificationReplyMarkup(post: PostCandidate, botUsername: string | null): TelegramReplyMarkup | null {
+  const miniAppUrl = buildMiniAppPostUrl(botUsername, post.id);
   if (!miniAppUrl) {
     return null;
   }
@@ -279,7 +275,7 @@ serve(async (request: Request) => {
       });
     }
 
-    const { appBaseUrl, botToken, botUsername, miniAppShortName, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
+    const { appBaseUrl, botToken, botUsername, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -388,7 +384,7 @@ serve(async (request: Request) => {
       }
 
       const sendBatch = recipientsToSend.slice(0, remainingBudget);
-      const replyMarkup = buildNotificationReplyMarkup(post, botUsername, miniAppShortName);
+      const replyMarkup = buildNotificationReplyMarkup(post, botUsername);
       const miniAppUrl = replyMarkup?.inline_keyboard?.[0]?.[0]?.url ?? null;
       const messageText = buildNotificationText(post, appBaseUrl, miniAppUrl);
 

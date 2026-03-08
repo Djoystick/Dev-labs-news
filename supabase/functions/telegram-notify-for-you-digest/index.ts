@@ -6,7 +6,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildMiniAppForYouUrl,
   normalizeBotUsername,
-  normalizeMiniAppShortName,
 } from "../_shared/miniapp-links.ts";
 
 const MAX_SEND_PER_RUN = 100;
@@ -82,16 +81,13 @@ function getRequiredServerEnv() {
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
-  const miniAppShortName = normalizeMiniAppShortName(
-    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
-  );
   const cronSecret = Deno.env.get("CRON_SECRET");
 
   if (!supabaseUrl || !serviceRoleKey || !botToken || !botUsername || !cronSecret) {
     throw new HttpError(500, "Server misconfigured");
   }
 
-  return { botToken, botUsername, cronSecret, miniAppShortName, serviceRoleKey, supabaseUrl };
+  return { botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl };
 }
 
 function normalizeTelegramUserId(value: number | string | null): string | null {
@@ -133,8 +129,8 @@ function ensureCronAuthorized(request: Request, expectedSecret: string) {
   }
 }
 
-function buildDigestReplyMarkup(botUsername: string, miniAppShortName: string | null): TelegramReplyMarkup {
-  const miniAppUrl = buildMiniAppForYouUrl(botUsername, miniAppShortName);
+function buildDigestReplyMarkup(botUsername: string): TelegramReplyMarkup {
+  const miniAppUrl = buildMiniAppForYouUrl(botUsername);
   if (!miniAppUrl) {
     throw new HttpError(500, "Server misconfigured");
   }
@@ -221,7 +217,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { botToken, botUsername, cronSecret, miniAppShortName, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
+    const { botToken, botUsername, cronSecret, serviceRoleKey, supabaseUrl } = getRequiredServerEnv();
     ensureCronAuthorized(request, cronSecret);
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -280,7 +276,7 @@ serve(async (request: Request) => {
     const stateByUserId = new Map<string, DigestStateRow>(
       ((statesResult.data ?? []) as DigestStateRow[]).map((state) => [state.user_id, state]),
     );
-    const replyMarkup = buildDigestReplyMarkup(botUsername, miniAppShortName);
+    const replyMarkup = buildDigestReplyMarkup(botUsername);
 
     for (const recipient of recipients) {
       summary.processedUsers += 1;

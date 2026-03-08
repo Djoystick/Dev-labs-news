@@ -2,7 +2,6 @@ export type PublicEnv = {
   supabaseAnonKey: string;
   supabaseUrl: string;
   telegramBotUsername: string | null;
-  telegramMiniAppShortName: string | null;
 };
 
 const viteEnv = import.meta.env;
@@ -16,20 +15,10 @@ function normalizeBotUsername(value: string | null | undefined) {
   return normalized || null;
 }
 
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, '').replace(/\/+$/u, '');
-  return normalized || null;
-}
-
 const publicEnv: PublicEnv = {
   supabaseAnonKey: viteEnv.VITE_SUPABASE_ANON_KEY ?? '',
   supabaseUrl: viteEnv.VITE_SUPABASE_URL ?? '',
   telegramBotUsername: normalizeBotUsername(viteEnv.VITE_TELEGRAM_BOT_USERNAME),
-  telegramMiniAppShortName: normalizeMiniAppShortName(viteEnv.VITE_TELEGRAM_MINI_APP_SHORT_NAME),
 };
 
 export function getEnv() {
@@ -63,7 +52,6 @@ export function hasSupabaseEnv() {
 export function getTelegramMiniAppEnv() {
   return {
     botUsername: publicEnv.telegramBotUsername,
-    miniAppShortName: publicEnv.telegramMiniAppShortName,
   };
 }
 

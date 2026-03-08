@@ -5,7 +5,6 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import {
   buildMiniAppForYouUrl,
   normalizeBotUsername,
-  normalizeMiniAppShortName,
 } from "../_shared/miniapp-links.ts";
 
 const START_TEXT = [
@@ -38,7 +37,6 @@ type TelegramReplyMarkup = {
 type ServerEnv = {
   botToken: string;
   botUsername: string;
-  miniAppShortName: string | null;
   webhookSecretToken: string | null;
 };
 
@@ -66,9 +64,6 @@ function getEnvWithFallback(primary: string, fallback?: string) {
 function getRequiredServerEnv(): ServerEnv {
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim();
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
-  const miniAppShortName = normalizeMiniAppShortName(
-    getEnvWithFallback("TELEGRAM_MINI_APP_SHORT_NAME", "VITE_TELEGRAM_MINI_APP_SHORT_NAME") ?? null,
-  );
   const webhookSecretToken = Deno.env.get("TELEGRAM_WEBHOOK_SECRET_TOKEN")?.trim() ?? null;
 
   if (!botToken || !botUsername) {
@@ -78,7 +73,6 @@ function getRequiredServerEnv(): ServerEnv {
   return {
     botToken,
     botUsername,
-    miniAppShortName,
     webhookSecretToken,
   };
 }
@@ -94,8 +88,8 @@ function ensureWebhookAuthorized(request: Request, expectedSecretToken: string |
   }
 }
 
-function buildStartReplyMarkup(botUsername: string, miniAppShortName: string | null): TelegramReplyMarkup {
-  const deepLink = buildMiniAppForYouUrl(botUsername, miniAppShortName);
+function buildStartReplyMarkup(botUsername: string): TelegramReplyMarkup {
+  const deepLink = buildMiniAppForYouUrl(botUsername);
   if (!deepLink) {
     throw new HttpError(500, "Server misconfigured");
   }
@@ -210,7 +204,7 @@ serve(async (request: Request) => {
   }
 
   try {
-    const { botToken, botUsername, miniAppShortName, webhookSecretToken } = getRequiredServerEnv();
+    const { botToken, botUsername, webhookSecretToken } = getRequiredServerEnv();
     ensureWebhookAuthorized(request, webhookSecretToken);
 
     const update = await parseTelegramUpdate(request);
@@ -226,7 +220,7 @@ serve(async (request: Request) => {
       return jsonResponse({ ignored: true, ok: true });
     }
 
-    const replyMarkup = buildStartReplyMarkup(botUsername, miniAppShortName);
+    const replyMarkup = buildStartReplyMarkup(botUsername);
     const sendResult = await sendTelegramMessage(botToken, chatId, START_TEXT, replyMarkup);
     if (!sendResult.ok) {
       throw new HttpError(502, sendResult.error ?? "Telegram sendMessage failed.");
