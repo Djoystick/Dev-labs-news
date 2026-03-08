@@ -2,7 +2,7 @@
 /// <reference lib="dom" />
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.95.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
