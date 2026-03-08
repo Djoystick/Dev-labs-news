@@ -2,6 +2,9 @@ import { getSupabaseClient } from '@/lib/supabase';
 
 export type ImportDraftSuccess = {
   ok: true;
+  aiModelUsed?: string;
+  aiModelsTried?: string[];
+  aiWasFallback?: boolean;
   post: {
     id: string;
     title: string;
@@ -13,6 +16,7 @@ export type ImportDraftSuccess = {
 
 export type ImportDraftFailure = {
   code?: string;
+  details?: Record<string, unknown>;
   existingPostId?: string;
   existingPostTitle?: string | null;
   message: string;
@@ -44,6 +48,11 @@ function parseImportResponse(value: unknown): ImportDraftResult {
 
     return {
       ok: true,
+      aiModelUsed: typeof value.aiModelUsed === 'string' ? value.aiModelUsed : undefined,
+      aiModelsTried: Array.isArray(value.aiModelsTried)
+        ? value.aiModelsTried.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : undefined,
+      aiWasFallback: typeof value.aiWasFallback === 'boolean' ? value.aiWasFallback : undefined,
       post: {
         id: post.id,
         title: post.title,
@@ -58,6 +67,7 @@ function parseImportResponse(value: unknown): ImportDraftResult {
 
   return {
     code: typeof value.code === 'string' ? value.code : undefined,
+    details: isObject(value.details) ? value.details : undefined,
     existingPostId: typeof value.existingPostId === 'string' ? value.existingPostId : undefined,
     existingPostTitle: typeof value.existingPostTitle === 'string' ? value.existingPostTitle : null,
     message: typeof value.message === 'string' && value.message.trim().length > 0

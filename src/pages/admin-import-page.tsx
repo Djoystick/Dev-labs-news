@@ -18,6 +18,13 @@ function ImportResultSuccess({ result, onOpenDraft }: { onOpenDraft: () => void;
       <p className="mt-1 text-emerald-50/90">
         {result.post.title}
       </p>
+      {result.aiModelUsed ? (
+        <p className="mt-2 text-xs text-emerald-100/90">
+          {result.aiWasFallback
+            ? `AI: fallback model ${result.aiModelUsed}`
+            : `AI: model ${result.aiModelUsed}`}
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" size="sm" onClick={onOpenDraft}>
           <PencilLine className="h-4 w-4" />

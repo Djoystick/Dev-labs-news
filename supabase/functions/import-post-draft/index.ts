@@ -15,8 +15,11 @@ const responseHeaders = {
   "Content-Type": "application/json",
 } as const;
 
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1";
+const DEFAULT_CEREBRAS_MODEL = "qwen-3-235b-a22b-instruct-2507";
+const DEFAULT_CEREBRAS_FALLBACK_MODEL = "gpt-oss-120b";
 const FETCH_TIMEOUT_MS = 15_000;
+const AI_TIMEOUT_MS = 30_000;
 const MAX_HTML_SIZE = 1_500_000;
 const MAX_SOURCE_TEXT_LENGTH = 14_000;
 const MAX_TITLE_LENGTH = 160;
@@ -62,10 +65,12 @@ type ExtractedArticle = {
 
 class ImportError extends Error {
   code: string;
+  details?: Record<string, unknown>;
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
     super(message);
     this.code = code;
+    this.details = details;
     this.name = "ImportError";
   }
 }
@@ -85,18 +90,29 @@ function getServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const service = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
-  const openAiKey = Deno.env.get("OPENAI_API_KEY");
-  const openAiModel = Deno.env.get("OPENAI_MODEL")?.trim() || DEFAULT_OPENAI_MODEL;
+  const cerebrasKey = Deno.env.get("CEREBRAS_API_KEY");
+  const cerebrasModel = Deno.env.get("CEREBRAS_MODEL")?.trim() || DEFAULT_CEREBRAS_MODEL;
+  const cerebrasFallbackModel = Deno.env.get("CEREBRAS_FALLBACK_MODEL")?.trim() || DEFAULT_CEREBRAS_FALLBACK_MODEL;
+  const cerebrasBaseUrl = (Deno.env.get("CEREBRAS_BASE_URL")?.trim() || DEFAULT_CEREBRAS_BASE_URL).replace(/\/+$/u, "");
 
   if (!url || !anon || !service) {
     throw new ImportError("CONFIG_MISSING", "Server misconfigured: Supabase env is missing.");
   }
 
-  if (!openAiKey) {
-    throw new ImportError("CONFIG_MISSING", "Server misconfigured: OPENAI_API_KEY is missing.");
+  if (!cerebrasKey) {
+    throw new ImportError("CONFIG_MISSING", "Server misconfigured: CEREBRAS_API_KEY is missing.");
   }
 
-  return { anon, openAiKey, openAiModel, service, url };
+  try {
+    const parsed = new URL(cerebrasBaseUrl);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("invalid protocol");
+    }
+  } catch {
+    throw new ImportError("CONFIG_MISSING", "Server misconfigured: CEREBRAS_BASE_URL is invalid.");
+  }
+
+  return { anon, cerebrasBaseUrl, cerebrasFallbackModel, cerebrasKey, cerebrasModel, service, url };
 }
 
 function assertHttpMethod(request: Request) {
@@ -526,35 +542,166 @@ function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle): AiDra
   };
 }
 
-async function transformWithAi(
-  openAiKey: string,
+type AiTransformResult = {
+  aiModelUsed: string;
+  aiModelsTried: string[];
+  aiWasFallback: boolean;
+  draft: AiDraftPayload;
+};
+
+function isRetryableAiError(error: ImportError) {
+  return error.code === "AI_FAILED"
+    || error.code === "AI_INVALID"
+    || error.code === "AI_MODEL_UNAVAILABLE"
+    || error.code === "AI_NETWORK"
+    || error.code === "AI_PROVIDER_ERROR"
+    || error.code === "AI_RATE_LIMIT"
+    || error.code === "AI_TIMEOUT";
+}
+
+function toAiErrorCode(responseStatus: number, errorText: string) {
+  const loweredError = errorText.toLowerCase();
+  if (responseStatus === 429) {
+    return "AI_RATE_LIMIT";
+  }
+
+  if (responseStatus === 408 || responseStatus === 504) {
+    return "AI_TIMEOUT";
+  }
+
+  if (responseStatus >= 500) {
+    return "AI_PROVIDER_ERROR";
+  }
+
+  if (
+    responseStatus === 404
+    || ((responseStatus === 400 || responseStatus === 422) && loweredError.includes("model"))
+  ) {
+    return "AI_MODEL_UNAVAILABLE";
+  }
+
+  return "AI_FAILED";
+}
+
+function failAllAiModels(attempts: Array<{ code: string; message: string; model: string }>, modelsTried: string[], message: string) {
+  const lastAttempt = attempts[attempts.length - 1];
+  const messageWithReason = lastAttempt
+    ? `${message} Last error: ${lastAttempt.code} (${lastAttempt.model}).`
+    : message;
+
+  throw new ImportError("AI_ALL_MODELS_FAILED", messageWithReason, {
+    aiAttempts: attempts,
+    aiModelsTried: modelsTried,
+    aiFailureReason: messageWithReason,
+  });
+}
+
+async function callAiModel(
+  cerebrasKey: string,
+  cerebrasBaseUrl: string,
   model: string,
+  prompt: string,
+  extracted: ExtractedArticle,
+) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${cerebrasBaseUrl}/chat/completions`, {
+      body: JSON.stringify({
+        messages: [
+          {
+            content:
+              "You are the Dev-labs-news editorial assistant. Create drafts for manual moderation only. Never publish automatically.",
+            role: "system",
+          },
+          {
+            content: prompt,
+            role: "user",
+          },
+        ],
+        model,
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+      }),
+      headers: {
+        "Authorization": `Bearer ${cerebrasKey}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = (await response.text()).slice(0, 500);
+      const code = toAiErrorCode(response.status, errorText);
+      throw new ImportError(code, `AI API error (${model}): ${response.status}. ${errorText}`);
+    }
+
+    const payload = await response.json() as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+
+    const content = payload.choices?.[0]?.message?.content ?? "";
+    const parsed = readJsonObject(content);
+    return parseAiDraftPayload(parsed, extracted);
+  } catch (error) {
+    if (error instanceof ImportError) {
+      throw error;
+    }
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ImportError("AI_TIMEOUT", `AI request timed out for model ${model}.`);
+    }
+
+    throw new ImportError(
+      "AI_NETWORK",
+      `Failed to call AI provider for model ${model}: ${error instanceof Error ? error.message : "Unknown network error."}`,
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function transformWithAi(
+  cerebrasKey: string,
+  cerebrasBaseUrl: string,
+  primaryModel: string,
+  fallbackModel: string,
   extracted: ExtractedArticle,
   topics: TopicRow[],
   editorNote?: string,
-) {
+): Promise<AiTransformResult> {
+  const normalizedPrimaryModel = primaryModel.trim() || DEFAULT_CEREBRAS_MODEL;
+  const normalizedFallbackModel = fallbackModel.trim() || DEFAULT_CEREBRAS_FALLBACK_MODEL;
   const topicsPrompt = topics.map((topic) => `- ${topic.slug}: ${topic.name}`).join("\n");
   const sourceText = extracted.text.slice(0, MAX_SOURCE_TEXT_LENGTH);
   const noteSection = editorNote ? `\nEDITOR_NOTE:\n${editorNote}\n` : "";
+  const attempts: Array<{ code: string; message: string; model: string }> = [];
+  const aiModelsTried: string[] = [];
 
   const prompt = [
-    "Сформируй РЕДАКТОРСКИЙ ЧЕРНОВИК новости по исходной статье.",
-    "Верни только JSON-объект без markdown-обёрток.",
-    "Не выдумывай факты, даты и цифры, которых нет в исходном тексте.",
-    "Если данных недостаточно — оставь поле пустым и добавь предупреждение в warnings.",
+    "Prepare an editorial news draft from the source article.",
+    "Return only a JSON object, no markdown wrapper.",
+    "Do not invent facts, dates, or numbers missing in the source.",
+    "If data is missing, keep fields empty and add a warning in warnings.",
     "",
-    "Формат JSON:",
+    "JSON schema:",
     "{",
     '  "title": "string, 3..160",',
-    '  "excerpt": "string, до 320 символов",',
-    '  "body_markdown": "string, структурированный markdown-текст статьи",',
-    '  "topic_slug": "string|null, один из списка тем",',
+    '  "excerpt": "string, up to 320 chars",',
+    '  "body_markdown": "string, structured markdown article body",',
+    '  "topic_slug": "string|null, one of available topics",',
     '  "tags": ["string"],',
     '  "cover_image_url": "string|null",',
     '  "warnings": ["string"]',
     "}",
     "",
-    "Доступные темы:",
+    "Available topics:",
     topicsPrompt,
     "",
     `SOURCE_URL: ${extracted.sourceUrl}`,
@@ -566,46 +713,64 @@ async function transformWithAi(
     sourceText,
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    body: JSON.stringify({
-      messages: [
-        {
-          content:
-            "Ты помощник редакции Dev-labs-news. Твоя задача: подготовить черновик для ручной модерации. Никогда не публикуй и не утверждай материал автоматически.",
-          role: "system",
-        },
-        {
-          content: prompt,
-          role: "user",
-        },
-      ],
-      model,
-      response_format: { type: "json_object" },
-      temperature: 0.2,
-    }),
-    headers: {
-      "Authorization": `Bearer ${openAiKey}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
+  const runModel = async (modelName: string) => {
+    aiModelsTried.push(modelName);
+    try {
+      return await callAiModel(cerebrasKey, cerebrasBaseUrl, modelName, prompt, extracted);
+    } catch (error) {
+      if (error instanceof ImportError) {
+        attempts.push({
+          code: error.code,
+          message: error.message.slice(0, 300),
+          model: modelName,
+        });
+      }
 
-  if (!response.ok) {
-    const errorText = (await response.text()).slice(0, 500);
-    throw new ImportError("AI_FAILED", `AI API error: ${response.status}. ${errorText}`);
-  }
-
-  const payload = await response.json() as {
-    choices?: Array<{
-      message?: {
-        content?: string;
-      };
-    }>;
+      throw error;
+    }
   };
 
-  const content = payload.choices?.[0]?.message?.content ?? "";
-  const parsed = readJsonObject(content);
-  return parseAiDraftPayload(parsed, extracted);
+  try {
+    const draft = await runModel(normalizedPrimaryModel);
+    return {
+      aiModelUsed: normalizedPrimaryModel,
+      aiModelsTried,
+      aiWasFallback: false,
+      draft,
+    };
+  } catch (primaryError) {
+    if (!(primaryError instanceof ImportError)) {
+      throw primaryError;
+    }
+
+    if (!isRetryableAiError(primaryError)) {
+      throw primaryError;
+    }
+
+    if (normalizedFallbackModel === normalizedPrimaryModel) {
+      failAllAiModels(
+        attempts,
+        aiModelsTried,
+        `Primary model failed and fallback model matches primary (${normalizedPrimaryModel}).`,
+      );
+    }
+  }
+
+  try {
+    const draft = await runModel(normalizedFallbackModel);
+    return {
+      aiModelUsed: normalizedFallbackModel,
+      aiModelsTried,
+      aiWasFallback: true,
+      draft,
+    };
+  } catch (fallbackError) {
+    if (fallbackError instanceof ImportError) {
+      failAllAiModels(attempts, aiModelsTried, "Primary and fallback AI models failed.");
+    }
+
+    throw fallbackError;
+  }
 }
 
 function normalizeTitleForSoftDedupe(value: string) {
@@ -702,7 +867,7 @@ serve(async (request: Request) => {
     }
 
     const body = await parseBody(request);
-    const { anon, openAiKey, openAiModel, service, url } = getServerEnv();
+    const { anon, cerebrasBaseUrl, cerebrasFallbackModel, cerebrasKey, cerebrasModel, service, url } = getServerEnv();
     const access = await requireEditorOrAdmin(url, anon, authorization);
 
     const { normalizedUrl } = normalizeUrl(body.url ?? "");
@@ -768,7 +933,16 @@ serve(async (request: Request) => {
       throw new ImportError("TOPICS_EMPTY", "В системе нет разделов для сохранения черновика.");
     }
 
-    const aiDraft = await transformWithAi(openAiKey, openAiModel, extracted, topics, body.note);
+    const aiTransform = await transformWithAi(
+      cerebrasKey,
+      cerebrasBaseUrl,
+      cerebrasModel,
+      cerebrasFallbackModel,
+      extracted,
+      topics,
+      body.note,
+    );
+    const aiDraft = aiTransform.draft;
     const topicBySlug = new Map(topics.map((topic) => [topic.slug.toLowerCase(), topic]));
     const suggestedTopic = aiDraft.topic_slug ? topicBySlug.get(aiDraft.topic_slug.toLowerCase()) : null;
     const selectedTopic = suggestedTopic ?? topics[0];
@@ -824,6 +998,9 @@ serve(async (request: Request) => {
         id: inserted.id,
         title: inserted.title,
       },
+      aiModelUsed: aiTransform.aiModelUsed,
+      aiModelsTried: aiTransform.aiModelsTried,
+      aiWasFallback: aiTransform.aiWasFallback,
       sourceDomain: canonicalSourceDomain,
       sourceUrl: canonicalSourceUrl,
       warnings: [...new Set(warnings)].slice(0, 12),
@@ -832,6 +1009,7 @@ serve(async (request: Request) => {
     if (error instanceof ImportError) {
       return jsonResponse({
         code: error.code,
+        details: error.details,
         message: error.message,
         ok: false,
       });
@@ -845,3 +1023,4 @@ serve(async (request: Request) => {
     });
   }
 });
+
