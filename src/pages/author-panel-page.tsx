@@ -624,6 +624,15 @@ export function AuthorPanelPage() {
           <p className="mt-1 text-sm text-muted-foreground">Управляйте публикациями по статусам.</p>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => navigate('/admin/new')}>
+            {'Новый материал'}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => navigate('/admin/import')}>
+            {'Импортировать в черновик'}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Всего</p>

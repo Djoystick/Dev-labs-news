@@ -21,6 +21,10 @@ export type PostRow = {
   excerpt: string | null;
   content: string;
   cover_url: string | null;
+  source_url: string | null;
+  source_domain: string | null;
+  import_origin: string | null;
+  import_note: string | null;
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -133,6 +137,10 @@ export type Database = {
           excerpt?: string | null;
           content: string;
           cover_url?: string | null;
+          source_url?: string | null;
+          source_domain?: string | null;
+          import_origin?: string | null;
+          import_note?: string | null;
           is_published?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -147,6 +155,10 @@ export type Database = {
           excerpt?: string | null;
           content?: string;
           cover_url?: string | null;
+          source_url?: string | null;
+          source_domain?: string | null;
+          import_origin?: string | null;
+          import_note?: string | null;
           is_published?: boolean;
           created_at?: string;
           updated_at?: string;

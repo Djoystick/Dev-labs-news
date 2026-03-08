@@ -29,7 +29,7 @@ type GetPostsParams = {
 };
 
 const postSelect =
-  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, is_published, scheduled_at, published_at, topic:topics(id, slug, name, created_at)';
+  'id, topic_id, title, excerpt, content, cover_url, source_url, source_domain, import_origin, import_note, created_at, updated_at, author_id, is_published, scheduled_at, published_at, topic:topics(id, slug, name, created_at)';
 
 export type GetPostsResult = {
   hasMore: boolean;
@@ -41,8 +41,12 @@ export type PostMutationInput = {
   content: string;
   cover_url?: string | null;
   excerpt?: string | null;
+  import_note?: string | null;
+  import_origin?: string | null;
   is_published?: boolean;
   scheduled_at?: string | null;
+  source_domain?: string | null;
+  source_url?: string | null;
   title: string;
   topic_id: string;
 };
