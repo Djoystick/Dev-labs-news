@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Trash2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, Sparkles, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -345,10 +345,11 @@ export function ProfilePage() {
         <FlatSection className="pt-2">
           <SectionTitle>{'Умная лента'}</SectionTitle>
           <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
+            <div className="mt-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Уведомлять о подборке</p>
-                <p className="mt-1 text-xs text-white/60">Когда в умной ленте накопится нужное число новых материалов.</p>
+                <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
+                <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
               </div>
               <button
                 type="button"
@@ -370,19 +371,29 @@ export function ProfilePage() {
             </div>
 
             <div className="mt-4 border-t border-white/10 pt-4">
-              <button
-                type="button"
-                onClick={() => navigate('/topic-preferences')}
-                className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
-              >
-                <Settings2 className="h-4 w-4" />
-                {'Разделы'}
-              </button>
-              <p className="mt-2 text-xs text-white/60">Разделы определяют содержимое умной ленты.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/topic-preferences')}
+                  className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  {'Разделы'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/for-you')}
+                  className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {'Открыть Умную ленту'}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
             </div>
 
             <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Порог новых материалов</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {digestThresholdOptions.map((option) => {
                   const selected = digestThreshold === option;
@@ -409,7 +420,7 @@ export function ProfilePage() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs text-white/55">Уведомление приходит, когда в умной ленте накопилось выбранное количество новых материалов.</p>
+              <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
             </div>
           </div>
         </FlatSection>

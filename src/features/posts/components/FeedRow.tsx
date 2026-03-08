@@ -71,7 +71,7 @@ export function FeedRow({
             <h3 className="mt-1 line-clamp-3 text-lg font-extrabold leading-tight sm:text-xl">{post.title}</h3>
             {recommendationReason ? (
               <div className="mt-2">
-                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85">Почему рекомендовано</p>
+                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/85">Почему это в ленте</p>
                 <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{recommendationReason}</p>
               </div>
             ) : null}

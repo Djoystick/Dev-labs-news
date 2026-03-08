@@ -134,7 +134,7 @@ export function Header() {
               <div className="border-b border-border/70 px-5 py-4 sm:px-6">
                 <DialogHeader className="pr-10">
                   <DialogTitle className="text-xl sm:text-2xl">Фильтр ленты</DialogTitle>
-                  <DialogDescription>Влияет только на обычную Ленту. Для умной ленты используйте Профиль → «Разделы».</DialogDescription>
+                  <DialogDescription>Влияет только на обычную Ленту. Для Умной ленты используйте Профиль: «Разделы» и блок «Умная лента».</DialogDescription>
                 </DialogHeader>
               </div>
               <div className="overflow-y-auto p-3 sm:p-4">

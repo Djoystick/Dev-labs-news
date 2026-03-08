@@ -315,6 +315,7 @@ export function ForYouPage() {
   const isPreferenceFilteredEmpty = profileScopedPosts.length > 0 && postsAfterDislikedFilter.length === 0;
   const isReadHiddenEmpty = hiddenReadEnabled && postsAfterDislikedFilter.length > 0 && postsAfterReadFilter.length === 0;
   const isSearchEmpty = hasQuery && posts.length > 0 && searchedPosts.length === 0;
+  const isLowRecommendations = !hasQuery && posts.length > 0 && posts.length <= 3;
 
   const recommendationReasons = useMemo(() => {
     const reasons = new Map<string, string>();
@@ -323,12 +324,12 @@ export function ForYouPage() {
       const topicKey = getTopicKey(post);
 
       if (!topicKey) {
-        reasons.set(post.id, 'Подобрано для вашей ленты');
+        reasons.set(post.id, 'Совпадает с вашими интересами');
         continue;
       }
 
       if (likedTopicsSet.has(topicKey)) {
-        reasons.set(post.id, 'Вы выбрали: больше таких тем');
+        reasons.set(post.id, 'Вы отметили, что хотите видеть больше таких тем');
         continue;
       }
 
@@ -343,7 +344,7 @@ export function ForYouPage() {
         continue;
       }
 
-      reasons.set(post.id, 'Подобрано для вашей ленты');
+      reasons.set(post.id, 'Совпадает с вашими интересами');
     }
 
     return reasons;
@@ -370,17 +371,26 @@ export function ForYouPage() {
               </Button>
               {isInfoOpen ? (
                 <div className="absolute right-0 top-11 z-20 w-64 rounded-xl border border-border/70 bg-background/95 p-3 text-xs leading-5 text-muted-foreground shadow-xl">
-                  Умная лента настраивается в Профиле через кнопку «Разделы».
+                  Подборка учитывает разделы в профиле, прочитанные материалы, реакции и сохранённые интересы.
                 </div>
               ) : null}
             </div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Материалы подбираются по разделам из профиля и вашей активности.</p>
-          {!isProfileSectionsCtaDismissed ? (
-            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={handleOpenTopicPreferences}>
-              Разделы в профиле
+          <div className="mt-3 rounded-xl border border-border/60 bg-secondary/15 px-3 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Почему вы это видите</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Учитываем выбранные разделы, что вы читаете, ваши реакции и сохранённые интересы.</p>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {!isProfileSectionsCtaDismissed ? (
+              <Button type="button" variant="outline" size="sm" onClick={handleOpenTopicPreferences}>
+                Разделы в профиле
+              </Button>
+            ) : null}
+            <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => navigate('/profile')}>
+              Уведомления в профиле
             </Button>
-          ) : null}
+          </div>
           <div className="relative mt-4">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -421,10 +431,10 @@ export function ForYouPage() {
           />
         ) : profileScopedPosts.length === 0 ? (
           <EmptyState
-            title="Пока нет рекомендаций"
-            description="Выберите разделы или сохраните статьи, чтобы мы лучше настроили эту ленту под ваши интересы."
-            actionLabel="Повторить"
-            onReset={retry}
+            title="Пока мало подходящих материалов"
+            description="Выберите разделы в профиле, читайте и оценивайте материалы («Больше такого» и «Меньше такого»). Вернитесь позже, когда появится больше публикаций."
+            actionLabel="Выбрать разделы"
+            onReset={handleOpenTopicPreferences}
           />
         ) : isPreferenceFilteredEmpty ? (
           <StateCard title="Лента скрыта вашими предпочтениями" description="Измените выбор «Меньше такого», чтобы снова увидеть больше рекомендаций." />
@@ -438,68 +448,76 @@ export function ForYouPage() {
         ) : isSearchEmpty ? (
           <StateCard title="Ничего не найдено" description="Попробуйте изменить запрос." />
         ) : (
-          <div className="divide-y divide-border/60">
-            {searchedPosts.map((post) => {
-              const read = isPostRead(post.id);
-              const topicKey = getTopicKey(post);
-              const topicPreference = topicKey ? getTopicPreference(topicKey) : null;
+          <div className="space-y-4">
+            {isLowRecommendations ? (
+              <div className="rounded-xl border border-border/60 bg-secondary/20 px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Пока рекомендаций немного</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">Почитайте и оцените несколько материалов или обновите разделы в профиле. Можно вернуться позже, когда появится больше подходящих публикаций.</p>
+              </div>
+            ) : null}
+            <div className="divide-y divide-border/60">
+              {searchedPosts.map((post) => {
+                const read = isPostRead(post.id);
+                const topicKey = getTopicKey(post);
+                const topicPreference = topicKey ? getTopicPreference(topicKey) : null;
 
-              return (
-                <div key={post.id} className={`relative transition-opacity ${read ? 'opacity-70 hover:opacity-90' : ''}`}>
-                  {read ? (
-                    <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                      Прочитано
-                    </span>
-                  ) : null}
-                  <FeedRow
-                    post={post}
-                    onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
-                    reactionSummary={summariesById.get(post.id)}
-                    reactionsDisabled={isPending(post.id)}
-                    onToggleReaction={toggle}
-                    recommendationReason={recommendationReasons.get(post.id) ?? 'Подобрано для вашей ленты'}
-                  />
-                  {topicKey ? (
-                    <div className="mt-1 flex items-center gap-2 pl-0">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'more' ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
-                        onClick={() => {
-                          if (topicPreference === 'more') {
-                            clearTopicPreference(topicKey);
-                            return;
-                          }
+                return (
+                  <div key={post.id} className={`relative transition-opacity ${read ? 'opacity-70 hover:opacity-90' : ''}`}>
+                    {read ? (
+                      <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        Прочитано
+                      </span>
+                    ) : null}
+                    <FeedRow
+                      post={post}
+                      onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
+                      reactionSummary={summariesById.get(post.id)}
+                      reactionsDisabled={isPending(post.id)}
+                      onToggleReaction={toggle}
+                      recommendationReason={recommendationReasons.get(post.id) ?? 'Совпадает с вашими интересами'}
+                    />
+                    {topicKey ? (
+                      <div className="mt-1 flex items-center gap-2 pl-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'more' ? 'bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                          onClick={() => {
+                            if (topicPreference === 'more') {
+                              clearTopicPreference(topicKey);
+                              return;
+                            }
 
-                          likeTopic(topicKey);
-                        }}
-                      >
-                        <ThumbsUp className="h-3.5 w-3.5" />
-                        Больше такого
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'less' ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
-                        onClick={() => {
-                          if (topicPreference === 'less') {
-                            clearTopicPreference(topicKey);
-                            return;
-                          }
+                            likeTopic(topicKey);
+                          }}
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5" />
+                          Больше такого
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className={`h-7 rounded-full px-2 text-xs ${topicPreference === 'less' ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/20' : 'text-muted-foreground hover:bg-secondary/40'}`}
+                          onClick={() => {
+                            if (topicPreference === 'less') {
+                              clearTopicPreference(topicKey);
+                              return;
+                            }
 
-                          dislikeTopic(topicKey);
-                        }}
-                      >
-                        <ThumbsDown className="h-3.5 w-3.5" />
-                        Меньше такого
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+                            dislikeTopic(topicKey);
+                          }}
+                        >
+                          <ThumbsDown className="h-3.5 w-3.5" />
+                          Меньше такого
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </motion.section>
