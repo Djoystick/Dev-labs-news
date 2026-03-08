@@ -13,6 +13,7 @@ import { useReadingProgress } from '@/features/reading/reading-progress';
 import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
 import { getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
+import { getPostPath } from '@/lib/post-links';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
@@ -160,7 +161,7 @@ export function ProfilePage() {
   const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
   const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
   const roleBadgeClass = profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
-  const continueReadingPath = continueReading.path?.trim() || (continueReading.postId ? `/post/${continueReading.postId}` : null);
+  const continueReadingPath = continueReading.path?.trim() || (continueReading.postId ? getPostPath(continueReading.postId) : null);
   const continueReadingSubtitleValue = formatContinueReadingDate(continueReading.updatedAt);
   const continueReadingSubtitle = continueReadingSubtitleValue ? `Обновлено ${continueReadingSubtitleValue}` : undefined;
 

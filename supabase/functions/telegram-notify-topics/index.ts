@@ -3,6 +3,11 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildMiniAppPostUrl,
+  normalizeBotUsername,
+  normalizeMiniAppShortName,
+} from "../_shared/miniapp-links.ts";
 
 const MAX_SEND_PER_RUN = 100;
 const CANDIDATE_POSTS_LIMIT = 20;
@@ -87,24 +92,6 @@ function sanitizeBaseUrl(baseUrl: string | null): string | null {
   return normalized.replace(/\/+$/u, "");
 }
 
-function normalizeBotUsername(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^@+/u, "");
-  return normalized || null;
-}
-
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
-  return normalized || null;
-}
-
 function getRequiredServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
@@ -142,22 +129,13 @@ function hasText(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function buildMiniAppPostUrl(botUsername: string | null, miniAppShortName: string | null, postId: string) {
-  if (!botUsername) {
-    return null;
-  }
-
-  const encodedPayload = encodeURIComponent(`post_${postId}`);
-  if (miniAppShortName) {
-    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
-  }
-
-  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
-}
-
-function buildNotificationText(post: PostCandidate, appBaseUrl: string | null) {
+function buildNotificationText(post: PostCandidate, appBaseUrl: string | null, miniAppUrl: string | null) {
   const title = hasText(post.title) ? post.title.trim() : "New publication";
   const postUrl = appBaseUrl ? `${appBaseUrl}/post/${post.id}` : null;
+
+  if (miniAppUrl) {
+    return `News for your topic: ${title}`;
+  }
 
   if (postUrl) {
     return `News for your topic: ${title}\n\nOpen: ${postUrl}`;
@@ -410,8 +388,9 @@ serve(async (request: Request) => {
       }
 
       const sendBatch = recipientsToSend.slice(0, remainingBudget);
-      const messageText = buildNotificationText(post, appBaseUrl);
       const replyMarkup = buildNotificationReplyMarkup(post, botUsername, miniAppShortName);
+      const miniAppUrl = replyMarkup?.inline_keyboard?.[0]?.[0]?.url ?? null;
+      const messageText = buildNotificationText(post, appBaseUrl, miniAppUrl);
 
       for (const recipient of sendBatch) {
         const chatId = normalizeTelegramUserId(recipient.telegram_user_id);

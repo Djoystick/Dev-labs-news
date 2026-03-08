@@ -1,9 +1,10 @@
 import { BookmarkCheck, History, ArrowUpRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCompactPostMeta } from '@/features/profile/api';
+import { getPostPath } from '@/lib/post-links';
 import type { Post } from '@/types/db';
 
 type ProfilePostRowProps = {
@@ -14,12 +15,17 @@ type ProfilePostRowProps = {
 };
 
 export function ProfilePostRow({ post, metaLabel, metaValue, mode }: ProfilePostRowProps) {
+  const location = useLocation();
   const meta = getCompactPostMeta(post);
+  const postPath = getPostPath(post.id);
+  const openState = {
+    from: `${location.pathname}${location.search}`,
+  };
 
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-card/80 p-4 shadow-[0_22px_48px_-38px_rgba(15,23,42,0.55)]">
       <div className="flex gap-4">
-        <Link to={`/post/${post.id}`} className="shrink-0">
+        <Link to={postPath} state={openState} className="shrink-0">
           <div className="h-20 w-20 overflow-hidden rounded-2xl bg-secondary">
             {post.cover_url ? <img src={post.cover_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-[11px] font-semibold text-muted-foreground">{meta.topicName}</div>}
           </div>
@@ -29,7 +35,7 @@ export function ProfilePostRow({ post, metaLabel, metaValue, mode }: ProfilePost
             <span>{meta.topicName}</span>
             <span>{meta.createdAt}</span>
           </div>
-          <Link to={`/post/${post.id}`} className="mt-2 block">
+          <Link to={postPath} state={openState} className="mt-2 block">
             <h3 className="line-clamp-2 text-base font-bold leading-snug transition hover:text-primary">{post.title}</h3>
           </Link>
           {post.excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{post.excerpt}</p> : null}
@@ -41,7 +47,7 @@ export function ProfilePostRow({ post, metaLabel, metaValue, mode }: ProfilePost
               </span>
             </div>
             <Button asChild size="sm" variant="ghost" className="h-8 px-2.5">
-              <AppLink to={`/post/${post.id}`}>
+              <AppLink to={postPath} state={openState}>
                 Открыть
                 <ArrowUpRight className="h-4 w-4" />
               </AppLink>

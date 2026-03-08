@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { StateCard } from '@/components/ui/state-card';
+import { getPostPath } from '@/lib/post-links';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -219,7 +220,13 @@ export function ReadingHistoryPage() {
                 key={`${item.id}:${item.read_at}`}
                 type="button"
                 className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-white/5 active:bg-white/10"
-                onClick={() => navigate(`/post/${item.id}`)}
+                onClick={() =>
+                  navigate(getPostPath(item.id), {
+                    state: {
+                      from: `${location.pathname}${location.search}`,
+                    },
+                  })
+                }
               >
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
                   {item.cover_url ? <img src={item.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}

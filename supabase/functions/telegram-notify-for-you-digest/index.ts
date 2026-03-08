@@ -3,6 +3,11 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildMiniAppForYouUrl,
+  normalizeBotUsername,
+  normalizeMiniAppShortName,
+} from "../_shared/miniapp-links.ts";
 
 const MAX_SEND_PER_RUN = 100;
 const DIGEST_TEXT = "Ваша подборка готова";
@@ -72,24 +77,6 @@ function getEnvWithFallback(primary: string, fallback?: string) {
   return Deno.env.get(primary) ?? (fallback ? Deno.env.get(fallback) : undefined);
 }
 
-function normalizeBotUsername(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^@+/u, "");
-  return normalized || null;
-}
-
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
-  return normalized || null;
-}
-
 function getRequiredServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
@@ -146,17 +133,11 @@ function ensureCronAuthorized(request: Request, expectedSecret: string) {
   }
 }
 
-function buildMiniAppStartAppUrl(botUsername: string, miniAppShortName: string | null, startPayload: string) {
-  const encodedPayload = encodeURIComponent(startPayload);
-  if (miniAppShortName) {
-    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
-  }
-
-  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
-}
-
 function buildDigestReplyMarkup(botUsername: string, miniAppShortName: string | null): TelegramReplyMarkup {
-  const miniAppUrl = buildMiniAppStartAppUrl(botUsername, miniAppShortName, "for_you");
+  const miniAppUrl = buildMiniAppForYouUrl(botUsername, miniAppShortName);
+  if (!miniAppUrl) {
+    throw new HttpError(500, "Server misconfigured");
+  }
 
   return {
     inline_keyboard: [

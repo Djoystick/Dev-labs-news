@@ -2,8 +2,12 @@
 /// <reference lib="dom" />
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import {
+  buildMiniAppForYouUrl,
+  normalizeBotUsername,
+  normalizeMiniAppShortName,
+} from "../_shared/miniapp-links.ts";
 
-const START_PAYLOAD = "for_you";
 const START_TEXT = [
   "Привет! Это Dev-labs News.",
   "Здесь есть обычная Лента и Умная лента.",
@@ -59,24 +63,6 @@ function getEnvWithFallback(primary: string, fallback?: string) {
   return Deno.env.get(primary) ?? (fallback ? Deno.env.get(fallback) : undefined);
 }
 
-function normalizeBotUsername(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^@+/u, "");
-  return normalized || null;
-}
-
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
-  return normalized || null;
-}
-
 function getRequiredServerEnv(): ServerEnv {
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN")?.trim();
   const botUsername = normalizeBotUsername(getEnvWithFallback("TELEGRAM_BOT_USERNAME", "VITE_TELEGRAM_BOT_USERNAME") ?? null);
@@ -108,17 +94,11 @@ function ensureWebhookAuthorized(request: Request, expectedSecretToken: string |
   }
 }
 
-function buildMiniAppStartAppUrl(botUsername: string, miniAppShortName: string | null, startPayload: string) {
-  const encodedPayload = encodeURIComponent(startPayload);
-  if (miniAppShortName) {
-    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
-  }
-
-  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
-}
-
 function buildStartReplyMarkup(botUsername: string, miniAppShortName: string | null): TelegramReplyMarkup {
-  const deepLink = buildMiniAppStartAppUrl(botUsername, miniAppShortName, START_PAYLOAD);
+  const deepLink = buildMiniAppForYouUrl(botUsername, miniAppShortName);
+  if (!deepLink) {
+    throw new HttpError(500, "Server misconfigured");
+  }
 
   return {
     inline_keyboard: [

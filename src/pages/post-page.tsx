@@ -9,6 +9,7 @@ import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthorHandles } from '@/features/profiles/use-author-handles';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { markPostRead } from '@/features/posts/mark-post-read';
 import { PostCard } from '@/features/posts/components/post-card';
@@ -18,6 +19,9 @@ import { getPost, getPosts } from '@/features/posts/api';
 import { EmojiReactionBar } from '@/features/reactions/components/emoji-reaction-bar';
 import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
+import { normalizeHandle } from '@/lib/author-label';
+import { getTelegramMiniAppEnv } from '@/lib/env';
+import { buildPreferredPostOpenUrl, getPostPath } from '@/lib/post-links';
 import { useAuth } from '@/providers/auth-provider';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 import type { Post } from '@/types/db';
@@ -182,12 +186,30 @@ function openExternalUrl(url: string) {
   return Boolean(openedWindow);
 }
 
+function getSafeFromPath(value: unknown) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized.startsWith('/')) {
+    return null;
+  }
+
+  return normalized || null;
+}
+
 export function PostPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { profile, user } = useAuth();
   const { motionEnabled, textSizeClassName, textWidthClassName } = useReadingPreferences();
+  const telegramMiniAppEnv = getTelegramMiniAppEnv();
+  const fromPath = useMemo(() => {
+    const state = location.state as { from?: unknown } | null;
+    return getSafeFromPath(state?.from);
+  }, [location.state]);
   const [post, setPost] = useState<Post | null>(null);
   const [latestPosts, setLatestPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,6 +229,7 @@ export function PostPage() {
     return [...new Set(ids)];
   }, [latestPosts, post?.id]);
   const { summariesById, toggle, isPending } = useReactions(reactionIds);
+  const { getName } = useAuthorHandles(post?.author_id ? [post.author_id] : []);
 
   const createdAtLabel = useMemo(() => {
     if (!post) {
@@ -221,17 +244,34 @@ export function PostPage() {
   }, [post]);
 
   const readingTime = useMemo(() => (post ? getReadingTime(post.content) : 1), [post]);
+  const authorLabel = useMemo(() => {
+    if (!post) {
+      return '';
+    }
+
+    return normalizeHandle(getName(post.author_id)) ?? 'Редакция DevLabs';
+  }, [getName, post]);
   const shareUrl = useMemo(() => {
     if (!id) {
       return '';
     }
 
-    if (typeof window === 'undefined') {
-      return `/post/${id}`;
+    return buildPreferredPostOpenUrl(id, telegramMiniAppEnv);
+  }, [id, telegramMiniAppEnv]);
+
+  const handleBack = useCallback(() => {
+    if (location.key !== 'default') {
+      navigate(-1);
+      return;
     }
 
-    return new URL(`/post/${id}`, window.location.origin).toString();
-  }, [id]);
+    if (fromPath && fromPath !== location.pathname) {
+      navigate(fromPath, { replace: true });
+      return;
+    }
+
+    navigate('/', { replace: true });
+  }, [fromPath, location.key, location.pathname, navigate]);
 
   const retry = useCallback(() => {
     setRetryToken((current) => current + 1);
@@ -365,12 +405,12 @@ export function PostPage() {
     }
 
     void markPostRead(post.id, {
-      path: location.pathname,
+      path: getPostPath(post.id),
       topicKey: post.topic?.id ?? post.topic_id ?? null,
       title: post.title,
       updatedAt: new Date().toISOString(),
     });
-  }, [location.pathname, post?.id, post?.title]);
+  }, [post?.id, post?.title, post?.topic?.id, post?.topic_id]);
 
   useEffect(() => {
     if (!post?.id || !user?.id) {
@@ -402,14 +442,7 @@ export function PostPage() {
             type="button"
             variant="ghost"
             className="w-fit"
-            onClick={() => {
-              if (location.key !== 'default') {
-                navigate(-1);
-                return;
-              }
-
-              navigate('/');
-            }}
+            onClick={handleBack}
           >
             <ArrowLeft className="h-4 w-4" />
             {'Назад'}
@@ -432,14 +465,7 @@ export function PostPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => {
-              if (location.key !== 'default') {
-                navigate(-1);
-                return;
-              }
-
-              navigate('/');
-            }}
+            onClick={handleBack}
           >
             <ArrowLeft className="h-4 w-4" />
             {'Назад'}
@@ -465,7 +491,10 @@ export function PostPage() {
           <div className="space-y-8 py-6 sm:py-8 lg:py-10">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
+                  <span className="text-xs text-muted-foreground">{authorLabel}</span>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
                   <Button type="button" size="sm" variant="outline" onClick={() => void handleShare()}>

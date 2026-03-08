@@ -27,6 +27,7 @@ import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
 import { listTopics } from '@/features/topics/api';
 import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
+import { getPostPath } from '@/lib/post-links';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
@@ -504,7 +505,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <AppLink to={`/post/${post.id}`}>{'Открыть опубликованную версию'}</AppLink>
+                  <AppLink to={getPostPath(post.id)}>{'Открыть опубликованную версию'}</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">

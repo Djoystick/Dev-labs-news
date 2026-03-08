@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useLocation, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { Container } from '@/components/layout/container';
 import { AppLink } from '@/components/ui/app-link';
@@ -11,9 +11,11 @@ import { StateCard } from '@/components/ui/state-card';
 import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedSkeleton } from '@/features/posts/components/feed-skeleton';
 import { getVisiblePosts } from '@/features/topics/model';
+import { getPostPath } from '@/lib/post-links';
 import { useReadingPreferences } from '@/providers/preferences-provider';
 
 export function RandomPage() {
+  const location = useLocation();
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const { isLoading, posts, postsError, retryPosts } = useOutletContext<AppLayoutContext>();
   const { resetTopicFilters, topicFilters } = useReadingPreferences();
@@ -117,7 +119,14 @@ export function RandomPage() {
 
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
-                  <AppLink to={`/post/${currentPost.id}`}>Открыть материал</AppLink>
+                  <AppLink
+                    to={getPostPath(currentPost.id)}
+                    state={{
+                      from: `${location.pathname}${location.search}`,
+                    }}
+                  >
+                    Открыть материал
+                  </AppLink>
                 </Button>
                 <Button type="button" variant="outline" onClick={pickNextPost} disabled={visiblePosts.length <= 1}>
                   <Shuffle className="h-4 w-4" />

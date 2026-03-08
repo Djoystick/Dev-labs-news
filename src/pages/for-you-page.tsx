@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Info, RefreshCw, Search, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import type { AppLayoutContext } from '@/App';
 import { FlatPage, FlatSection } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { forYouSearchStorageKey, usePersistentSearchQuery, usePostSearch } from 
 import { useReactions } from '@/features/reactions/use-reactions';
 import { useRecommendedPosts } from '@/features/recommendations/hooks';
 import { fetchMyTopicIds } from '@/features/topics/api';
+import { getPostPath } from '@/lib/post-links';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
@@ -151,6 +152,7 @@ function softDiversifyByTopic(posts: Post[], maxStreak = 2) {
 
 export function ForYouPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { topics, posts: knownPosts } = useOutletContext<AppLayoutContext>();
   const { readPostIds, setHiddenReadEnabled } = useReadingProgress();
@@ -470,7 +472,13 @@ export function ForYouPage() {
                     ) : null}
                     <FeedRow
                       post={post}
-                      onOpen={(openedPost) => navigate(`/post/${openedPost.id}`)}
+                      onOpen={(openedPost) =>
+                        navigate(getPostPath(openedPost.id), {
+                          state: {
+                            from: `${location.pathname}${location.search}`,
+                          },
+                        })
+                      }
                       reactionSummary={summariesById.get(post.id)}
                       reactionsDisabled={isPending(post.id)}
                       onToggleReaction={toggle}

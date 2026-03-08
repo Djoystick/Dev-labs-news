@@ -1,3 +1,5 @@
+import { getPostIdFromStartPayload, getPostPath, getForYouStartPayload } from '@/lib/post-links';
+
 export type TelegramEnvironment = 'telegram' | 'browser';
 export type TelegramWebAppUser = {
   id: number;
@@ -215,12 +217,7 @@ export function getTelegramStartParam() {
 
 export function getPostIdFromTelegramStartParam(startParam: string | null | undefined) {
   const normalized = normalizeStartParam(startParam);
-  if (!normalized) {
-    return null;
-  }
-
-  const match = /^post_([^/?#]+)$/u.exec(normalized);
-  return match?.[1] ?? null;
+  return getPostIdFromStartPayload(normalized);
 }
 
 export function getPathFromTelegramStartParam(startParam: string | null | undefined) {
@@ -229,7 +226,7 @@ export function getPathFromTelegramStartParam(startParam: string | null | undefi
     return null;
   }
 
-  if (normalized === 'for_you') {
+  if (normalized === getForYouStartPayload()) {
     return '/for-you';
   }
 
@@ -238,7 +235,7 @@ export function getPathFromTelegramStartParam(startParam: string | null | undefi
     return null;
   }
 
-  return `/post/${postId}`;
+  return getPostPath(postId);
 }
 
 export function resolveTelegramLaunchIntent(): TelegramLaunchIntent {

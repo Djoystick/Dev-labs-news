@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Clock3 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AppLink } from '@/components/ui/app-link';
 import { Button } from '@/components/ui/button';
 import { useAuthorHandles } from '@/features/profiles/use-author-handles';
@@ -9,6 +9,7 @@ import { PostReactions } from '@/features/reactions/components/PostReactions';
 import type { ReactionSummary } from '@/features/reactions/api';
 import { normalizeHandle } from '@/lib/author-label';
 import { markFeedReturnIntent, saveFeedState } from '@/lib/feed-state';
+import { getPostPath } from '@/lib/post-links';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post } from '@/types/db';
 
@@ -31,9 +32,14 @@ export function PostCard({
   onToggleReaction?: (postId: string, value: -1 | 1) => void;
 }) {
   const { isAdmin } = useAuth();
+  const location = useLocation();
   const readingTime = getReadingTime(post.content);
   const { getName } = useAuthorHandles(post.author_id ? [post.author_id] : []);
   const authorLabel = normalizeHandle(getName(post.author_id)) ?? 'Автор';
+  const postPath = getPostPath(post.id);
+  const openState = {
+    from: `${location.pathname}${location.search}`,
+  };
 
   const handleOpen = () => {
     saveFeedState({
@@ -45,7 +51,7 @@ export function PostCard({
 
   return (
     <motion.article initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05, duration: 0.35, ease: 'easeOut' }} className="py-4">
-      <Link to={`/post/${post.id}`} className="block" onClick={handleOpen}>
+      <Link to={postPath} state={openState} className="block" onClick={handleOpen}>
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -81,7 +87,7 @@ export function PostCard({
             </Button>
           ) : null}
           <Button asChild size="sm" variant={isAdmin ? 'ghost' : 'outline'}>
-            <AppLink to={`/post/${post.id}`} onClick={handleOpen}>
+            <AppLink to={postPath} state={openState} onClick={handleOpen}>
               {'Читать'}
               <ArrowUpRight className="h-4 w-4" />
             </AppLink>

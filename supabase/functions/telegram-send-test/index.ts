@@ -3,6 +3,11 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  buildMiniAppForYouUrl,
+  normalizeBotUsername,
+  normalizeMiniAppShortName,
+} from "../_shared/miniapp-links.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,37 +90,6 @@ function normalizeTelegramUserId(value: number | string | null): string | null {
   }
 
   return null;
-}
-
-function normalizeBotUsername(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^@+/u, "");
-  return normalized || null;
-}
-
-function normalizeMiniAppShortName(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().replace(/^\/+/u, "").replace(/\/+$/u, "");
-  return normalized || null;
-}
-
-function buildMiniAppStartAppUrl(botUsername: string | null, miniAppShortName: string | null, startPayload: string) {
-  if (!botUsername) {
-    return null;
-  }
-
-  const encodedPayload = encodeURIComponent(startPayload);
-  if (miniAppShortName) {
-    return `https://t.me/${botUsername}/${miniAppShortName}?startapp=${encodedPayload}`;
-  }
-
-  return `https://t.me/${botUsername}?startapp=${encodedPayload}`;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -263,7 +237,7 @@ async function loadProfileByTelegramUserId(serviceClient: ReturnType<typeof crea
 }
 
 function buildNotificationReplyMarkup(botUsername: string | null, miniAppShortName: string | null): TelegramReplyMarkup | null {
-  const miniAppUrl = buildMiniAppStartAppUrl(botUsername, miniAppShortName, "for_you");
+  const miniAppUrl = buildMiniAppForYouUrl(botUsername, miniAppShortName);
   if (!miniAppUrl) {
     return null;
   }
