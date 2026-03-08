@@ -571,6 +571,15 @@ export function PostPage() {
               ) : null}
 
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
+              {post.custom_tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {post.custom_tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-border/70 bg-secondary/30 px-3 py-1 text-xs text-muted-foreground">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <FlatSection>

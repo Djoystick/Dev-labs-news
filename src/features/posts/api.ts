@@ -1,6 +1,7 @@
 import { getStoredProfileId } from '@/lib/auth-storage';
 import { getSupabaseClient } from '@/lib/supabase';
 import type { Post, PostSort } from '@/types/db';
+import { normalizePostCustomTags } from '@/features/posts/custom-tags';
 
 const postsUpdatedEventName = 'dev-labs:posts-updated';
 
@@ -29,7 +30,7 @@ type GetPostsParams = {
 };
 
 const postSelect =
-  'id, topic_id, title, excerpt, content, cover_url, source_url, source_domain, import_origin, import_note, created_at, updated_at, author_id, is_published, scheduled_at, published_at, topic:topics(id, slug, name, created_at)';
+  'id, topic_id, title, excerpt, content, custom_tags, cover_url, source_url, source_domain, import_origin, import_note, created_at, updated_at, author_id, is_published, scheduled_at, published_at, topic:topics(id, slug, name, created_at)';
 
 export type GetPostsResult = {
   hasMore: boolean;
@@ -40,6 +41,7 @@ export type PostMutationInput = {
   author_id?: string | null;
   content: string;
   cover_url?: string | null;
+  custom_tags?: string[];
   excerpt?: string | null;
   import_note?: string | null;
   import_origin?: string | null;
@@ -158,6 +160,7 @@ export async function createPost(input: PostMutationInput) {
   const payload: PostMutationInput = {
     ...input,
     author_id: authorId,
+    custom_tags: normalizePostCustomTags(input.custom_tags),
   };
 
   if (!payload.author_id) {
@@ -180,7 +183,11 @@ export async function updatePost(id: string, input: PostMutationInput) {
 
   // Prevent clients from attempting to change post ownership.
   // Ownership is enforced by RLS and should not be mutable from the client.
-  const { author_id, ...payload } = input;
+  const { author_id, ...rest } = input;
+  const payload = {
+    ...rest,
+    ...(Object.prototype.hasOwnProperty.call(rest, 'custom_tags') ? { custom_tags: normalizePostCustomTags(rest.custom_tags) } : {}),
+  };
   void author_id;
 
   const { data, error } = await supabase.from('posts').update(payload).eq('id', id).select(postSelect).single();

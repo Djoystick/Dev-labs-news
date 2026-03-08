@@ -27,6 +27,7 @@ const MAX_HTML_SIZE = 1_500_000;
 const MAX_SOURCE_TEXT_LENGTH = 14_000;
 const MAX_TITLE_LENGTH = 160;
 const MAX_EXCERPT_LENGTH = 320;
+const MAX_CUSTOM_TAG_LENGTH = 32;
 const MIN_LANGUAGE_LETTERS = 40;
 
 type AiModel = (typeof ALLOWED_AI_MODELS)[number];
@@ -635,6 +636,27 @@ function normalizeOptionalUrl(value: unknown) {
   }
 }
 
+function normalizeCustomTags(tags: string[], maxTags: number) {
+  const next: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of tags) {
+    const normalized = normalizeWhitespace(value).toLowerCase().slice(0, MAX_CUSTOM_TAG_LENGTH);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    next.push(normalized);
+
+    if (next.length >= maxTags) {
+      break;
+    }
+  }
+
+  return next;
+}
+
 type ParseAiDraftOptions = {
   maxTags: number;
   useSourceImage: boolean;
@@ -663,8 +685,7 @@ function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle, option
   const tags = tagsRaw
     .filter((item): item is string => typeof item === "string")
     .map((item) => normalizeWhitespace(item))
-    .filter((item) => item.length > 0)
-    .slice(0, options.maxTags);
+    .filter((item) => item.length > 0);
 
   const bodyMarkdown = bodyMarkdownRaw.length >= 200
     ? bodyMarkdownRaw
@@ -678,7 +699,7 @@ function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle, option
     body_markdown: bodyMarkdown.slice(0, 50_000),
     cover_image_url: coverImageRaw ?? (options.useSourceImage ? extracted.imageUrl : null),
     excerpt: sanitizeExcerpt(excerptRaw, extracted.excerpt),
-    tags,
+    tags: normalizeCustomTags(tags, options.maxTags),
     title: sanitizeTitle(titleRaw, extracted.title),
     topic_slug: topicSlugRaw || null,
     warnings,
@@ -1157,6 +1178,7 @@ serve(async (request: Request) => {
         import_note: body.note ?? null,
         import_origin: "manual_import_ai",
         is_published: false,
+        custom_tags: aiDraft.tags,
         source_domain: canonicalSourceDomain,
         source_url: canonicalSourceUrl,
         title: aiDraft.title,

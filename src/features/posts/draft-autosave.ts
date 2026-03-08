@@ -1,3 +1,5 @@
+import { normalizePostCustomTags } from '@/features/posts/custom-tags';
+
 export type PostDraftPublishingMode = 'published' | 'draft' | 'scheduled';
 
 type DraftContext =
@@ -14,6 +16,7 @@ export type PostDraftPayload = {
   content: string;
   excerpt: string;
   cover_url: string;
+  custom_tags: string[];
   topic_id: string;
   publish_mode: PostDraftPublishingMode;
   scheduled_at: string;
@@ -38,13 +41,14 @@ function isPublishingMode(value: unknown): value is PostDraftPublishingMode {
   return value === 'published' || value === 'draft' || value === 'scheduled';
 }
 
-export function hasMeaningfulPostDraft(payload: Pick<PostDraftPayload, 'title' | 'content' | 'excerpt' | 'cover_url' | 'scheduled_at'>) {
+export function hasMeaningfulPostDraft(payload: Pick<PostDraftPayload, 'title' | 'content' | 'excerpt' | 'cover_url' | 'scheduled_at' | 'custom_tags'>) {
   return (
     payload.title.trim().length > 0 ||
     payload.content.trim().length > 0 ||
     payload.excerpt.trim().length > 0 ||
     payload.cover_url.trim().length > 0 ||
-    payload.scheduled_at.trim().length > 0
+    payload.scheduled_at.trim().length > 0 ||
+    payload.custom_tags.length > 0
   );
 }
 
@@ -67,6 +71,7 @@ export function readPostDraft(storageKey: string): PostDraftPayload | null {
     return {
       content: toStringValue(parsed.content),
       cover_url: toStringValue(parsed.cover_url),
+      custom_tags: normalizePostCustomTags(Array.isArray(parsed.custom_tags) ? parsed.custom_tags : []),
       excerpt: toStringValue(parsed.excerpt),
       publish_mode: isPublishingMode(parsed.publish_mode) ? parsed.publish_mode : 'published',
       scheduled_at: toStringValue(parsed.scheduled_at),

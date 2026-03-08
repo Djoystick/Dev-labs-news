@@ -20,6 +20,7 @@ export type PostRow = {
   title: string;
   excerpt: string | null;
   content: string;
+  custom_tags: string[];
   cover_url: string | null;
   source_url: string | null;
   source_domain: string | null;
@@ -154,6 +155,7 @@ export type Database = {
           title: string;
           excerpt?: string | null;
           content: string;
+          custom_tags?: string[];
           cover_url?: string | null;
           source_url?: string | null;
           source_domain?: string | null;
@@ -172,6 +174,7 @@ export type Database = {
           title?: string;
           excerpt?: string | null;
           content?: string;
+          custom_tags?: string[];
           cover_url?: string | null;
           source_url?: string | null;
           source_domain?: string | null;

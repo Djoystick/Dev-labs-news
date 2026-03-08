@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, ArrowLeft, Eye, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Eye, ImagePlus, LoaderCircle, Save, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -27,6 +27,12 @@ import {
 } from '@/features/posts/draft-autosave';
 import { uploadPostImage } from '@/features/posts/storage';
 import { postFormSchema, type PostFormValues } from '@/features/posts/validation';
+import {
+  normalizePostCustomTag,
+  normalizePostCustomTags,
+  POST_CUSTOM_TAG_MAX_LENGTH,
+  POST_CUSTOM_TAGS_LIMIT,
+} from '@/features/posts/custom-tags';
 import { listTopics } from '@/features/topics/api';
 import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
 import { getPostPath } from '@/lib/post-links';
@@ -52,6 +58,7 @@ type EditablePost = Post & {
 const emptyValues: PostFormValues = {
   content: '',
   cover_url: '',
+  custom_tags: [],
   excerpt: '',
   title: '',
   topic_id: '',
@@ -73,10 +80,19 @@ function toDraftFormValues(values: PostFormValues) {
   return {
     content: values.content ?? '',
     cover_url: values.cover_url ?? '',
+    custom_tags: normalizePostCustomTags(values.custom_tags),
     excerpt: values.excerpt ?? '',
     title: values.title ?? '',
     topic_id: values.topic_id ?? '',
   };
+}
+
+function areTagsEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
 }
 
 export function PostForm({ mode, post, userId }: PostFormProps) {
@@ -93,6 +109,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<PublishingMode>('draft');
+  const [tagInputValue, setTagInputValue] = useState('');
   const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'restored' | null>(null);
   const [hasCheckedDraftRestore, setHasCheckedDraftRestore] = useState(false);
   const lastSavedSnapshotRef = useRef('');
@@ -107,16 +124,18 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const watchedContent = form.watch('content');
   const watchedExcerpt = form.watch('excerpt');
   const watchedCoverUrl = form.watch('cover_url');
+  const watchedCustomTags = form.watch('custom_tags');
   const watchedTopicId = form.watch('topic_id');
   const initialFormValues = useMemo<PostFormValues>(
     () => ({
       content: editablePost?.content ?? '',
       cover_url: editablePost?.cover_url ?? '',
+      custom_tags: normalizePostCustomTags(editablePost?.custom_tags),
       excerpt: editablePost?.excerpt ?? '',
       title: editablePost?.title ?? '',
       topic_id: editablePost?.topic_id ?? '',
     }),
-    [editablePost?.content, editablePost?.cover_url, editablePost?.excerpt, editablePost?.title, editablePost?.topic_id],
+    [editablePost?.content, editablePost?.cover_url, editablePost?.custom_tags, editablePost?.excerpt, editablePost?.title, editablePost?.topic_id],
   );
   const draftStorageKey = useMemo(() => {
     if (mode === 'create') {
@@ -142,6 +161,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   useEffect(() => {
     form.reset(initialFormValues);
+    setTagInputValue('');
   }, [form, initialFormValues]);
 
   useEffect(() => {
@@ -174,6 +194,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     const currentValues = toDraftFormValues(form.getValues());
     const currentHasValues = hasMeaningfulPostDraft({
       ...currentValues,
+      custom_tags: currentValues.custom_tags,
       scheduled_at: '',
     });
     const currentMatchesInitial =
@@ -181,6 +202,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       currentValues.content === initialFormValues.content &&
       currentValues.excerpt === initialFormValues.excerpt &&
       currentValues.cover_url === initialFormValues.cover_url &&
+      areTagsEqual(currentValues.custom_tags, initialFormValues.custom_tags) &&
       currentValues.topic_id === initialFormValues.topic_id;
 
     if (currentMatchesInitial || !currentHasValues) {
@@ -189,11 +211,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         content: draft.content.length > 0 ? draft.content : initialFormValues.content,
         excerpt: draft.excerpt.length > 0 ? draft.excerpt : initialFormValues.excerpt,
         cover_url: draft.cover_url.length > 0 ? draft.cover_url : initialFormValues.cover_url,
+        custom_tags: draft.custom_tags.length > 0 ? draft.custom_tags : initialFormValues.custom_tags,
         topic_id: draft.topic_id.length > 0 ? draft.topic_id : initialFormValues.topic_id,
       };
       const restoredMode: PublishingMode = draft.publish_mode === 'published' ? 'published' : 'draft';
 
       form.reset(restoredValues);
+      setTagInputValue('');
       setPublishMode(restoredMode);
       setAutosaveStatus('restored');
       lastSavedSnapshotRef.current = JSON.stringify({
@@ -252,6 +276,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       content: watchedContent ?? '',
       excerpt: watchedExcerpt ?? '',
       cover_url: watchedCoverUrl ?? '',
+      custom_tags: normalizePostCustomTags(watchedCustomTags),
       topic_id: watchedTopicId ?? '',
       publish_mode: publishMode,
       scheduled_at: '',
@@ -293,6 +318,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     publishMode,
     watchedContent,
     watchedCoverUrl,
+    watchedCustomTags,
     watchedExcerpt,
     watchedTitle,
     watchedTopicId,
@@ -340,6 +366,40 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     navigate('/author');
   };
 
+  const currentCustomTags = useMemo(() => normalizePostCustomTags(watchedCustomTags), [watchedCustomTags]);
+
+  const applyCustomTags = (nextTags: string[]) => {
+    const normalized = normalizePostCustomTags(nextTags);
+    form.setValue('custom_tags', normalized, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const handleAddCustomTags = (rawValue: string) => {
+    const tokens = rawValue
+      .split(/[\n,]+/g)
+      .map((value) => normalizePostCustomTag(value))
+      .filter(Boolean);
+
+    if (tokens.length === 0) {
+      return;
+    }
+
+    if (currentCustomTags.length >= POST_CUSTOM_TAGS_LIMIT) {
+      toast.error(`Можно добавить максимум ${POST_CUSTOM_TAGS_LIMIT} тегов.`);
+      return;
+    }
+
+    const nextTags = normalizePostCustomTags([...currentCustomTags, ...tokens]);
+    applyCustomTags(nextTags);
+    setTagInputValue('');
+  };
+
+  const handleRemoveCustomTag = (tagToRemove: string) => {
+    applyCustomTags(currentCustomTags.filter((tag) => tag !== tagToRemove));
+  };
+
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
     try {
@@ -377,6 +437,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         author_id: editablePost?.author_id ?? userId,
         content: values.content,
         cover_url: values.cover_url?.trim() || null,
+        custom_tags: normalizePostCustomTags(values.custom_tags),
         excerpt: values.excerpt?.trim() || null,
         is_published: nextMode === 'published',
         scheduled_at: null,
@@ -473,6 +534,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const previewTitle = (watchedTitle ?? '').trim() || 'Без заголовка';
   const previewExcerpt = (watchedExcerpt ?? '').trim();
   const previewContent = (watchedContent ?? '').trim();
+  const previewCustomTags = normalizePostCustomTags(watchedCustomTags);
   const previewTopicName = topicOptions.find((topic) => topic.id === watchedTopicId)?.name ?? 'Раздел не выбран';
 
   return (
@@ -512,6 +574,63 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   <Label htmlFor="title">{'Заголовок'}</Label>
                   <Input id="title" placeholder="Введите заголовок" {...form.register('title')} />
                   {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="custom-tags-input">Кастомные теги</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {currentCustomTags.length}/{POST_CUSTOM_TAGS_LIMIT}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="custom-tags-input"
+                      value={tagInputValue}
+                      onChange={(event) => setTagInputValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ',') {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        handleAddCustomTags(tagInputValue);
+                      }}
+                      placeholder="Добавьте тег и нажмите Enter"
+                      maxLength={POST_CUSTOM_TAG_MAX_LENGTH}
+                      disabled={currentCustomTags.length >= POST_CUSTOM_TAGS_LIMIT}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="sm:w-auto"
+                      onClick={() => handleAddCustomTags(tagInputValue)}
+                      disabled={currentCustomTags.length >= POST_CUSTOM_TAGS_LIMIT || !tagInputValue.trim()}
+                    >
+                      Добавить
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">До 5 тегов, без дублей. Можно разделять запятой.</p>
+                  {currentCustomTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {currentCustomTags.map((tag) => (
+                        <span key={tag} className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-secondary/40 px-2.5 py-1 text-xs">
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCustomTag(tag)}
+                            className="text-muted-foreground transition hover:text-foreground"
+                            aria-label={`Удалить тег ${tag}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {typeof form.formState.errors.custom_tags?.message === 'string' ? (
+                    <p className="text-sm text-destructive">{form.formState.errors.custom_tags.message}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -646,6 +765,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap items-center gap-2 text-xs text-white/65">
               <span className="rounded-full border border-white/15 px-2.5 py-1">{isPublishedMaterial ? 'Опубликовано' : 'Черновик'}</span>
               <span className="rounded-full border border-white/15 px-2.5 py-1">{previewTopicName}</span>
+              {previewCustomTags.map((tag) => (
+                <span key={tag} className="rounded-full border border-white/15 px-2.5 py-1">
+                  #{tag}
+                </span>
+              ))}
             </div>
             <h2 className="font-['Source_Serif_4'] text-3xl font-bold leading-tight">{previewTitle}</h2>
             {previewExcerpt ? <p className="text-sm leading-7 text-muted-foreground">{previewExcerpt}</p> : null}
