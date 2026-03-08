@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, ScrollText, Settings2, SlidersHorizontal, Sparkles, Trash2, Users } from 'lucide-react';
+import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, Rss, ScrollText, Settings2, SlidersHorizontal, Sparkles, Trash2, Users } from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -484,6 +484,7 @@ export function ProfilePage() {
             <SectionTitle>{'Администрирование'}</SectionTitle>
             <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
               <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} />
+              <ProfileRow icon={Rss} title="Источники RSS" onClick={() => navigate('/admin/sources')} />
               <ProfileRow icon={SlidersHorizontal} title="AI-настройки импорта" onClick={() => navigate('/admin/ai-settings')} />
               <ProfileRow icon={ScrollText} title="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
             </div>

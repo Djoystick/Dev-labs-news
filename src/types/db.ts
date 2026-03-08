@@ -64,6 +64,21 @@ export type AiImportSettings = {
   use_source_image: boolean;
 };
 
+export type ContentSourceType = 'rss';
+
+export type ContentSource = {
+  id: string;
+  title: string;
+  type: ContentSourceType;
+  url: string;
+  is_enabled: boolean;
+  default_topic_id: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
 export type Profile = {
   id: string;
   role: UserRole;
@@ -315,6 +330,56 @@ export type Database = {
           use_source_image?: boolean;
         };
         Relationships: [];
+      };
+      content_sources: {
+        Row: ContentSource;
+        Insert: {
+          id?: string;
+          title: string;
+          type?: ContentSourceType;
+          url: string;
+          is_enabled?: boolean;
+          default_topic_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          type?: ContentSourceType;
+          url?: string;
+          is_enabled?: boolean;
+          default_topic_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'content_sources_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_sources_default_topic_id_fkey';
+            columns: ['default_topic_id'];
+            isOneToOne: false;
+            referencedRelation: 'topics';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'content_sources_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       favorites: {
         Row: FavoriteRow;
