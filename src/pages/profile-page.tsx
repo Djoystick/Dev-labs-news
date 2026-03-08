@@ -107,6 +107,31 @@ function ProfileRow({ icon: Icon, title, subtitle, onClick, to, right, titleClas
   );
 }
 
+type ProfileActionCardProps = {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+  onClick: () => void;
+};
+
+function ProfileActionCard({ icon: Icon, title, subtitle, onClick }: ProfileActionCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-[5.25rem] w-full items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left transition-colors hover:bg-white/10 active:bg-white/15"
+    >
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/85 transition-colors group-hover:bg-white/15">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-tight text-white">{title}</span>
+        {subtitle ? <span className="mt-1 block text-xs leading-snug text-white/60">{subtitle}</span> : null}
+      </span>
+    </button>
+  );
+}
+
 export function ProfilePage() {
   const navigate = useNavigate();
   const { isAuthed, loading, profile, refreshProfile, signOut, user } = useAuth();
@@ -335,186 +360,177 @@ export function ProfilePage() {
         ) : null}
 
         <FlatSection className="pt-2">
-          <SectionTitle>{'Главное'}</SectionTitle>
-          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
-            <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
-            <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
-          </div>
-        </FlatSection>
+          <SectionTitle>{'Аккаунт'}</SectionTitle>
+          <div className="space-y-3">
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
+              <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
+              <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
+            </div>
 
-        <FlatSection className="pt-2">
-          <SectionTitle>{'Умная лента'}</SectionTitle>
-          <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
-            <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
-                <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
+            <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
+              <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
+                  <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
+                    digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
+                  )}
+                  onClick={() => {
+                    void persistDigestSettings(
+                      !digestEnabled,
+                      digestThreshold,
+                      !digestEnabled ? 'Уведомления о подборке включены.' : 'Уведомления о подборке отключены.',
+                    );
+                  }}
+                  disabled={digestSaving}
+                >
+                  {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
+                </button>
               </div>
-              <button
-                type="button"
-                className={cn(
-                  'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
-                  digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
-                )}
-                onClick={() => {
-                  void persistDigestSettings(
-                    !digestEnabled,
-                    digestThreshold,
-                    !digestEnabled ? 'Уведомления о подборке включены.' : 'Уведомления о подборке отключены.',
-                  );
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/topic-preferences')}
+                    className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                  >
+                    <Settings2 className="h-4 w-4" />
+                    {'Разделы'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/for-you')}
+                    className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {'Открыть Умную ленту'}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {digestThresholdOptions.map((option) => {
+                    const selected = digestThreshold === option;
+
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        className={cn(
+                          'h-10 rounded-lg border text-sm font-semibold transition',
+                          selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
+                        )}
+                        onClick={() => {
+                          if (option === digestThreshold) {
+                            return;
+                          }
+
+                          void persistDigestSettings(digestEnabled, option, 'Порог уведомлений о подборке обновлён.');
+                        }}
+                        disabled={digestSaving}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              {fullscreenSupported ? (
+                <ProfileRow
+                  icon={Settings2}
+                  title="Полный экран"
+                  subtitle={fullscreenEnabled ? 'Включен' : 'Выключен'}
+                  onClick={() => {
+                    void toggleFullscreen();
+                  }}
+                />
+              ) : null}
+              <ProfileRow
+                icon={EyeOff}
+                title="Скрывать прочитанное"
+                subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
+                onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
+              />
+              <ProfileRow
+                icon={MoonStar}
+                title="Цветовая схема"
+                subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'}
+                onClick={toggleTheme}
+              />
+              <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
+              <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
+              <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
+              <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
+              {isAdminUser ? <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} /> : null}
+            </div>
+
+            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <ProfileRow
+                icon={LogOut}
+                iconClassName="text-red-300/80"
+                title={signOutBusy ? 'Выходим...' : 'Выйти'}
+                titleClassName="text-red-300/90"
+                onClick={async () => {
+                  if (signOutBusy) {
+                    return;
+                  }
+
+                  setSignOutBusy(true);
+                  try {
+                    await signOut();
+                    navigate('/', { replace: true });
+                  } finally {
+                    setSignOutBusy(false);
+                  }
                 }}
-                disabled={digestSaving}
-              >
-                {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
-              </button>
-            </div>
-
-            <div className="mt-4 border-t border-white/10 pt-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/topic-preferences')}
-                  className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
-                >
-                  <Settings2 className="h-4 w-4" />
-                  {'Разделы'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/for-you')}
-                  className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {'Открыть Умную ленту'}
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {digestThresholdOptions.map((option) => {
-                  const selected = digestThreshold === option;
-
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      className={cn(
-                        'h-10 rounded-lg border text-sm font-semibold transition',
-                        selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
-                      )}
-                      onClick={() => {
-                        if (option === digestThreshold) {
-                          return;
-                        }
-
-                        void persistDigestSettings(digestEnabled, option, 'Порог уведомлений о подборке обновлён.');
-                      }}
-                      disabled={digestSaving}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
+              />
             </div>
           </div>
         </FlatSection>
 
         {canManageOwnPosts ? (
           <FlatSection className="pt-2">
-            <SectionTitle>{'Мой контент'}</SectionTitle>
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              <ProfileRow
+            <SectionTitle>{'Редакторка'}</SectionTitle>
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr))]">
+              <ProfileActionCard icon={FilePenLine} title="Новая новость" subtitle="Создать материал" onClick={() => navigate('/admin/new')} />
+              <ProfileActionCard
                 icon={FilePenLine}
-                title="Черновики и публикации"
-                subtitle="Draft-first: сохранить черновик, проверить, опубликовать вручную"
+                title="Панель автора"
+                subtitle="Черновики и публикации"
                 onClick={() => navigate('/author')}
               />
-              <ProfileRow icon={FilePenLine} title="Список материалов" onClick={() => navigate('/my-posts')} />
+              <ProfileActionCard icon={Sparkles} title="Импорт в черновик" subtitle="Ручной URL-импорт" onClick={() => navigate('/admin/import')} />
+              <ProfileActionCard icon={History} title="Список материалов" subtitle="Все ваши публикации" onClick={() => navigate('/my-posts')} />
+              {isAdminUser ? (
+                <ProfileActionCard icon={ScrollText} title="Правила публикаций" subtitle="Редакторский контур" onClick={() => navigate('/admin/publication-rules')} />
+              ) : null}
             </div>
           </FlatSection>
         ) : null}
-
-        <FlatSection className="pt-2">
-          <SectionTitle>{'Приложение'}</SectionTitle>
-          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            {fullscreenSupported ? (
-              <ProfileRow
-                icon={Settings2}
-                title="Полный экран"
-                subtitle={fullscreenEnabled ? 'Включен' : 'Выключен'}
-                onClick={() => {
-                  void toggleFullscreen();
-                }}
-              />
-            ) : null}
-            <ProfileRow
-              icon={EyeOff}
-              title="Скрывать прочитанное"
-              subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
-              onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
-            />
-            <ProfileRow
-              icon={MoonStar}
-              title="Цветовая схема"
-              subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'}
-              onClick={toggleTheme}
-            />
-            <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
-            <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
-          </div>
-        </FlatSection>
-
-        <FlatSection className="pt-2">
-          <SectionTitle>{'Помощь и информация'}</SectionTitle>
-          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
-            <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
-          </div>
-        </FlatSection>
 
         {isAdminUser ? (
-          <FlatSection className="pt-2">
-            <SectionTitle>{'Администрирование'}</SectionTitle>
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} />
-              <ProfileRow icon={Rss} title="Источники RSS" onClick={() => navigate('/admin/sources')} />
-              <ProfileRow icon={SlidersHorizontal} title="AI-настройки импорта" onClick={() => navigate('/admin/ai-settings')} />
-              <ProfileRow icon={ScrollText} title="Правила публикаций" onClick={() => navigate('/admin/publication-rules')} />
+          <FlatSection className="border-b-0 pt-2">
+            <SectionTitle>{'AI и импорт'}</SectionTitle>
+            <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr))]">
+              <ProfileActionCard icon={SlidersHorizontal} title="AI-настройки импорта" subtitle="Primary/fallback и режимы" onClick={() => navigate('/admin/ai-settings')} />
+              <ProfileActionCard icon={Rss} title="Источники" subtitle="RSS-реестр и запуск импорта" onClick={() => navigate('/admin/sources')} />
             </div>
           </FlatSection>
         ) : null}
-
-        <FlatSection className="border-b-0 pt-2">
-          <SectionTitle>{'Аккаунт'}</SectionTitle>
-          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-            <ProfileRow
-              icon={LogOut}
-              iconClassName="text-red-300/80"
-              title={signOutBusy ? 'Выходим...' : 'Выйти'}
-              titleClassName="text-red-300/90"
-              onClick={async () => {
-                if (signOutBusy) {
-                  return;
-                }
-
-                setSignOutBusy(true);
-                try {
-                  await signOut();
-                  navigate('/', { replace: true });
-                } finally {
-                  setSignOutBusy(false);
-                }
-              }}
-            />
-          </div>
-        </FlatSection>
 
         <div className="mt-6 pb-6 text-center text-xs text-white/40">
           {'Разработано '}
