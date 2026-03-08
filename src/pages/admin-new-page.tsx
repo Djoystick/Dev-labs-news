@@ -14,7 +14,7 @@ export function AdminNewPage() {
         <FlatPage className="safe-pb py-6 sm:py-8">
           <div className="mb-4 flex justify-end">
             <Button asChild type="button" variant="outline">
-              <AppLink to="/admin/import">{'Импортировать в черновик'}</AppLink>
+              <AppLink to="/admin/import" state={{ returnTo: '/admin/new' }}>{'Импортировать в черновик'}</AppLink>
             </Button>
           </div>
           <PostForm mode="create" userId={user.id} />

@@ -29,7 +29,7 @@ function isAiImportError(code?: string) {
 
 function getFriendlyErrorMessage(errorResult: ImportDraftFailure) {
   if (isAiImportError(errorResult.code)) {
-    return 'AI-РёРјРїРѕСЂС‚ СЃРµР№С‡Р°СЃ РЅРµРґРѕСЃС‚СѓРїРµРЅ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ РёР»Рё СЃРѕР·РґР°Р№С‚Рµ С‡РµСЂРЅРѕРІРёРє РІСЂСѓС‡РЅСѓСЋ.';
+    return 'AI-импорт сейчас недоступен. Попробуйте позже или создайте черновик вручную.';
   }
 
   return errorResult.message;
@@ -53,7 +53,7 @@ function getAiDiagnostics(errorResult: ImportDraftFailure) {
 function ImportResultSuccess({ result, onOpenDraft }: { onOpenDraft: () => void; result: ImportDraftSuccess }) {
   return (
     <div className="rounded-[1.25rem] border border-emerald-400/35 bg-emerald-500/10 p-4 text-sm">
-      <p className="font-semibold text-emerald-100">Р§РµСЂРЅРѕРІРёРє СЃРѕР·РґР°РЅ</p>
+      <p className="font-semibold text-emerald-100">Черновик создан</p>
       <p className="mt-1 text-emerald-50/90">
         {result.post.title}
       </p>
@@ -67,7 +67,7 @@ function ImportResultSuccess({ result, onOpenDraft }: { onOpenDraft: () => void;
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" size="sm" onClick={onOpenDraft}>
           <PencilLine className="h-4 w-4" />
-          {'РћС‚РєСЂС‹С‚СЊ С‡РµСЂРЅРѕРІРёРє'}
+          {'Открыть черновик'}
         </Button>
       </div>
       {result.warnings && result.warnings.length > 0 ? (
@@ -100,7 +100,7 @@ function ImportResultError({ errorResult, onOpenExisting }: { errorResult: Impor
           ) : null}
           {errorResult.existingPostId ? (
             <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onOpenExisting}>
-              {'РћС‚РєСЂС‹С‚СЊ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ С‡РµСЂРЅРѕРІРёРє'}
+              {'Открыть существующий черновик'}
             </Button>
           ) : null}
         </div>
@@ -154,7 +154,7 @@ export function AdminImportPage() {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       setErrorResult({
-        message: 'РЈРєР°Р¶РёС‚Рµ URL СЃС‚Р°С‚СЊРё РґР»СЏ РёРјРїРѕСЂС‚Р°.',
+        message: 'Укажите URL статьи для импорта.',
         ok: false,
       });
       setSuccessResult(null);
@@ -174,7 +174,7 @@ export function AdminImportPage() {
       if (!result.ok) {
         setErrorResult(result);
         if (result.code === 'DUPLICATE' || result.code === 'DUPLICATE_SOFT') {
-          toast.info('РќР°Р№РґРµРЅ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ РёРјРїРѕСЂС‚ РґР»СЏ СЌС‚РѕРіРѕ РёСЃС‚РѕС‡РЅРёРєР°.');
+          toast.info('Найден существующий импорт для этого источника.');
         } else {
           toast.error(getFriendlyErrorMessage(result));
         }
@@ -182,9 +182,9 @@ export function AdminImportPage() {
       }
 
       setSuccessResult(result);
-      toast.success('Р§РµСЂРЅРѕРІРёРє РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅ. РџСЂРѕРІРµСЂСЊС‚Рµ РµРіРѕ РїРµСЂРµРґ РїСѓР±Р»РёРєР°С†РёРµР№.');
+      toast.success('Черновик импортирован. Проверьте его перед публикацией.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РїРѕР»РЅРёС‚СЊ РёРјРїРѕСЂС‚.';
+      const message = error instanceof Error ? error.message : 'Не удалось выполнить импорт.';
       setErrorResult({
         message,
         ok: false,
@@ -207,18 +207,18 @@ export function AdminImportPage() {
                   <span className="sr-only">Назад</span>
                 </Button>
                 <div>
-                <h1 className="text-3xl font-bold">{'РРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РІ С‡РµСЂРЅРѕРІРёРє'}</h1>
+                <h1 className="text-3xl font-bold">{'Импортировать в черновик'}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {'URL -> server extraction -> AI draft. РџСѓР±Р»РёРєР°С†РёСЏ РѕСЃС‚Р°С‘С‚СЃСЏ С‚РѕР»СЊРєРѕ СЂСѓС‡РЅРѕР№.'}
+                  {'URL -> server extraction -> AI draft. Публикация остаётся только ручной.'}
                 </p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button asChild type="button" variant="outline">
-                  <AppLink to="/admin/new" state={{ returnTo: '/admin/import' }}>{'РЎРѕР·РґР°С‚СЊ РІСЂСѓС‡РЅСѓСЋ'}</AppLink>
+                  <AppLink to="/admin/new" state={{ returnTo: '/admin/import' }}>{'Создать вручную'}</AppLink>
                 </Button>
                 <Button asChild type="button" variant="ghost">
-                  <AppLink to="/author">{'Рљ С‡РµСЂРЅРѕРІРёРєР°Рј'}</AppLink>
+                  <AppLink to="/author">{'К черновикам'}</AppLink>
                 </Button>
               </div>
             </div>
@@ -226,7 +226,7 @@ export function AdminImportPage() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="source-url">{'URL РёСЃС‚РѕС‡РЅРёРєР°'}</Label>
+              <Label htmlFor="source-url">{'URL источника'}</Label>
               <Input
                 id="source-url"
                 placeholder="https://example.com/article"
@@ -237,10 +237,10 @@ export function AdminImportPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="editor-note">{'Р—Р°РјРµС‚РєР° СЂРµРґР°РєС‚РѕСЂР° (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)'}</Label>
+              <Label htmlFor="editor-note">{'Заметка редактора (опционально)'}</Label>
               <Textarea
                 id="editor-note"
-                placeholder="РљРѕРЅС‚РµРєСЃС‚, Р°РєС†РµРЅС‚С‹, С‚СЂРµР±РѕРІР°РЅРёСЏ Рє РїРµСЂРµСЂР°Р±РѕС‚РєРµ..."
+                placeholder="Контекст, акценты, требования к переработке..."
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 disabled={isSubmitting}
@@ -249,18 +249,18 @@ export function AdminImportPage() {
             </div>
 
             <div className="rounded-[1.25rem] border border-border/60 bg-background/60 p-3 text-xs leading-6 text-muted-foreground">
-              {'РРјРїРѕСЂС‚ СЃРѕР·РґР°С‘С‚ С‚РѕР»СЊРєРѕ draft. РџРµСЂРµРґ РїСѓР±Р»РёРєР°С†РёРµР№ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ РѕС‚РєСЂРѕР№С‚Рµ С‡РµСЂРЅРѕРІРёРє, РїСЂРѕРІРµСЂСЊС‚Рµ С„Р°РєС‚С‹ Рё РІРЅРµСЃРёС‚Рµ СЂСѓС‡РЅС‹Рµ РїСЂР°РІРєРё.'}
+              {'Импорт создаёт только draft. Перед публикацией обязательно откройте черновик, проверьте факты и внесите ручные правки.'}
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Button type="button" disabled={isSubmitting} onClick={() => void submit()}>
                 {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-                {'РРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РІ С‡РµСЂРЅРѕРІРёРє'}
+                {'Импортировать в черновик'}
               </Button>
               {successResult ? (
                 <Button type="button" variant="outline" onClick={() => openPostEditor(successResult.post.id)}>
                   <PencilLine className="h-4 w-4" />
-                  {'РћС‚РєСЂС‹С‚СЊ СЃРѕР·РґР°РЅРЅС‹Р№ С‡РµСЂРЅРѕРІРёРє'}
+                  {'Открыть созданный черновик'}
                 </Button>
               ) : null}
             </div>
@@ -290,8 +290,4 @@ export function AdminImportPage() {
     </AdminGuard>
   );
 }
-
-
-
-
 
