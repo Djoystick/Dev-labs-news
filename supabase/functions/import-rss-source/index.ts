@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.95.2";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
+import { XMLParser } from "npm:fast-xml-parser@4.5.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -275,40 +275,167 @@ function toAbsoluteHttpUrl(rawValue: string, baseUrl: string) {
   }
 }
 
-function getFirstText(node: Element, selectors: string[]) {
-  for (const selector of selectors) {
-    const value = normalizeWhitespace(node.querySelector(selector)?.textContent ?? "");
-    if (value) {
-      return value;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asArray<T>(value: T | T[] | null | undefined) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return [] as T[];
+  }
+
+  return [value];
+}
+
+function getTextFromXmlValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return normalizeWhitespace(String(value));
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = getTextFromXmlValue(item);
+      if (text) {
+        return text;
+      }
+    }
+
+    return "";
+  }
+
+  if (isRecord(value)) {
+    if ("#text" in value) {
+      const text = getTextFromXmlValue(value["#text"]);
+      if (text) {
+        return text;
+      }
+    }
+
+    if ("__cdata" in value) {
+      const cdata = getTextFromXmlValue(value.__cdata);
+      if (cdata) {
+        return cdata;
+      }
     }
   }
 
   return "";
 }
 
-function resolveEntryUrl(node: Element, feedUrl: string) {
-  const linkNodes = Array.from(node.querySelectorAll("link"));
-  for (const linkNode of linkNodes) {
-    const href = normalizeWhitespace(linkNode.getAttribute("href") ?? "");
-    if (href) {
-      const resolved = toAbsoluteHttpUrl(href, feedUrl);
-      if (resolved) {
-        return resolved;
-      }
+function getXmlField(node: Record<string, unknown>, fieldNames: string[]) {
+  for (const fieldName of fieldNames) {
+    if (fieldName in node) {
+      return node[fieldName];
     }
   }
 
-  for (const linkNode of linkNodes) {
-    const textValue = normalizeWhitespace(linkNode.textContent ?? "");
-    if (textValue) {
-      const resolved = toAbsoluteHttpUrl(textValue, feedUrl);
-      if (resolved) {
-        return resolved;
-      }
+  return undefined;
+}
+
+function getXmlTextField(node: Record<string, unknown>, fieldNames: string[]) {
+  const value = getXmlField(node, fieldNames);
+  return getTextFromXmlValue(value);
+}
+
+function getLinkCandidates(value: unknown): string[] {
+  const candidates: string[] = [];
+  const pushCandidate = (raw: unknown) => {
+    const text = getTextFromXmlValue(raw);
+    if (text) {
+      candidates.push(text);
+    }
+  };
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      candidates.push(...getLinkCandidates(item));
+    }
+    return candidates;
+  }
+
+  if (!isRecord(value)) {
+    pushCandidate(value);
+    return candidates;
+  }
+
+  if ("@_href" in value) {
+    pushCandidate(value["@_href"]);
+  }
+
+  if ("href" in value) {
+    pushCandidate(value.href);
+  }
+
+  if ("#text" in value) {
+    pushCandidate(value["#text"]);
+  }
+
+  if ("__cdata" in value) {
+    pushCandidate(value.__cdata);
+  }
+
+  return candidates;
+}
+
+function resolveEntryUrlFromXml(node: Record<string, unknown>, feedUrl: string) {
+  const directLink = getXmlField(node, ["link"]);
+  const directCandidates = getLinkCandidates(directLink);
+  for (const candidate of directCandidates) {
+    const resolved = toAbsoluteHttpUrl(candidate, feedUrl);
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  const fallbackValue = getXmlField(node, ["guid", "id"]);
+  const fallback = getTextFromXmlValue(fallbackValue);
+  if (fallback) {
+    const resolved = toAbsoluteHttpUrl(fallback, feedUrl);
+    if (resolved) {
+      return resolved;
     }
   }
 
   return null;
+}
+
+function getFeedItemNodes(parsed: Record<string, unknown>) {
+  const root = parsed;
+
+  if (isRecord(root.rss)) {
+    const channels = asArray(root.rss.channel).filter(isRecord);
+    const itemNodes: Record<string, unknown>[] = [];
+    for (const channel of channels) {
+      itemNodes.push(...asArray(channel.item).filter(isRecord));
+    }
+    return itemNodes;
+  }
+
+  if (isRecord(root.RDF)) {
+    return asArray(root.RDF.item).filter(isRecord);
+  }
+
+  if (isRecord(root.feed)) {
+    return asArray(root.feed.entry).filter(isRecord);
+  }
+
+  if (Array.isArray(root.item)) {
+    return root.item.filter(isRecord);
+  }
+
+  if (isRecord(root.item)) {
+    return [root.item];
+  }
+
+  return [] as Record<string, unknown>[];
 }
 
 async function fetchFeedXml(feedUrl: string) {
@@ -355,24 +482,30 @@ async function fetchFeedXml(feedUrl: string) {
 }
 
 function parseFeedEntries(xml: string, feedUrl: string, maxItems: number) {
-  const doc = new DOMParser().parseFromString(xml, "text/xml");
-  if (!doc) {
-    throw new SourceImportError(400, "RSS_PARSE_FAILED", "Failed to parse RSS XML.");
-  }
-
-  const parseErrorNode = doc.querySelector("parsererror");
-  if (parseErrorNode) {
+  let parsed: Record<string, unknown>;
+  try {
+    const parser = new XMLParser({
+      allowBooleanAttributes: true,
+      attributeNamePrefix: "@_",
+      ignoreAttributes: false,
+      ignoreDeclaration: true,
+      parseTagValue: true,
+      removeNSPrefix: true,
+      trimValues: true,
+    });
+    parsed = parser.parse(xml) as Record<string, unknown>;
+  } catch {
     throw new SourceImportError(400, "RSS_PARSE_FAILED", "RSS XML is invalid.");
   }
 
-  const nodes = Array.from(doc.querySelectorAll("item, entry"));
+  const nodes = getFeedItemNodes(parsed);
   const uniqueUrls = new Set<string>();
   const entries: FeedEntry[] = [];
   let skippedMissingUrl = 0;
   let skippedDuplicateInFeed = 0;
 
   for (const node of nodes) {
-    const url = resolveEntryUrl(node, feedUrl);
+    const url = resolveEntryUrlFromXml(node, feedUrl);
     if (!url) {
       skippedMissingUrl += 1;
       continue;
@@ -386,8 +519,8 @@ function parseFeedEntries(xml: string, feedUrl: string, maxItems: number) {
 
     uniqueUrls.add(dedupeKey);
 
-    const title = getFirstText(node, ["title"]);
-    const publishedAt = getFirstText(node, ["pubDate", "published", "updated"]) || null;
+    const title = getXmlTextField(node, ["title"]);
+    const publishedAt = getXmlTextField(node, ["pubDate", "published", "updated", "date"]) || null;
     entries.push({
       publishedAt,
       title: title || url,
