@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { FlatPage } from '@/components/layout/flat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -23,6 +24,10 @@ type AuthorPost = {
   is_published: boolean;
   published_at: string | null;
   scheduled_at: string | null;
+  topic?: {
+    id: string;
+    name: string;
+  } | null;
   views_count?: number | null;
   reads_count?: number | null;
   read_count?: number | null;
@@ -37,6 +42,7 @@ type TabKey = 'drafts' | 'published' | 'scheduled';
 type QuickAction = 'publish' | 'unschedule' | 'unpublish';
 type PostStatus = TabKey;
 type SortMode = 'newest' | 'oldest' | 'scheduled';
+type TopicFilterOption = { id: string; label: string };
 
 const AUTHOR_SORT_STORAGE_KEY = 'devlabs.author.sort.v1';
 const AUTHOR_TOPIC_STORAGE_KEY = 'devlabs.author.topic.v1';
@@ -99,18 +105,6 @@ function getStoredTopicFilter(): string {
 
   const raw = window.sessionStorage.getItem(AUTHOR_TOPIC_STORAGE_KEY);
   return raw && raw.length > 0 ? raw : ALL_TOPICS_VALUE;
-}
-
-function formatTopicLabel(topic: string) {
-  if (!topic) {
-    return topic;
-  }
-
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(topic)) {
-    return `#${topic.slice(0, 8)}`;
-  }
-
-  return topic;
 }
 
 function formatDateTime(value: string) {
@@ -252,14 +246,29 @@ export function AuthorPanelPage() {
 
   const isAdmin = profile?.role === 'admin';
   const canUseAuthorPanel = profile?.role === 'admin' || profile?.role === 'editor';
-  const topicOptions = useMemo(() => {
-    return Array.from(
-      new Set(
-        posts
-          .map((post) => post.topic_id?.trim())
-          .filter((topic): topic is string => Boolean(topic)),
-      ),
-    ).sort((left, right) => left.localeCompare(right, 'ru'));
+  const topicOptions = useMemo<TopicFilterOption[]>(() => {
+    const topicMap = new Map<string, string>();
+
+    posts.forEach((post) => {
+      const topicId = post.topic_id?.trim();
+      if (!topicId) {
+        return;
+      }
+
+      const topicName = post.topic?.name?.trim();
+      if (topicName) {
+        topicMap.set(topicId, topicName);
+        return;
+      }
+
+      if (!topicMap.has(topicId)) {
+        topicMap.set(topicId, 'Без названия раздела');
+      }
+    });
+
+    return [...topicMap.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((left, right) => left.label.localeCompare(right.label, 'ru'));
   }, [posts]);
   const canFilterByTopic = topicOptions.length > 0;
   const restoreScrollY = useMemo(() => {
@@ -293,7 +302,7 @@ export function AuthorPanelPage() {
       return;
     }
 
-    if (canFilterByTopic && topicFilter !== ALL_TOPICS_VALUE && !topicOptions.includes(topicFilter)) {
+    if (canFilterByTopic && topicFilter !== ALL_TOPICS_VALUE && !topicOptions.some((topic) => topic.id === topicFilter)) {
       setTopicFilter(ALL_TOPICS_VALUE);
     }
   }, [canFilterByTopic, topicFilter, topicOptions]);
@@ -343,7 +352,7 @@ export function AuthorPanelPage() {
     const supabase = getSupabaseClient();
     let query = supabase
       .from('posts')
-      .select('id, title, excerpt, cover_url, created_at, updated_at, topic_id, author_id, is_published, scheduled_at, published_at')
+      .select('id, title, excerpt, cover_url, created_at, updated_at, topic_id, author_id, is_published, scheduled_at, published_at, topic:topics(id, name)')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -710,18 +719,18 @@ export function AuthorPanelPage() {
           {canFilterByTopic ? (
             <label className="ml-auto inline-flex items-center gap-2 text-xs text-white/60">
               <span className="whitespace-nowrap">Тема</span>
-              <select
+              <Select
                 value={topicFilter}
                 onChange={(event) => setTopicFilter(event.target.value)}
-                className="h-8 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white outline-none transition-colors hover:bg-white/10"
+                className="h-8 min-w-[12rem] rounded-full border-white/10 bg-white/5 px-3 text-xs text-white hover:bg-white/10"
               >
                 <option value={ALL_TOPICS_VALUE}>Все темы</option>
                 {topicOptions.map((topic) => (
-                  <option key={topic} value={topic}>
-                    {formatTopicLabel(topic)}
+                  <option key={topic.id} value={topic.id}>
+                    {topic.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
           ) : null}
         </div>
