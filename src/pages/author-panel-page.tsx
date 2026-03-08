@@ -1,4 +1,4 @@
-import { ChevronRight, FilePenLine, LoaderCircle, X } from 'lucide-react';
+import { FilePenLine, LoaderCircle, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -43,15 +43,15 @@ const AUTHOR_TOPIC_STORAGE_KEY = 'devlabs.author.topic.v1';
 const ALL_TOPICS_VALUE = '__all__';
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string }> = [
-  { key: 'drafts', label: 'Черновики' },
-  { key: 'published', label: 'Опубликовано' },
-  { key: 'scheduled', label: 'Запланировано' },
+  { key: 'drafts', label: 'Р§РµСЂРЅРѕРІРёРєРё' },
+  { key: 'published', label: 'РћРїСѓР±Р»РёРєРѕРІР°РЅРѕ' },
+  { key: 'scheduled', label: 'Р—Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ' },
 ];
 
 const SORT_ITEMS: Array<{ key: SortMode; label: string }> = [
-  { key: 'newest', label: 'Новые сначала' },
-  { key: 'oldest', label: 'Старые сначала' },
-  { key: 'scheduled', label: 'По расписанию' },
+  { key: 'newest', label: 'РќРѕРІС‹Рµ СЃРЅР°С‡Р°Р»Р°' },
+  { key: 'oldest', label: 'РЎС‚Р°СЂС‹Рµ СЃРЅР°С‡Р°Р»Р°' },
+  { key: 'scheduled', label: 'РџРѕ СЂР°СЃРїРёСЃР°РЅРёСЋ' },
 ];
 
 function getPostStatus(post: AuthorPost): PostStatus {
@@ -145,16 +145,16 @@ function getDefaultScheduleLocal() {
 
 function getScheduleValidationError(value: string) {
   if (!value.trim()) {
-    return 'Укажите дату и время публикации.';
+    return 'РЈРєР°Р¶РёС‚Рµ РґР°С‚Сѓ Рё РІСЂРµРјСЏ РїСѓР±Р»РёРєР°С†РёРё.';
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Введите корректную дату и время.';
+    return 'Р’РІРµРґРёС‚Рµ РєРѕСЂСЂРµРєС‚РЅСѓСЋ РґР°С‚Сѓ Рё РІСЂРµРјСЏ.';
   }
 
   if (date.getTime() <= Date.now()) {
-    return 'Дата публикации должна быть позже текущего времени.';
+    return 'Р”Р°С‚Р° РїСѓР±Р»РёРєР°С†РёРё РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РїРѕР·Р¶Рµ С‚РµРєСѓС‰РµРіРѕ РІСЂРµРјРµРЅРё.';
   }
 
   return null;
@@ -262,6 +262,14 @@ export function AuthorPanelPage() {
     ).sort((left, right) => left.localeCompare(right, 'ru'));
   }, [posts]);
   const canFilterByTopic = topicOptions.length > 0;
+  const restoreScrollY = useMemo(() => {
+    const state = location.state as { restoreScrollY?: unknown } | null;
+    if (!state || typeof state.restoreScrollY !== 'number' || !Number.isFinite(state.restoreScrollY)) {
+      return null;
+    }
+
+    return Math.max(0, state.restoreScrollY);
+  }, [location.state]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -297,13 +305,8 @@ export function AuthorPanelPage() {
   }, [activeTab]);
 
   const onClose = useCallback(() => {
-    if (location.key && location.key !== 'default') {
-      navigate(-1);
-      return;
-    }
-
     navigate('/profile', { replace: true });
-  }, [location.key, navigate]);
+  }, [navigate]);
 
   const openEditor = useCallback(
     (postId: string) => {
@@ -377,7 +380,7 @@ export function AuthorPanelPage() {
       } catch {
         if (!cancelled) {
           setPosts([]);
-          setError('Не удалось загрузить панель автора.');
+          setError('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РїР°РЅРµР»СЊ Р°РІС‚РѕСЂР°.');
         }
       } finally {
         if (!cancelled) {
@@ -393,17 +396,38 @@ export function AuthorPanelPage() {
     };
   }, [canUseAuthorPanel, loadPosts, reloadKey, user?.id]);
 
+  useEffect(() => {
+    if (restoreScrollY === null || loading || isLoadingPosts) {
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      const container = getAppScrollContainer();
+      if (container) {
+        container.scrollTo({ top: restoreScrollY, behavior: 'auto' });
+      } else {
+        window.scrollTo({ top: restoreScrollY, behavior: 'auto' });
+      }
+
+      navigate('.', { replace: true, state: null });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [isLoadingPosts, loading, navigate, restoreScrollY]);
+
   const runQuickAction = useCallback(
     async (postId: string, action: QuickAction) => {
       if (action === 'unpublish') {
-        const confirmed = window.confirm('Снять публикацию? Пост исчезнет из ленты.');
+        const confirmed = window.confirm('РЎРЅСЏС‚СЊ РїСѓР±Р»РёРєР°С†РёСЋ? РџРѕСЃС‚ РёСЃС‡РµР·РЅРµС‚ РёР· Р»РµРЅС‚С‹.');
         if (!confirmed) {
           return;
         }
       }
 
       if (action === 'unschedule') {
-        const confirmed = window.confirm('Снять с расписания? Публикация станет черновиком.');
+        const confirmed = window.confirm('РЎРЅСЏС‚СЊ СЃ СЂР°СЃРїРёСЃР°РЅРёСЏ? РџСѓР±Р»РёРєР°С†РёСЏ СЃС‚Р°РЅРµС‚ С‡РµСЂРЅРѕРІРёРєРѕРј.');
         if (!confirmed) {
           return;
         }
@@ -424,7 +448,7 @@ export function AuthorPanelPage() {
 
         await loadPosts();
       } catch {
-        setActionError('Не удалось применить действие. Попробуйте ещё раз.');
+        setActionError('РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРјРµРЅРёС‚СЊ РґРµР№СЃС‚РІРёРµ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰С‘ СЂР°Р·.');
         setLastFailedAction({ action, postId });
       } finally {
         setActionBusyId(null);
@@ -468,10 +492,10 @@ export function AuthorPanelPage() {
 
         await loadPosts();
         closeScheduleEditor();
-        toast.success(activeTab === 'drafts' ? 'Публикация запланирована.' : 'Время публикации обновлено.');
+        toast.success(activeTab === 'drafts' ? 'РџСѓР±Р»РёРєР°С†РёСЏ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅР°.' : 'Р’СЂРµРјСЏ РїСѓР±Р»РёРєР°С†РёРё РѕР±РЅРѕРІР»РµРЅРѕ.');
       } catch {
-        setActionError('Не удалось сохранить дату публикации. Попробуйте ещё раз.');
-        toast.error('Не удалось сохранить дату публикации.');
+        setActionError('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РґР°С‚Сѓ РїСѓР±Р»РёРєР°С†РёРё. РџРѕРїСЂРѕР±СѓР№С‚Рµ РµС‰С‘ СЂР°Р·.');
+        toast.error('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РґР°С‚Сѓ РїСѓР±Р»РёРєР°С†РёРё.');
       } finally {
         setScheduleSavingId(null);
       }
@@ -479,7 +503,7 @@ export function AuthorPanelPage() {
     [activeTab, closeScheduleEditor, editingScheduleValue, loadPosts, updatePostFields],
   );
 
-  const emptyStateTitle = activeTab === 'drafts' ? 'Нет черновиков' : activeTab === 'published' ? 'Нет опубликованных' : 'Нет запланированных';
+  const emptyStateTitle = activeTab === 'drafts' ? 'РќРµС‚ С‡РµСЂРЅРѕРІРёРєРѕРІ' : activeTab === 'published' ? 'РќРµС‚ РѕРїСѓР±Р»РёРєРѕРІР°РЅРЅС‹С…' : 'РќРµС‚ Р·Р°РїР»Р°РЅРёСЂРѕРІР°РЅРЅС‹С…';
   const stats = useMemo(() => {
     let drafts = 0;
     let published = 0;
@@ -546,21 +570,21 @@ export function AuthorPanelPage() {
     (post: AuthorPost) => {
       if (activeTab === 'published') {
         const date = post.published_at ?? post.created_at;
-        return `Опубликовано • ${formatDateTime(date)}`;
+        return `РћРїСѓР±Р»РёРєРѕРІР°РЅРѕ вЂў ${formatDateTime(date)}`;
       }
 
       if (activeTab === 'scheduled') {
         if (!post.scheduled_at) {
-          return `Запланировано • ${formatDateTime(post.created_at)}`;
+          return `Р—Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ вЂў ${formatDateTime(post.created_at)}`;
         }
 
         const scheduledDate = new Date(post.scheduled_at);
         const isOverdue = !Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() <= Date.now();
-        return `${isOverdue ? 'Ожидает публикации' : 'Запланировано'} • ${formatDateTime(post.scheduled_at)}${isOverdue ? ' • обычно до 5 минут' : ''}`;
+        return `${isOverdue ? 'РћР¶РёРґР°РµС‚ РїСѓР±Р»РёРєР°С†РёРё' : 'Р—Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ'} вЂў ${formatDateTime(post.scheduled_at)}${isOverdue ? ' вЂў РѕР±С‹С‡РЅРѕ РґРѕ 5 РјРёРЅСѓС‚' : ''}`;
       }
 
       const updatedAt = post.updated_at ?? post.created_at;
-      return `Черновик • изменено ${formatDateTime(updatedAt)}`;
+      return `Р§РµСЂРЅРѕРІРёРє вЂў РёР·РјРµРЅРµРЅРѕ ${formatDateTime(updatedAt)}`;
     },
     [activeTab],
   );
@@ -578,14 +602,14 @@ export function AuthorPanelPage() {
       <FlatPage className="py-6 sm:py-8">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-3xl font-extrabold">Панель автора</h1>
-            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+            <h1 className="text-3xl font-extrabold">РџР°РЅРµР»СЊ Р°РІС‚РѕСЂР°</h1>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Р—Р°РєСЂС‹С‚СЊ">
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <StateCard title="Нужен вход" description="Войдите, чтобы открыть панель автора." />
+          <StateCard title="РќСѓР¶РµРЅ РІС…РѕРґ" description="Р’РѕР№РґРёС‚Рµ, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РїР°РЅРµР»СЊ Р°РІС‚РѕСЂР°." />
           <Button type="button" onClick={() => navigate('/profile')}>
-            {'Перейти в профиль'}
+            {'РџРµСЂРµР№С‚Рё РІ РїСЂРѕС„РёР»СЊ'}
           </Button>
         </div>
       </FlatPage>
@@ -597,14 +621,14 @@ export function AuthorPanelPage() {
       <FlatPage className="py-6 sm:py-8">
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-3xl font-extrabold">Панель автора</h1>
-            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+            <h1 className="text-3xl font-extrabold">РџР°РЅРµР»СЊ Р°РІС‚РѕСЂР°</h1>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Р—Р°РєСЂС‹С‚СЊ">
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <StateCard title="Нет доступа" description="Доступно только редакторам и администраторам." />
+          <StateCard title="РќРµС‚ РґРѕСЃС‚СѓРїР°" description="Р”РѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ СЂРµРґР°РєС‚РѕСЂР°Рј Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°Рј." />
           <Button type="button" onClick={() => navigate('/profile')}>
-            {'Вернуться в профиль'}
+            {'Р’РµСЂРЅСѓС‚СЊСЃСЏ РІ РїСЂРѕС„РёР»СЊ'}
           </Button>
         </div>
       </FlatPage>
@@ -616,38 +640,38 @@ export function AuthorPanelPage() {
       <div className="space-y-5">
         <div className="border-b border-border/60 pb-4">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-3xl font-extrabold">Панель автора</h1>
-            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Закрыть">
+            <h1 className="text-3xl font-extrabold">РџР°РЅРµР»СЊ Р°РІС‚РѕСЂР°</h1>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Р—Р°РєСЂС‹С‚СЊ">
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">Управляйте публикациями по статусам.</p>
+          <p className="mt-1 text-sm text-muted-foreground">РЈРїСЂР°РІР»СЏР№С‚Рµ РїСѓР±Р»РёРєР°С†РёСЏРјРё РїРѕ СЃС‚Р°С‚СѓСЃР°Рј.</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => navigate('/admin/new')}>
-            {'Новый материал'}
+          <Button type="button" onClick={() => navigate('/admin/new', { state: { returnTo: '/author', returnScrollY: getCurrentScrollY() } })}>
+            {'РќРѕРІС‹Р№ РјР°С‚РµСЂРёР°Р»'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/import')}>
-            {'Импортировать в черновик'}
+          <Button type="button" variant="outline" onClick={() => navigate('/admin/import', { state: { returnTo: '/author', returnScrollY: getCurrentScrollY() } })}>
+            {'РРјРїРѕСЂС‚РёСЂРѕРІР°С‚СЊ РІ С‡РµСЂРЅРѕРІРёРє'}
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Всего</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Р’СЃРµРіРѕ</p>
             <p className="mt-1 text-xl font-semibold text-white">{stats.total}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Опубликовано</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">РћРїСѓР±Р»РёРєРѕРІР°РЅРѕ</p>
             <p className="mt-1 text-xl font-semibold text-emerald-200">{stats.published}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Черновики</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Р§РµСЂРЅРѕРІРёРєРё</p>
             <p className="mt-1 text-xl font-semibold text-white">{stats.drafts}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Запланировано</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Р—Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ</p>
             <p className="mt-1 text-xl font-semibold text-cyan-200">{stats.scheduled}</p>
           </div>
         </div>
@@ -685,13 +709,13 @@ export function AuthorPanelPage() {
 
           {canFilterByTopic ? (
             <label className="ml-auto inline-flex items-center gap-2 text-xs text-white/60">
-              <span className="whitespace-nowrap">Тема</span>
+              <span className="whitespace-nowrap">РўРµРјР°</span>
               <select
                 value={topicFilter}
                 onChange={(event) => setTopicFilter(event.target.value)}
                 className="h-8 rounded-full border border-white/10 bg-white/5 px-3 text-xs text-white outline-none transition-colors hover:bg-white/10"
               >
-                <option value={ALL_TOPICS_VALUE}>Все темы</option>
+                <option value={ALL_TOPICS_VALUE}>Р’СЃРµ С‚РµРјС‹</option>
                 {topicOptions.map((topic) => (
                   <option key={topic} value={topic}>
                     {formatTopicLabel(topic)}
@@ -708,7 +732,7 @@ export function AuthorPanelPage() {
           <div className="border-y border-destructive/35 bg-destructive/10 p-4 text-sm text-destructive">
             <p>{error}</p>
             <Button type="button" size="sm" variant="outline" className="mt-3" onClick={() => setReloadKey((value) => value + 1)}>
-              {'Повторить'}
+              {'РџРѕРІС‚РѕСЂРёС‚СЊ'}
             </Button>
           </div>
         ) : null}
@@ -730,7 +754,7 @@ export function AuthorPanelPage() {
                 setReloadKey((value) => value + 1);
               }}
             >
-              {'Повторить'}
+              {'РџРѕРІС‚РѕСЂРёС‚СЊ'}
             </Button>
           </div>
         ) : null}
@@ -738,28 +762,24 @@ export function AuthorPanelPage() {
         {!isLoadingPosts && !error && tabPosts.length === 0 ? (
           <StateCard
             title={emptyStateTitle}
-            description="Когда появятся публикации этого типа, они отобразятся здесь."
+            description="РљРѕРіРґР° РїРѕСЏРІСЏС‚СЃСЏ РїСѓР±Р»РёРєР°С†РёРё СЌС‚РѕРіРѕ С‚РёРїР°, РѕРЅРё РѕС‚РѕР±СЂР°Р·СЏС‚СЃСЏ Р·РґРµСЃСЊ."
           />
         ) : null}
 
         {!isLoadingPosts && !error && tabPosts.length > 0 ? (
-          <div className="divide-y divide-white/10">
+          <div className="space-y-3">
             {tabPosts.map((post) => {
               const isRowBusy = actionBusyId === post.id || scheduleSavingId === post.id;
               const isScheduleEditorOpen = editingSchedulePostId === post.id;
               const postStats = getPostStats(post);
 
               return (
-              <div key={`${activeTab}:${post.id}:${post.updated_at}`}>
-              <button
-                type="button"
-                className="flex w-full items-start gap-4 py-4 text-left transition-colors hover:bg-white/5 active:bg-white/10"
-                onClick={() => openEditor(post.id)}
-              >
+              <div key={`${activeTab}:${post.id}:${post.updated_at}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                 <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-24 sm:w-24">
                   {post.cover_url ? <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}
                 </div>
-                <div className="min-w-0 flex-1">
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openEditor(post.id)}>
                   <h2 className="line-clamp-2 text-lg font-bold leading-tight">{post.title}</h2>
                   {post.excerpt ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{post.excerpt}</p> : null}
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -767,13 +787,13 @@ export function AuthorPanelPage() {
                   </p>
                   {postStats.hasAny ? (
                     <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-white/50">
-                      {postStats.views !== null ? <span>{`👁 ${postStats.views}`}</span> : null}
-                      {postStats.likes !== null ? <span>{`👍 ${postStats.likes}`}</span> : null}
-                      {postStats.dislikes !== null ? <span>{`👎 ${postStats.dislikes}`}</span> : null}
+                      {postStats.views !== null ? <span>{`Views: ${postStats.views}`}</span> : null}
+                      {postStats.likes !== null ? <span>{`Likes: ${postStats.likes}`}</span> : null}
+                      {postStats.dislikes !== null ? <span>{`Dislikes: ${postStats.dislikes}`}</span> : null}
                     </p>
                   ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+                </button>
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:self-start">
                   {activeTab === 'drafts' ? (
                     <div className="flex items-center gap-2">
                     <Button
@@ -781,25 +801,23 @@ export function AuthorPanelPage() {
                       size="sm"
                       variant="ghost"
                       disabled={isRowBusy}
-                      onClick={(event) => {
-                        event.stopPropagation();
+                      onClick={() => {
                         void runQuickAction(post.id, 'publish');
                       }}
                     >
                       {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                      {'Опубликовать'}
+                      {'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ'}
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
                       disabled={isRowBusy}
-                      onClick={(event) => {
-                        event.stopPropagation();
+                      onClick={() => {
                         openScheduleEditor(post);
                       }}
                     >
-                      {'Запланировать...'}
+                      {'Р—Р°РїР»Р°РЅРёСЂРѕРІР°С‚СЊ...'}
                     </Button>
                     </div>
                   ) : null}
@@ -810,38 +828,35 @@ export function AuthorPanelPage() {
                         size="sm"
                         variant="ghost"
                         disabled={isRowBusy}
-                        onClick={(event) => {
-                          event.stopPropagation();
+                        onClick={() => {
                           void runQuickAction(post.id, 'publish');
                         }}
                       >
                         {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                        {'Опубликовать'}
+                        {'РћРїСѓР±Р»РёРєРѕРІР°С‚СЊ'}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         disabled={isRowBusy}
-                        onClick={(event) => {
-                          event.stopPropagation();
+                        onClick={() => {
                           void runQuickAction(post.id, 'unschedule');
                         }}
                       >
                         {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                        {'Снять'}
+                        {'РЎРЅСЏС‚СЊ'}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         disabled={isRowBusy}
-                        onClick={(event) => {
-                          event.stopPropagation();
+                        onClick={() => {
                           openScheduleEditor(post);
                         }}
                       >
-                        {'Изменить время...'}
+                        {'РР·РјРµРЅРёС‚СЊ РІСЂРµРјСЏ...'}
                       </Button>
                     </>
                   ) : null}
@@ -851,13 +866,12 @@ export function AuthorPanelPage() {
                       size="sm"
                       variant="ghost"
                       disabled={isRowBusy}
-                      onClick={(event) => {
-                        event.stopPropagation();
+                      onClick={() => {
                         void runQuickAction(post.id, 'unpublish');
                       }}
                     >
                       {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                      {'Снять с публикации'}
+                      {'РЎРЅСЏС‚СЊ СЃ РїСѓР±Р»РёРєР°С†РёРё'}
                     </Button>
                   ) : null}
                   <Button
@@ -865,21 +879,19 @@ export function AuthorPanelPage() {
                     size="sm"
                     variant="outline"
                     disabled={isRowBusy}
-                    onClick={(event) => {
-                      event.stopPropagation();
+                    onClick={() => {
                       openEditor(post.id);
                     }}
                   >
                     <FilePenLine className="h-4 w-4" />
-                    {'Редактировать'}
+                    {'Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ'}
                   </Button>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </div>
-              </button>
+              </div>
               {isScheduleEditorOpen ? (
-                <div className="pb-4 pl-24 pr-2 sm:pl-28 sm:pr-4">
-                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                    <label className="block text-xs text-white/70">Дата и время публикации</label>
+                <div className="pt-3">
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <label className="block text-xs text-white/70">Р”Р°С‚Р° Рё РІСЂРµРјСЏ РїСѓР±Р»РёРєР°С†РёРё</label>
                     <Input
                       type="datetime-local"
                       value={editingScheduleValue}
@@ -899,10 +911,10 @@ export function AuthorPanelPage() {
                         }}
                       >
                         {scheduleSavingId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                        {'Сохранить'}
+                        {'РЎРѕС…СЂР°РЅРёС‚СЊ'}
                       </Button>
                       <Button type="button" size="sm" variant="ghost" disabled={scheduleSavingId === post.id} onClick={closeScheduleEditor}>
-                        {'Отмена'}
+                        {'РћС‚РјРµРЅР°'}
                       </Button>
                     </div>
                   </div>
@@ -917,3 +929,6 @@ export function AuthorPanelPage() {
     </FlatPage>
   );
 }
+
+
+

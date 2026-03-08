@@ -508,9 +508,14 @@ export function PostPage() {
           </nav>
         </motion.div>
 
-        <motion.article initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+        <motion.article
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="overflow-hidden rounded-2xl border border-border/60 bg-background/40"
+        >
           {post.cover_url ? <img src={post.cover_url} alt="" loading="eager" className="aspect-[16/8] w-full object-cover" /> : null}
-          <div className="space-y-8 py-6 sm:py-8 lg:py-10">
+          <div className="space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -608,7 +613,7 @@ export function PostPage() {
           </div>
         </motion.article>
 
-        <section className="space-y-5">
+        <section className="space-y-5 border-t border-border/70 pt-8 sm:pt-10">
           <div className="space-y-1">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">{'Ещё'}</p>
             <h2 className="text-3xl font-extrabold">{'Последние новости'}</h2>

@@ -36,6 +36,7 @@ import {
 import { listTopics } from '@/features/topics/api';
 import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
 import { getPostPath } from '@/lib/post-links';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
@@ -51,6 +52,10 @@ type ReturnState = {
 };
 
 type PublishingMode = 'published' | 'draft';
+type TagFeedback = {
+  kind: 'error' | 'info' | 'success';
+  message: string;
+};
 type EditablePost = Post & {
   is_published?: boolean | null;
 };
@@ -110,6 +115,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<PublishingMode>('draft');
   const [tagInputValue, setTagInputValue] = useState('');
+  const [tagFeedback, setTagFeedback] = useState<TagFeedback | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'restored' | null>(null);
   const [hasCheckedDraftRestore, setHasCheckedDraftRestore] = useState(false);
   const lastSavedSnapshotRef = useRef('');
@@ -353,8 +359,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   }, [location.state]);
 
   const handleBack = () => {
-    if (returnState?.returnTo) {
-      navigate(returnState.returnTo);
+    if (returnState?.returnTo && returnState.returnTo !== location.pathname) {
+      navigate(returnState.returnTo, {
+        replace: true,
+        state: typeof returnState.returnScrollY === 'number' ? { restoreScrollY: returnState.returnScrollY } : null,
+      });
       return;
     }
 
@@ -363,7 +372,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       return;
     }
 
-    navigate('/author');
+    navigate('/author', { replace: true });
   };
 
   const currentCustomTags = useMemo(() => normalizePostCustomTags(watchedCustomTags), [watchedCustomTags]);
@@ -377,27 +386,100 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   };
 
   const handleAddCustomTags = (rawValue: string) => {
-    const tokens = rawValue
-      .split(/[\n,]+/g)
-      .map((value) => normalizePostCustomTag(value))
-      .filter(Boolean);
+    const rawTokens = rawValue.split(/[\n,]+/g);
+    const nextTags = [...currentCustomTags];
+    const existing = new Set(currentCustomTags);
+    let addedCount = 0;
+    let skippedEmpty = 0;
+    let skippedTooLong = 0;
+    let skippedDuplicate = 0;
+    let skippedLimit = 0;
 
-    if (tokens.length === 0) {
+    for (const rawToken of rawTokens) {
+      const trimmed = rawToken.trim();
+      if (!trimmed) {
+        skippedEmpty += 1;
+        continue;
+      }
+
+      if (trimmed.length > POST_CUSTOM_TAG_MAX_LENGTH) {
+        skippedTooLong += 1;
+        continue;
+      }
+
+      const normalized = normalizePostCustomTag(trimmed);
+      if (!normalized) {
+        skippedEmpty += 1;
+        continue;
+      }
+
+      if (existing.has(normalized)) {
+        skippedDuplicate += 1;
+        continue;
+      }
+
+      if (nextTags.length >= POST_CUSTOM_TAGS_LIMIT) {
+        skippedLimit += 1;
+        continue;
+      }
+
+      existing.add(normalized);
+      nextTags.push(normalized);
+      addedCount += 1;
+    }
+
+    if (addedCount > 0) {
+      applyCustomTags(nextTags);
+      setTagInputValue('');
+
+      const skippedCount = skippedEmpty + skippedTooLong + skippedDuplicate + skippedLimit;
+      if (skippedCount > 0) {
+        setTagFeedback({
+          kind: 'info',
+          message: `Добавлено: ${addedCount}. Пропущено: ${skippedCount}.`,
+        });
+      } else {
+        setTagFeedback({
+          kind: 'success',
+          message: `Добавлено тегов: ${addedCount}.`,
+        });
+      }
       return;
     }
 
-    if (currentCustomTags.length >= POST_CUSTOM_TAGS_LIMIT) {
-      toast.error(`Можно добавить максимум ${POST_CUSTOM_TAGS_LIMIT} тегов.`);
+    if (skippedLimit > 0) {
+      setTagFeedback({
+        kind: 'error',
+        message: `Достигнут лимит: максимум ${POST_CUSTOM_TAGS_LIMIT} тегов.`,
+      });
       return;
     }
 
-    const nextTags = normalizePostCustomTags([...currentCustomTags, ...tokens]);
-    applyCustomTags(nextTags);
-    setTagInputValue('');
+    if (skippedDuplicate > 0) {
+      setTagFeedback({
+        kind: 'error',
+        message: 'Такой тег уже добавлен.',
+      });
+      return;
+    }
+
+    if (skippedTooLong > 0) {
+      setTagFeedback({
+        kind: 'error',
+        message: `Тег слишком длинный. Лимит: ${POST_CUSTOM_TAG_MAX_LENGTH} символа(ов).`,
+      });
+      return;
+    }
+
+    setTagFeedback({
+      kind: 'error',
+      message: 'Введите непустой тег.',
+    });
   };
 
   const handleRemoveCustomTag = (tagToRemove: string) => {
     applyCustomTags(currentCustomTags.filter((tag) => tag !== tagToRemove));
+    setTagFeedback(null);
   };
 
   const handleCoverUpload = async (file: File) => {
@@ -456,7 +538,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
           return;
         }
 
-        navigate(`/admin/edit/${createdPost.id}`, { replace: true, state: { returnTo: '/author' } });
+        navigate(`/admin/edit/${createdPost.id}`, {
+          replace: true,
+          state: {
+            returnTo: returnState?.returnTo ?? '/author',
+            returnScrollY: returnState?.returnScrollY ?? 0,
+          },
+        });
         return;
       }
 
@@ -465,7 +553,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       clearDraftAfterSave();
       toast.success(nextMode === 'published' ? 'Публикация обновлена.' : 'Черновик сохранён.');
 
-      if (returnState?.returnTo === '/my-posts' || returnState?.returnTo === '/author') {
+      if (returnState?.returnTo && returnState.returnTo !== location.pathname) {
         navigate(returnState.returnTo, {
           replace: true,
           state: { restoreScrollY: returnState.returnScrollY ?? 0 },
@@ -587,7 +675,12 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     <Input
                       id="custom-tags-input"
                       value={tagInputValue}
-                      onChange={(event) => setTagInputValue(event.target.value)}
+                      onChange={(event) => {
+                        setTagInputValue(event.target.value);
+                        if (tagFeedback) {
+                          setTagFeedback(null);
+                        }
+                      }}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ',') {
                           return;
@@ -597,7 +690,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                         handleAddCustomTags(tagInputValue);
                       }}
                       placeholder="Добавьте тег и нажмите Enter"
-                      maxLength={POST_CUSTOM_TAG_MAX_LENGTH}
+                      maxLength={180}
                       disabled={currentCustomTags.length >= POST_CUSTOM_TAGS_LIMIT}
                     />
                     <Button
@@ -611,6 +704,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">До 5 тегов, без дублей. Можно разделять запятой.</p>
+                  {tagFeedback ? (
+                    <p className={cn('text-xs', tagFeedback.kind === 'error' ? 'text-destructive' : tagFeedback.kind === 'success' ? 'text-emerald-300' : 'text-muted-foreground')}>
+                      {tagFeedback.message}
+                    </p>
+                  ) : null}
                   {currentCustomTags.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {currentCustomTags.map((tag) => (
@@ -820,7 +918,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     lastSavedSnapshotRef.current = '';
                   }
                   toast.success('Новость удалена.');
-                  if (returnState?.returnTo === '/my-posts' || returnState?.returnTo === '/author') {
+                  if (returnState?.returnTo && returnState.returnTo !== location.pathname) {
                     navigate(returnState.returnTo, {
                       replace: true,
                       state: { restoreScrollY: Math.max(0, (returnState.returnScrollY ?? 0) - 120) },

@@ -23,10 +23,21 @@ export function AdminEditPage() {
     const state = location.state as { returnTo?: unknown } | null;
     return typeof state?.returnTo === 'string' ? state.returnTo : undefined;
   }, [location.state]);
+  const returnScrollY = useMemo(() => {
+    const state = location.state as { returnScrollY?: unknown } | null;
+    if (typeof state?.returnScrollY !== 'number' || !Number.isFinite(state.returnScrollY)) {
+      return 0;
+    }
+
+    return Math.max(0, state.returnScrollY);
+  }, [location.state]);
 
   const handleBack = () => {
-    if (returnTo) {
-      navigate(returnTo);
+    if (returnTo && returnTo !== location.pathname) {
+      navigate(returnTo, {
+        replace: true,
+        state: returnScrollY > 0 ? { restoreScrollY: returnScrollY } : null,
+      });
       return;
     }
 
@@ -35,7 +46,7 @@ export function AdminEditPage() {
       return;
     }
 
-    navigate('/author');
+    navigate('/author', { replace: true });
   };
 
   useEffect(() => {
