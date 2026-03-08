@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, Eye, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Eye, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -318,12 +318,27 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       return null;
     }
 
+    const returnTo = typeof state.returnTo === 'string' ? state.returnTo : undefined;
     const returnScrollY = typeof state.returnScrollY === 'number' && Number.isFinite(state.returnScrollY) ? Math.max(0, state.returnScrollY) : 0;
     return {
       returnScrollY,
-      returnTo: state.returnTo,
+      returnTo,
     };
   }, [location.state]);
+
+  const handleBack = () => {
+    if (returnState?.returnTo) {
+      navigate(returnState.returnTo);
+      return;
+    }
+
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/author');
+  };
 
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
@@ -427,9 +442,22 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   if (topicsLoading) {
     return (
-      <div className="space-y-5">
-        <Skeleton className="h-16 w-44" />
-        <Skeleton className="h-[640px] w-full" />
+      <div>
+        <FlatSection className="pt-0">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <h1 className="mt-2 text-3xl font-bold">{pageTitle}</h1>
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" variant="ghost" className="rounded-full" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4" />
+                {'Назад'}
+              </Button>
+            </div>
+          </div>
+        </FlatSection>
+        <div className="space-y-5 pt-6">
+          <Skeleton className="h-16 w-44" />
+          <Skeleton className="h-[640px] w-full" />
+        </div>
       </div>
     );
   }
@@ -459,8 +487,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                   <AppLink to={getPostPath(post.id)}>{isPublishedMaterial ? 'Открыть опубликованную версию' : 'Открыть черновик'}</AppLink>
                 </Button>
               ) : null}
-              <Button asChild variant="ghost">
-                <AppLink to="/">{'Назад к ленте'}</AppLink>
+              <Button type="button" variant="ghost" className="rounded-full" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4" />
+                {'Назад'}
               </Button>
             </div>
           </div>
