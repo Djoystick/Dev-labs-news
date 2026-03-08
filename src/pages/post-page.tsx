@@ -236,7 +236,8 @@ export function PostPage() {
       return '';
     }
 
-    return new Date(post.created_at).toLocaleDateString('ru-RU', {
+    const sourceDate = post.is_published ? post.published_at ?? post.created_at : post.updated_at ?? post.created_at;
+    return new Date(sourceDate).toLocaleDateString('ru-RU', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -372,6 +373,7 @@ export function PostPage() {
         const response = await getPosts({
           page: 1,
           pageSize: 6,
+          publishedOnly: true,
           signal: controller.signal,
           sort: 'newest',
         });
@@ -400,7 +402,7 @@ export function PostPage() {
   }, [id, retryToken]);
 
   useEffect(() => {
-    if (!post?.id) {
+    if (!post?.id || !post.is_published) {
       return;
     }
 
@@ -410,10 +412,10 @@ export function PostPage() {
       title: post.title,
       updatedAt: new Date().toISOString(),
     });
-  }, [post?.id, post?.title, post?.topic?.id, post?.topic_id]);
+  }, [post?.id, post?.is_published, post?.title, post?.topic?.id, post?.topic_id]);
 
   useEffect(() => {
-    if (!post?.id || !user?.id) {
+    if (!post?.id || !user?.id || !post.is_published) {
       return;
     }
 
@@ -428,7 +430,7 @@ export function PostPage() {
     void recordPostView(user.id, post.id).catch(() => {
       window.sessionStorage.removeItem(historyKey);
     });
-  }, [post?.id, user?.id]);
+  }, [post?.id, post?.is_published, user?.id]);
 
   if (isLoading) {
     return <DetailSkeleton />;
@@ -456,7 +458,27 @@ export function PostPage() {
   const topic = post.topic;
   const topicHref = topic?.slug ? `/?topic=${topic.slug}` : '/';
   const canEditPost = profile?.role === 'admin' || (profile?.role === 'editor' && Boolean(user?.id) && post.author_id === user?.id);
+  const isDraftPreview = !post.is_published;
   const discussionUrl = getDiscussionUrl(post);
+
+  if (isDraftPreview && !canEditPost) {
+    return (
+      <FlatPage className="safe-pb py-6 sm:py-8">
+        <div className="space-y-4">
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-fit"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {'Назад'}
+          </Button>
+          <InlineError message="Черновик недоступен по публичной ссылке." onRetry={retry} />
+        </div>
+      </FlatPage>
+    );
+  }
 
   return (
     <FlatPage className="safe-pb py-6 sm:py-8">
@@ -494,14 +516,15 @@ export function PostPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{topic?.name ?? 'Новости'}</span>
                   <span className="text-xs text-muted-foreground">{authorLabel}</span>
+                  {isDraftPreview ? <span className="rounded-full border border-amber-300/35 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200">{'Черновик'}</span> : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" />
-                  <Button type="button" size="sm" variant="outline" onClick={() => void handleShare()}>
+                  {!isDraftPreview ? <BookmarkButton postId={post.id} size="sm" variant="outline" showLabel className="h-10 px-3" /> : null}
+                  {!isDraftPreview ? <Button type="button" size="sm" variant="outline" onClick={() => void handleShare()}>
                     <Share2 className="h-4 w-4" />
                     {'Поделиться'}
-                  </Button>
-                  {discussionUrl ? (
+                  </Button> : null}
+                  {!isDraftPreview && discussionUrl ? (
                     <Button
                       type="button"
                       size="sm"
@@ -538,8 +561,14 @@ export function PostPage() {
                 <span>{createdAtLabel}</span>
               </div>
 
-              <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} />
-              <EmojiReactionBar postId={post.id} />
+              {!isDraftPreview ? <PostReactions postId={post.id} summary={summariesById.get(post.id)} disabled={isPending(post.id)} onToggle={toggle} /> : null}
+              {!isDraftPreview ? <EmojiReactionBar postId={post.id} /> : null}
+
+              {isDraftPreview ? (
+                <div className="rounded-xl border border-amber-300/35 bg-amber-500/10 p-3 text-sm text-amber-100">
+                  {'Это предпросмотр черновика. Материал виден только редактору и не участвует в публичных лентах или уведомлениях.'}
+                </div>
+              ) : null}
 
               {post.excerpt ? <p className="max-w-3xl text-lg leading-8 text-muted-foreground">{post.excerpt}</p> : null}
             </div>

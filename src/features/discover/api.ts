@@ -6,7 +6,13 @@ const postSelect =
 
 export async function fetchPostsByTopic(topicId: string, limit: number, signal?: AbortSignal): Promise<Post[]> {
   const supabase = getSupabaseClient();
-  let query = supabase.from('posts').select(postSelect).eq('topic_id', topicId).order('created_at', { ascending: false }).limit(limit);
+  let query = supabase
+    .from('posts')
+    .select(postSelect)
+    .eq('topic_id', topicId)
+    .eq('is_published', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
   if (signal) {
     query = query.abortSignal(signal);

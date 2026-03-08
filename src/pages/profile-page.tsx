@@ -430,8 +430,13 @@ export function ProfilePage() {
           <FlatSection className="pt-2">
             <SectionTitle>{'Мой контент'}</SectionTitle>
             <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              <ProfileRow icon={FilePenLine} title="Мои публикации" onClick={() => navigate('/my-posts')} />
-              <ProfileRow icon={FilePenLine} title="Панель автора" onClick={() => navigate('/author')} />
+              <ProfileRow
+                icon={FilePenLine}
+                title="Черновики и публикации"
+                subtitle="Draft-first: сохранить черновик, проверить, опубликовать вручную"
+                onClick={() => navigate('/author')}
+              />
+              <ProfileRow icon={FilePenLine} title="Список материалов" onClick={() => navigate('/my-posts')} />
             </div>
           </FlatSection>
         ) : null}

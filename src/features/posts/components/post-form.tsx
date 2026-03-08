@@ -1,8 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, Eye, ImagePlus, LoaderCircle, Save, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { toast } from 'sonner';
 import { RichTextMarkdownEditor } from '@/components/editor/RichTextMarkdownEditor';
 import { FlatSection } from '@/components/layout/flat';
@@ -28,7 +30,6 @@ import { postFormSchema, type PostFormValues } from '@/features/posts/validation
 import { listTopics } from '@/features/topics/api';
 import { FALLBACK_SECTION_TOPICS, filterToSections } from '@/features/topics/sections';
 import { getPostPath } from '@/lib/post-links';
-import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
@@ -43,10 +44,9 @@ type ReturnState = {
   returnScrollY?: number;
 };
 
-type PublishingMode = 'published' | 'draft' | 'scheduled';
+type PublishingMode = 'published' | 'draft';
 type EditablePost = Post & {
   is_published?: boolean | null;
-  scheduled_at?: string | null;
 };
 
 const emptyValues: PostFormValues = {
@@ -57,85 +57,13 @@ const emptyValues: PostFormValues = {
   topic_id: '',
 };
 
-function toDatetimeLocal(iso: string | null | undefined) {
-  if (!iso) {
-    return '';
-  }
-
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const pad = (value: number) => value.toString().padStart(2, '0');
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function getRoundedScheduledLocal() {
-  const scheduledDate = new Date(Date.now() + 30 * 60 * 1000);
-  scheduledDate.setSeconds(0, 0);
-
-  const roundedMinutes = Math.ceil(scheduledDate.getMinutes() / 5) * 5;
-  if (roundedMinutes === 60) {
-    scheduledDate.setHours(scheduledDate.getHours() + 1, 0, 0, 0);
-  } else {
-    scheduledDate.setMinutes(roundedMinutes, 0, 0);
-  }
-
-  return toDatetimeLocal(scheduledDate.toISOString());
-}
-
-function getScheduledValidationError(value: string) {
-  if (!value.trim()) {
-    return 'Укажите дату и время';
-  }
-
-  const scheduledDate = new Date(value);
-  if (Number.isNaN(scheduledDate.getTime())) {
-    return 'Введите корректную дату и время публикации.';
-  }
-
-  if (scheduledDate.getTime() < Date.now()) {
-    return 'Время не может быть в прошлом';
-  }
-
-  return null;
-}
-
-function formatScheduledHuman(value: string) {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const scheduledDate = new Date(value);
-  if (Number.isNaN(scheduledDate.getTime())) {
-    return null;
-  }
-
-  return scheduledDate.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function resolvePublishingMode(post: EditablePost | null): PublishingMode {
   if (!post) {
-    return 'published';
+    return 'draft';
   }
 
   if (post.is_published === true) {
     return 'published';
-  }
-
-  if (post.scheduled_at) {
-    const scheduledDate = new Date(post.scheduled_at);
-    if (!Number.isNaN(scheduledDate.getTime()) && scheduledDate.getTime() > Date.now()) {
-      return 'scheduled';
-    }
   }
 
   return 'draft';
@@ -162,10 +90,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [publishMode, setPublishMode] = useState<PublishingMode>('published');
-  const [scheduledLocal, setScheduledLocal] = useState('');
-  const [scheduledError, setScheduledError] = useState<string | null>(null);
+  const [publishMode, setPublishMode] = useState<PublishingMode>('draft');
   const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'restored' | null>(null);
   const [hasCheckedDraftRestore, setHasCheckedDraftRestore] = useState(false);
   const lastSavedSnapshotRef = useRef('');
@@ -203,16 +130,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     return getPostDraftStorageKey({ mode: 'edit', postId: editablePost.id });
   }, [editablePost?.id, mode]);
   const initialPublishMode = useMemo<PublishingMode>(() => {
-    if (mode === 'create') {
-      return 'published';
-    }
-
     return resolvePublishingMode(editablePost);
   }, [editablePost, mode]);
-  const initialScheduledLocal = useMemo(
-    () => (initialPublishMode === 'scheduled' ? toDatetimeLocal(editablePost?.scheduled_at) : ''),
-    [editablePost?.scheduled_at, initialPublishMode],
-  );
 
   useEffect(() => {
     hasRestoredDraftRef.current = false;
@@ -227,9 +146,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   useEffect(() => {
     setPublishMode(initialPublishMode);
-    setScheduledLocal(initialScheduledLocal);
-    setScheduledError(null);
-  }, [initialPublishMode, initialScheduledLocal]);
+  }, [initialPublishMode]);
 
   useEffect(() => {
     if (!draftStorageKey || hasRestoredDraftRef.current) {
@@ -274,18 +191,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
         cover_url: draft.cover_url.length > 0 ? draft.cover_url : initialFormValues.cover_url,
         topic_id: draft.topic_id.length > 0 ? draft.topic_id : initialFormValues.topic_id,
       };
-      const restoredMode: PublishingMode = draft.publish_mode;
-      const restoredScheduled = restoredMode === 'scheduled' ? draft.scheduled_at : '';
+      const restoredMode: PublishingMode = draft.publish_mode === 'published' ? 'published' : 'draft';
 
       form.reset(restoredValues);
       setPublishMode(restoredMode);
-      setScheduledLocal(restoredScheduled);
-      setScheduledError(restoredMode === 'scheduled' ? getScheduledValidationError(restoredScheduled) : null);
       setAutosaveStatus('restored');
       lastSavedSnapshotRef.current = JSON.stringify({
         ...restoredValues,
         publish_mode: restoredMode,
-        scheduled_at: restoredScheduled,
+        scheduled_at: '',
       });
     }
 
@@ -296,7 +210,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     hasCheckedDraftRestore,
     initialFormValues,
     initialPublishMode,
-    initialScheduledLocal,
   ]);
 
   useEffect(() => {
@@ -341,7 +254,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       cover_url: watchedCoverUrl ?? '',
       topic_id: watchedTopicId ?? '',
       publish_mode: publishMode,
-      scheduled_at: publishMode === 'scheduled' ? scheduledLocal : '',
+      scheduled_at: '',
     };
 
     if (!hasMeaningfulPostDraft(nextPayloadBase)) {
@@ -378,7 +291,6 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     hasCheckedDraftRestore,
     isSubmitting,
     publishMode,
-    scheduledLocal,
     watchedContent,
     watchedCoverUrl,
     watchedExcerpt,
@@ -387,32 +299,15 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   ]);
 
   const coverUrl = watchedCoverUrl;
-  const submitLabel = isSubmitting
-    ? 'Сохранение…'
-    : publishMode === 'published'
-      ? mode === 'create'
-        ? 'Опубликовать'
-        : 'Сохранить и опубликовать'
-      : publishMode === 'draft'
-        ? 'Сохранить черновик'
-        : 'Запланировать';
-  const isEditingScheduledPost = mode === 'edit' && initialPublishMode === 'scheduled';
-  const scheduledHumanDate = formatScheduledHuman(scheduledLocal);
-  const statusHint =
-    publishMode === 'published'
-      ? 'Статус: Опубликовано'
-      : publishMode === 'draft'
-        ? 'Статус: Черновик'
-        : scheduledHumanDate
-          ? `Статус: Запланировано на ${scheduledHumanDate}`
-          : 'Статус: Запланировано';
+  const isPublishedMaterial = publishMode === 'published';
   const canDeletePost = profile?.role === 'admin';
+  const canSaveAsDraft = mode === 'create' || !isPublishedMaterial;
+  const publishActionLabel = mode === 'edit' && isPublishedMaterial ? 'Обновить публикацию' : 'Опубликовать';
+  const statusHint = isPublishedMaterial ? 'Статус: опубликовано' : 'Статус: черновик';
   const publicationHint =
-    publishMode === 'published'
-      ? 'Публикация станет доступна сразу после сохранения.'
-      : publishMode === 'draft'
-        ? 'Материал сохранится как черновик без публикации.'
-        : 'Публикация выйдет автоматически в указанное время.';
+    isPublishedMaterial
+      ? 'Публикация обновится после сохранения.'
+      : 'Черновик останется в редакторском контуре и не появится в публичных лентах.';
 
   const autosaveHint =
     autosaveStatus === 'restored' ? 'Восстановлен черновик' : autosaveStatus === 'saved' ? 'Сохранено' : null;
@@ -448,22 +343,74 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const pageTitle = useMemo(() => (mode === 'create' ? 'Новая новость' : 'Редактирование новости'), [mode]);
 
-  const handlePublishModeChange = (nextMode: PublishingMode) => {
-    setPublishMode(nextMode);
-
-    if (nextMode !== 'scheduled') {
-      setScheduledError(null);
+  const clearDraftAfterSave = () => {
+    if (!draftStorageKey) {
       return;
     }
 
-    if (!scheduledLocal.trim() && !isEditingScheduledPost) {
-      const defaultScheduledLocal = getRoundedScheduledLocal();
-      setScheduledLocal(defaultScheduledLocal);
-      setScheduledError(getScheduledValidationError(defaultScheduledLocal));
-      return;
-    }
+    clearPostDraft(draftStorageKey);
+    lastSavedSnapshotRef.current = '';
+    setAutosaveStatus(null);
+  };
 
-    setScheduledError(getScheduledValidationError(scheduledLocal));
+  const submitPost = async (values: PostFormValues, nextMode: PublishingMode) => {
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    try {
+      const payload: PostMutationInput = {
+        author_id: editablePost?.author_id ?? userId,
+        content: values.content,
+        cover_url: values.cover_url?.trim() || null,
+        excerpt: values.excerpt?.trim() || null,
+        is_published: nextMode === 'published',
+        scheduled_at: null,
+        title: values.title.trim(),
+        topic_id: values.topic_id,
+      };
+
+      if (mode === 'create') {
+        const createdPost = await createPost(payload);
+        setPublishMode(nextMode);
+        clearDraftAfterSave();
+        toast.success(nextMode === 'published' ? 'Публикация опубликована.' : 'Черновик сохранён.');
+
+        if (nextMode === 'published') {
+          navigate(getPostPath(createdPost.id), { replace: true });
+          return;
+        }
+
+        navigate(`/admin/edit/${createdPost.id}`, { replace: true, state: { returnTo: '/author' } });
+        return;
+      }
+
+      await updatePost(editablePost!.id, payload);
+      setPublishMode(nextMode);
+      clearDraftAfterSave();
+      toast.success(nextMode === 'published' ? 'Публикация обновлена.' : 'Черновик сохранён.');
+
+      if (returnState?.returnTo === '/my-posts' || returnState?.returnTo === '/author') {
+        navigate(returnState.returnTo, {
+          replace: true,
+          state: { restoreScrollY: returnState.returnScrollY ?? 0 },
+        });
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[PostForm] submit failed', error);
+      }
+
+      setSubmitError('Не удалось сохранить новость.');
+      toast.error('Не удалось сохранить новость.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitByMode = (nextMode: PublishingMode) => {
+    void form.handleSubmit(async (values) => {
+      await submitPost(values, nextMode);
+    })();
   };
 
   useEffect(() => {
@@ -495,6 +442,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
       : post?.topic_id
         ? [...FALLBACK_SECTION_TOPICS, { id: post.topic_id, slug: 'current', name: 'Текущий раздел', created_at: '' }]
         : FALLBACK_SECTION_TOPICS;
+  const previewTitle = (watchedTitle ?? '').trim() || 'Без заголовка';
+  const previewExcerpt = (watchedExcerpt ?? '').trim();
+  const previewContent = (watchedContent ?? '').trim();
+  const previewTopicName = topicOptions.find((topic) => topic.id === watchedTopicId)?.name ?? 'Раздел не выбран';
 
   return (
     <>
@@ -505,7 +456,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             <div className="flex flex-wrap gap-3">
               {post ? (
                 <Button asChild variant="outline">
-                  <AppLink to={getPostPath(post.id)}>{'Открыть опубликованную версию'}</AppLink>
+                  <AppLink to={getPostPath(post.id)}>{isPublishedMaterial ? 'Открыть опубликованную версию' : 'Открыть черновик'}</AppLink>
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
@@ -519,71 +470,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
           <form
             className="space-y-8"
             onSubmit={form.handleSubmit(async (values) => {
-              setSubmitError(null);
-              setScheduledError(null);
-
-              let scheduledAt: string | null = null;
-              if (publishMode === 'scheduled') {
-                const validationError = getScheduledValidationError(scheduledLocal);
-                if (validationError) {
-                  setScheduledError(validationError);
-                  return;
-                }
-
-                scheduledAt = new Date(scheduledLocal).toISOString();
-              }
-
-              setIsSubmitting(true);
-
-              try {
-                const payload: PostMutationInput = {
-                  author_id: editablePost?.author_id ?? userId,
-                  content: values.content,
-                  cover_url: values.cover_url?.trim() || null,
-                  excerpt: values.excerpt?.trim() || null,
-                  is_published: publishMode === 'published',
-                  scheduled_at: publishMode === 'scheduled' ? scheduledAt : null,
-                  title: values.title.trim(),
-                  topic_id: values.topic_id,
-                };
-
-                if (mode === 'create') {
-                  await createPost(payload);
-                  if (draftStorageKey) {
-                    clearPostDraft(draftStorageKey);
-                    lastSavedSnapshotRef.current = '';
-                  }
-                  toast.success('Новость опубликована.');
-                  navigate('/', { replace: true });
-                  return;
-                }
-
-                await updatePost(editablePost!.id, payload);
-                if (draftStorageKey) {
-                  clearPostDraft(draftStorageKey);
-                  lastSavedSnapshotRef.current = '';
-                }
-                toast.success('Новость сохранена.');
-
-                if (returnState?.returnTo === '/my-posts') {
-                  navigate('/my-posts', {
-                    replace: true,
-                    state: { restoreScrollY: returnState.returnScrollY ?? 0 },
-                  });
-                  return;
-                }
-
-                navigate('/', { replace: true });
-              } catch (error) {
-                if (import.meta.env.DEV) {
-                  console.error('[PostForm] submit failed', error);
-                }
-
-                setSubmitError('Не удалось сохранить новость.');
-                toast.error('Не удалось сохранить новость.');
-              } finally {
-                setIsSubmitting(false);
-              }
+              await submitPost(values, publishMode === 'published' ? 'published' : 'draft');
             })}
           >
             {submitError ? <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
@@ -678,80 +565,72 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
 
-            <div className="space-y-3 border-t border-border/70 pt-6">
-              <Label>{'Режим публикации'}</Label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => handlePublishModeChange('published')}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-sm transition-colors',
-                    publishMode === 'published' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
-                  )}
-                >
-                  {'Опубликовать'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePublishModeChange('draft')}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-sm transition-colors',
-                    publishMode === 'draft' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
-                  )}
-                >
-                  {'Черновик'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePublishModeChange('scheduled')}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-sm transition-colors',
-                    publishMode === 'scheduled' ? 'bg-white/10 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10',
-                  )}
-                >
-                  {'Запланировать'}
-                </button>
-              </div>
-              <p className="text-xs text-white/60">{statusHint}</p>
-              {publishMode === 'scheduled' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="scheduled-at">{'Дата и время публикации'}</Label>
-                  <Input
-                    id="scheduled-at"
-                    type="datetime-local"
-                    value={scheduledLocal}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      setScheduledLocal(nextValue);
-                      setScheduledError(getScheduledValidationError(nextValue));
-                    }}
-                  />
-                </div>
-              ) : null}
-              {scheduledError ? <p className="text-sm text-destructive">{scheduledError}</p> : null}
-            </div>
-
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
+                <p className="text-xs text-white/60">{statusHint}</p>
                 <p className="text-sm text-muted-foreground">{publicationHint}</p>
                 {autosaveHint ? <p className="text-xs text-white/60">{autosaveHint}</p> : null}
               </div>
               <div className="flex flex-wrap gap-3">
+                <Button type="button" variant="outline" onClick={() => setIsPreviewDialogOpen(true)}>
+                  <Eye className="h-4 w-4" />
+                  {'Предпросмотр'}
+                </Button>
+                {canSaveAsDraft ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting || isUploadingCover}
+                    onClick={() => submitByMode('draft')}
+                  >
+                    {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {'Сохранить черновик'}
+                  </Button>
+                ) : null}
                 {mode === 'edit' && editablePost && canDeletePost ? (
                   <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4" />
                     {'Удалить'}
                   </Button>
                 ) : null}
-                <Button type="submit" disabled={isSubmitting || isUploadingCover || Boolean(scheduledError)}>
+                <Button
+                  type="button"
+                  disabled={isSubmitting || isUploadingCover}
+                  onClick={() => submitByMode('published')}
+                >
                   {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  {submitLabel}
+                  {publishActionLabel}
                 </Button>
               </div>
             </div>
           </form>
         </div>
       </div>
+
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{'Предпросмотр материала'}</DialogTitle>
+            <DialogDescription>{'Проверка перед ручной публикацией. Предпросмотр не делает материал публичным.'}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-white/65">
+              <span className="rounded-full border border-white/15 px-2.5 py-1">{isPublishedMaterial ? 'Опубликовано' : 'Черновик'}</span>
+              <span className="rounded-full border border-white/15 px-2.5 py-1">{previewTopicName}</span>
+            </div>
+            <h2 className="font-['Source_Serif_4'] text-3xl font-bold leading-tight">{previewTitle}</h2>
+            {previewExcerpt ? <p className="text-sm leading-7 text-muted-foreground">{previewExcerpt}</p> : null}
+            {coverUrl ? (
+              <div className="overflow-hidden rounded-xl border border-border/70">
+                <img src={coverUrl} alt="" className="aspect-[16/8] w-full object-cover" />
+              </div>
+            ) : null}
+            <div className="prose prose-slate max-w-none prose-headings:font-['Source_Serif_4'] dark:prose-invert">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent || 'Текст пока не добавлен.'}</ReactMarkdown>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={canDeletePost ? isDeleteDialogOpen : false} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
@@ -788,8 +667,8 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                     lastSavedSnapshotRef.current = '';
                   }
                   toast.success('Новость удалена.');
-                  if (returnState?.returnTo === '/my-posts') {
-                    navigate('/my-posts', {
+                  if (returnState?.returnTo === '/my-posts' || returnState?.returnTo === '/author') {
+                    navigate(returnState.returnTo, {
                       replace: true,
                       state: { restoreScrollY: Math.max(0, (returnState.returnScrollY ?? 0) - 120) },
                     });
