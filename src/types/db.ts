@@ -45,6 +45,24 @@ export type PublicationRule = {
   version: number;
 };
 
+export type AiImportModel = 'qwen-3-235b-a22b-instruct-2507' | 'gpt-oss-120b';
+export type AiRewriteMode = 'conservative' | 'balanced' | 'aggressive';
+export type AiResultLength = 'short' | 'standard' | 'long';
+export type AiDedupeMode = 'strict_url' | 'url_and_soft_title';
+
+export type AiImportSettings = {
+  dedupe_mode: AiDedupeMode;
+  fallback_model: AiImportModel;
+  id: number;
+  max_tags: number;
+  primary_model: AiImportModel;
+  result_length: AiResultLength;
+  rewrite_mode: AiRewriteMode;
+  updated_at: string;
+  updated_by: string | null;
+  use_source_image: boolean;
+};
+
 export type Profile = {
   id: string;
   role: UserRole;
@@ -264,6 +282,34 @@ export type Database = {
           updated_at?: string;
           updated_by?: string | null;
           version?: number;
+        };
+        Relationships: [];
+      };
+      ai_import_settings: {
+        Row: AiImportSettings;
+        Insert: {
+          dedupe_mode?: AiDedupeMode;
+          fallback_model?: AiImportModel;
+          id?: number;
+          max_tags?: number;
+          primary_model?: AiImportModel;
+          result_length?: AiResultLength;
+          rewrite_mode?: AiRewriteMode;
+          updated_at?: string;
+          updated_by?: string | null;
+          use_source_image?: boolean;
+        };
+        Update: {
+          dedupe_mode?: AiDedupeMode;
+          fallback_model?: AiImportModel;
+          id?: number;
+          max_tags?: number;
+          primary_model?: AiImportModel;
+          result_length?: AiResultLength;
+          rewrite_mode?: AiRewriteMode;
+          updated_at?: string;
+          updated_by?: string | null;
+          use_source_image?: boolean;
         };
         Relationships: [];
       };

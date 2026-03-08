@@ -17,8 +17,10 @@ const responseHeaders = {
 } as const;
 
 const DEFAULT_CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1";
-const DEFAULT_CEREBRAS_MODEL = "qwen-3-235b-a22b-instruct-2507";
-const DEFAULT_CEREBRAS_FALLBACK_MODEL = "gpt-oss-120b";
+const ALLOWED_AI_MODELS = ["qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"] as const;
+const ALLOWED_REWRITE_MODES = ["conservative", "balanced", "aggressive"] as const;
+const ALLOWED_RESULT_LENGTHS = ["short", "standard", "long"] as const;
+const ALLOWED_DEDUPE_MODES = ["strict_url", "url_and_soft_title"] as const;
 const FETCH_TIMEOUT_MS = 15_000;
 const AI_TIMEOUT_MS = 30_000;
 const MAX_HTML_SIZE = 1_500_000;
@@ -26,6 +28,29 @@ const MAX_SOURCE_TEXT_LENGTH = 14_000;
 const MAX_TITLE_LENGTH = 160;
 const MAX_EXCERPT_LENGTH = 320;
 const MIN_LANGUAGE_LETTERS = 40;
+
+type AiModel = (typeof ALLOWED_AI_MODELS)[number];
+type AiRewriteMode = (typeof ALLOWED_REWRITE_MODES)[number];
+type AiResultLength = (typeof ALLOWED_RESULT_LENGTHS)[number];
+type DedupeMode = (typeof ALLOWED_DEDUPE_MODES)[number];
+
+const DEFAULT_AI_IMPORT_SETTINGS = {
+  dedupeMode: "strict_url",
+  fallbackModel: "gpt-oss-120b",
+  maxTags: 5,
+  primaryModel: "qwen-3-235b-a22b-instruct-2507",
+  resultLength: "standard",
+  rewriteMode: "conservative",
+  useSourceImage: true,
+} as const satisfies {
+  dedupeMode: DedupeMode;
+  fallbackModel: AiModel;
+  maxTags: number;
+  primaryModel: AiModel;
+  resultLength: AiResultLength;
+  rewriteMode: AiRewriteMode;
+  useSourceImage: boolean;
+};
 
 type ImportBody = {
   note?: string;
@@ -55,6 +80,26 @@ type AiDraftPayload = {
 };
 
 type SourceLanguage = "ru" | "unknown";
+
+type AiImportSettings = {
+  dedupeMode: DedupeMode;
+  fallbackModel: AiModel;
+  maxTags: number;
+  primaryModel: AiModel;
+  resultLength: AiResultLength;
+  rewriteMode: AiRewriteMode;
+  useSourceImage: boolean;
+};
+
+type AiImportSettingsRow = {
+  dedupe_mode: string | null;
+  fallback_model: string | null;
+  max_tags: number | null;
+  primary_model: string | null;
+  result_length: string | null;
+  rewrite_mode: string | null;
+  use_source_image: boolean | null;
+};
 
 type ExtractedArticle = {
   excerpt: string;
@@ -95,8 +140,6 @@ function getServerEnv() {
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const service = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
   const cerebrasKey = Deno.env.get("CEREBRAS_API_KEY");
-  const cerebrasModel = Deno.env.get("CEREBRAS_MODEL")?.trim() || DEFAULT_CEREBRAS_MODEL;
-  const cerebrasFallbackModel = Deno.env.get("CEREBRAS_FALLBACK_MODEL")?.trim() || DEFAULT_CEREBRAS_FALLBACK_MODEL;
   const cerebrasBaseUrl = (Deno.env.get("CEREBRAS_BASE_URL")?.trim() || DEFAULT_CEREBRAS_BASE_URL).replace(/\/+$/u, "");
 
   if (!url || !anon || !service) {
@@ -116,7 +159,7 @@ function getServerEnv() {
     throw new ImportError("CONFIG_MISSING", "Server misconfigured: CEREBRAS_BASE_URL is invalid.");
   }
 
-  return { anon, cerebrasBaseUrl, cerebrasFallbackModel, cerebrasKey, cerebrasModel, service, url };
+  return { anon, cerebrasBaseUrl, cerebrasKey, service, url };
 }
 
 function assertHttpMethod(request: Request) {
@@ -399,6 +442,50 @@ function assertDraftLanguage(draft: AiDraftPayload, sourceLanguage: SourceLangua
   );
 }
 
+function asAllowedValue<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim() as T;
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeMaxTags(value: unknown, fallback: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(5, Math.max(1, Math.round(value)));
+}
+
+function resolveAiImportSettings(value: Partial<AiImportSettingsRow> | null | undefined): AiImportSettings {
+  return {
+    dedupeMode: asAllowedValue(value?.dedupe_mode, ALLOWED_DEDUPE_MODES, DEFAULT_AI_IMPORT_SETTINGS.dedupeMode),
+    fallbackModel: asAllowedValue(value?.fallback_model, ALLOWED_AI_MODELS, DEFAULT_AI_IMPORT_SETTINGS.fallbackModel),
+    maxTags: normalizeMaxTags(value?.max_tags, DEFAULT_AI_IMPORT_SETTINGS.maxTags),
+    primaryModel: asAllowedValue(value?.primary_model, ALLOWED_AI_MODELS, DEFAULT_AI_IMPORT_SETTINGS.primaryModel),
+    resultLength: asAllowedValue(value?.result_length, ALLOWED_RESULT_LENGTHS, DEFAULT_AI_IMPORT_SETTINGS.resultLength),
+    rewriteMode: asAllowedValue(value?.rewrite_mode, ALLOWED_REWRITE_MODES, DEFAULT_AI_IMPORT_SETTINGS.rewriteMode),
+    useSourceImage: typeof value?.use_source_image === "boolean" ? value.use_source_image : DEFAULT_AI_IMPORT_SETTINGS.useSourceImage,
+  };
+}
+
+async function loadAiImportSettings(serviceClient: any): Promise<AiImportSettings> {
+  const { data, error } = await serviceClient
+    .from("ai_import_settings")
+    .select("primary_model, fallback_model, rewrite_mode, result_length, max_tags, use_source_image, dedupe_mode")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("ai_import_settings unavailable, using defaults", { code: error.code, message: error.message });
+    return resolveAiImportSettings(null);
+  }
+
+  return resolveAiImportSettings((data ?? null) as Partial<AiImportSettingsRow> | null);
+}
+
 function toAbsoluteUrl(value: string, baseUrl: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -548,7 +635,12 @@ function normalizeOptionalUrl(value: unknown) {
   }
 }
 
-function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle): AiDraftPayload {
+type ParseAiDraftOptions = {
+  maxTags: number;
+  useSourceImage: boolean;
+};
+
+function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle, options: ParseAiDraftOptions): AiDraftPayload {
   if (!input || typeof input !== "object") {
     throw new ImportError("AI_INVALID", "AI вернул невалидную структуру.");
   }
@@ -572,7 +664,7 @@ function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle): AiDra
     .filter((item): item is string => typeof item === "string")
     .map((item) => normalizeWhitespace(item))
     .filter((item) => item.length > 0)
-    .slice(0, 8);
+    .slice(0, options.maxTags);
 
   const bodyMarkdown = bodyMarkdownRaw.length >= 200
     ? bodyMarkdownRaw
@@ -584,7 +676,7 @@ function parseAiDraftPayload(input: unknown, extracted: ExtractedArticle): AiDra
 
   return {
     body_markdown: bodyMarkdown.slice(0, 50_000),
-    cover_image_url: coverImageRaw ?? extracted.imageUrl,
+    cover_image_url: coverImageRaw ?? (options.useSourceImage ? extracted.imageUrl : null),
     excerpt: sanitizeExcerpt(excerptRaw, extracted.excerpt),
     tags,
     title: sanitizeTitle(titleRaw, extracted.title),
@@ -648,13 +740,38 @@ function failAllAiModels(attempts: Array<{ code: string; message: string; model:
   });
 }
 
+function buildRewriteModeInstruction(rewriteMode: AiRewriteMode) {
+  if (rewriteMode === "aggressive") {
+    return "Rewrite mode is aggressive: allow stronger restructuring, but do not invent any facts.";
+  }
+
+  if (rewriteMode === "balanced") {
+    return "Rewrite mode is balanced: improve clarity and structure while staying faithful to the source.";
+  }
+
+  return "Rewrite mode is conservative: keep wording and structure close to the source, only normalize style.";
+}
+
+function buildResultLengthInstruction(resultLength: AiResultLength) {
+  if (resultLength === "short") {
+    return "Result length target is short: concise article body and concise excerpt.";
+  }
+
+  if (resultLength === "long") {
+    return "Result length target is long: fuller article body with more context from the source text.";
+  }
+
+  return "Result length target is standard: balanced article body and excerpt.";
+}
+
 async function callAiModel(
   cerebrasKey: string,
   cerebrasBaseUrl: string,
-  model: string,
+  model: AiModel,
   prompt: string,
   extracted: ExtractedArticle,
   sourceLanguage: SourceLanguage,
+  aiSettings: AiImportSettings,
 ) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -701,7 +818,10 @@ async function callAiModel(
 
     const content = payload.choices?.[0]?.message?.content ?? "";
     const parsed = readJsonObject(content);
-    const draft = parseAiDraftPayload(parsed, extracted);
+    const draft = parseAiDraftPayload(parsed, extracted, {
+      maxTags: aiSettings.maxTags,
+      useSourceImage: aiSettings.useSourceImage,
+    });
     assertDraftLanguage(draft, sourceLanguage);
     return draft;
   } catch (error) {
@@ -725,14 +845,13 @@ async function callAiModel(
 async function transformWithAi(
   cerebrasKey: string,
   cerebrasBaseUrl: string,
-  primaryModel: string,
-  fallbackModel: string,
   extracted: ExtractedArticle,
   topics: TopicRow[],
+  aiSettings: AiImportSettings,
   editorNote?: string,
 ): Promise<AiTransformResult> {
-  const normalizedPrimaryModel = primaryModel.trim() || DEFAULT_CEREBRAS_MODEL;
-  const normalizedFallbackModel = fallbackModel.trim() || DEFAULT_CEREBRAS_FALLBACK_MODEL;
+  const normalizedPrimaryModel = aiSettings.primaryModel;
+  const normalizedFallbackModel = aiSettings.fallbackModel;
   const topicsPrompt = topics.map((topic) => `- ${topic.slug}: ${topic.name}`).join("\n");
   const sourceText = extracted.text.slice(0, MAX_SOURCE_TEXT_LENGTH);
   const noteSection = editorNote ? `\nEDITOR_NOTE:\n${editorNote}\n` : "";
@@ -740,6 +859,11 @@ async function transformWithAi(
   const languageInstruction = sourceLanguage === "ru"
     ? "Source language is Russian. Keep the draft in Russian and do not translate."
     : "Keep the draft in the same language as the source text and do not translate.";
+  const rewriteModeInstruction = buildRewriteModeInstruction(aiSettings.rewriteMode);
+  const resultLengthInstruction = buildResultLengthInstruction(aiSettings.resultLength);
+  const imageInstruction = aiSettings.useSourceImage
+    ? "Use source image URL if it is available and relevant."
+    : "Do not auto-attach source image URL. Keep cover_image_url null unless there is a clear alternative.";
   const attempts: Array<{ code: string; message: string; model: string }> = [];
   const aiModelsTried: string[] = [];
 
@@ -749,6 +873,10 @@ async function transformWithAi(
     "Do not invent facts, dates, or numbers missing in the source.",
     "If data is missing, keep fields empty and add a warning in warnings.",
     languageInstruction,
+    rewriteModeInstruction,
+    resultLengthInstruction,
+    imageInstruction,
+    `Return at most ${aiSettings.maxTags} tags.`,
     "",
     "JSON schema:",
     "{",
@@ -756,7 +884,7 @@ async function transformWithAi(
     '  "excerpt": "string, up to 320 chars",',
     '  "body_markdown": "string, structured markdown article body",',
     '  "topic_slug": "string|null, one of available topics",',
-    '  "tags": ["string"],',
+    `  "tags": ["string, up to ${aiSettings.maxTags} items"],`,
     '  "cover_image_url": "string|null",',
     '  "warnings": ["string"]',
     "}",
@@ -773,10 +901,10 @@ async function transformWithAi(
     sourceText,
   ].join("\n");
 
-  const runModel = async (modelName: string) => {
+  const runModel = async (modelName: AiModel) => {
     aiModelsTried.push(modelName);
     try {
-      return await callAiModel(cerebrasKey, cerebrasBaseUrl, modelName, prompt, extracted, sourceLanguage);
+      return await callAiModel(cerebrasKey, cerebrasBaseUrl, modelName, prompt, extracted, sourceLanguage, aiSettings);
     } catch (error) {
       if (error instanceof ImportError) {
         attempts.push({
@@ -927,7 +1055,7 @@ serve(async (request: Request) => {
     }
 
     const body = await parseBody(request);
-    const { anon, cerebrasBaseUrl, cerebrasFallbackModel, cerebrasKey, cerebrasModel, service, url } = getServerEnv();
+    const { anon, cerebrasBaseUrl, cerebrasKey, service, url } = getServerEnv();
     const access = await requireEditorOrAdmin(url, anon, authorization);
 
     const { normalizedUrl } = normalizeUrl(body.url ?? "");
@@ -937,6 +1065,7 @@ serve(async (request: Request) => {
         persistSession: false,
       },
     });
+    const aiSettings = await loadAiImportSettings(serviceClient);
 
     const duplicateByUrl = await findDuplicateBySourceUrl(serviceClient, normalizedUrl);
     if (duplicateByUrl) {
@@ -968,15 +1097,17 @@ serve(async (request: Request) => {
     }
 
     const extracted = extractArticleData(fetched.html, canonicalSourceUrl, canonicalSourceDomain);
-    const softDuplicate = await findSoftDuplicateByTitle(serviceClient, canonicalSourceDomain, extracted.title);
-    if (softDuplicate) {
-      return jsonResponse({
+    if (aiSettings.dedupeMode === "url_and_soft_title") {
+      const softDuplicate = await findSoftDuplicateByTitle(serviceClient, canonicalSourceDomain, extracted.title);
+      if (softDuplicate) {
+        return jsonResponse({
         code: "DUPLICATE_SOFT",
         existingPostId: softDuplicate.id,
         existingPostTitle: softDuplicate.title,
         message: "Похожий материал из этого источника уже есть в контуре.",
         ok: false,
-      });
+        });
+      }
     }
 
     const { data: topicsData, error: topicsError } = await serviceClient
@@ -996,10 +1127,9 @@ serve(async (request: Request) => {
     const aiTransform = await transformWithAi(
       cerebrasKey,
       cerebrasBaseUrl,
-      cerebrasModel,
-      cerebrasFallbackModel,
       extracted,
       topics,
+      aiSettings,
       body.note,
     );
     const aiDraft = aiTransform.draft;
@@ -1022,7 +1152,7 @@ serve(async (request: Request) => {
       .insert({
         author_id: access.userId,
         content: draftContent,
-        cover_url: aiDraft.cover_image_url ?? extracted.imageUrl ?? null,
+        cover_url: aiDraft.cover_image_url ?? null,
         excerpt: aiDraft.excerpt || null,
         import_note: body.note ?? null,
         import_origin: "manual_import_ai",
