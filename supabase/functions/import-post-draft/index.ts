@@ -25,6 +25,7 @@ const MAX_HTML_SIZE = 1_500_000;
 const MAX_SOURCE_TEXT_LENGTH = 14_000;
 const MAX_TITLE_LENGTH = 160;
 const MAX_EXCERPT_LENGTH = 320;
+const MIN_LANGUAGE_LETTERS = 40;
 
 type ImportBody = {
   note?: string;
@@ -52,6 +53,8 @@ type AiDraftPayload = {
   topic_slug: string | null;
   warnings: string[];
 };
+
+type SourceLanguage = "ru" | "unknown";
 
 type ExtractedArticle = {
   excerpt: string;
@@ -349,6 +352,53 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/gu, " ").trim();
 }
 
+function countMatches(value: string, pattern: RegExp) {
+  return (value.match(pattern) ?? []).length;
+}
+
+function detectSourceLanguage(extracted: ExtractedArticle): SourceLanguage {
+  const sample = normalizeWhitespace(`${extracted.title}\n${extracted.excerpt}\n${extracted.text}`).slice(0, 10_000);
+  const cyrillicCount = countMatches(sample, /[\u0400-\u04FF]/gu);
+  const latinCount = countMatches(sample, /[A-Za-z]/g);
+  const totalLetters = cyrillicCount + latinCount;
+
+  if (totalLetters < MIN_LANGUAGE_LETTERS) {
+    return "unknown";
+  }
+
+  return cyrillicCount / totalLetters >= 0.45 ? "ru" : "unknown";
+}
+
+function isLikelyRussianText(value: string) {
+  const sample = normalizeWhitespace(value).slice(0, 8_000);
+  const cyrillicCount = countMatches(sample, /[\u0400-\u04FF]/gu);
+  const latinCount = countMatches(sample, /[A-Za-z]/g);
+  const totalLetters = cyrillicCount + latinCount;
+
+  if (totalLetters < MIN_LANGUAGE_LETTERS) {
+    return false;
+  }
+
+  return cyrillicCount / totalLetters >= 0.45;
+}
+
+function assertDraftLanguage(draft: AiDraftPayload, sourceLanguage: SourceLanguage) {
+  if (sourceLanguage !== "ru") {
+    return;
+  }
+
+  const outputText = `${draft.title}\n${draft.excerpt}\n${draft.body_markdown}`;
+  if (isLikelyRussianText(outputText)) {
+    return;
+  }
+
+  throw new ImportError(
+    "AI_LANGUAGE_MISMATCH",
+    "AI returned a draft in a different language than the source.",
+    { expectedLanguage: "ru" },
+  );
+}
+
 function toAbsoluteUrl(value: string, baseUrl: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -553,6 +603,7 @@ type AiTransformResult = {
 function isRetryableAiError(error: ImportError) {
   return error.code === "AI_FAILED"
     || error.code === "AI_INVALID"
+    || error.code === "AI_LANGUAGE_MISMATCH"
     || error.code === "AI_MODEL_UNAVAILABLE"
     || error.code === "AI_NETWORK"
     || error.code === "AI_PROVIDER_ERROR"
@@ -586,14 +637,14 @@ function toAiErrorCode(responseStatus: number, errorText: string) {
 
 function failAllAiModels(attempts: Array<{ code: string; message: string; model: string }>, modelsTried: string[], message: string) {
   const lastAttempt = attempts[attempts.length - 1];
-  const messageWithReason = lastAttempt
+  const failureReason = lastAttempt
     ? `${message} Last error: ${lastAttempt.code} (${lastAttempt.model}).`
     : message;
 
-  throw new ImportError("AI_ALL_MODELS_FAILED", messageWithReason, {
+  throw new ImportError("AI_ALL_MODELS_FAILED", "AI import is temporarily unavailable. Please try again later or create a draft manually.", {
     aiAttempts: attempts,
     aiModelsTried: modelsTried,
-    aiFailureReason: messageWithReason,
+    aiFailureReason: failureReason,
   });
 }
 
@@ -603,6 +654,7 @@ async function callAiModel(
   model: string,
   prompt: string,
   extracted: ExtractedArticle,
+  sourceLanguage: SourceLanguage,
 ) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
@@ -649,7 +701,9 @@ async function callAiModel(
 
     const content = payload.choices?.[0]?.message?.content ?? "";
     const parsed = readJsonObject(content);
-    return parseAiDraftPayload(parsed, extracted);
+    const draft = parseAiDraftPayload(parsed, extracted);
+    assertDraftLanguage(draft, sourceLanguage);
+    return draft;
   } catch (error) {
     if (error instanceof ImportError) {
       throw error;
@@ -682,6 +736,10 @@ async function transformWithAi(
   const topicsPrompt = topics.map((topic) => `- ${topic.slug}: ${topic.name}`).join("\n");
   const sourceText = extracted.text.slice(0, MAX_SOURCE_TEXT_LENGTH);
   const noteSection = editorNote ? `\nEDITOR_NOTE:\n${editorNote}\n` : "";
+  const sourceLanguage = detectSourceLanguage(extracted);
+  const languageInstruction = sourceLanguage === "ru"
+    ? "Source language is Russian. Keep the draft in Russian and do not translate."
+    : "Keep the draft in the same language as the source text and do not translate.";
   const attempts: Array<{ code: string; message: string; model: string }> = [];
   const aiModelsTried: string[] = [];
 
@@ -690,6 +748,7 @@ async function transformWithAi(
     "Return only a JSON object, no markdown wrapper.",
     "Do not invent facts, dates, or numbers missing in the source.",
     "If data is missing, keep fields empty and add a warning in warnings.",
+    languageInstruction,
     "",
     "JSON schema:",
     "{",
@@ -717,7 +776,7 @@ async function transformWithAi(
   const runModel = async (modelName: string) => {
     aiModelsTried.push(modelName);
     try {
-      return await callAiModel(cerebrasKey, cerebrasBaseUrl, modelName, prompt, extracted);
+      return await callAiModel(cerebrasKey, cerebrasBaseUrl, modelName, prompt, extracted, sourceLanguage);
     } catch (error) {
       if (error instanceof ImportError) {
         attempts.push({
