@@ -1,7 +1,8 @@
-import { LoaderCircle, Save } from 'lucide-react';
+﻿import { Info, LoaderCircle, Save } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -17,6 +18,23 @@ const MODEL_OPTIONS: AiImportModel[] = ['qwen-3-235b-a22b-instruct-2507', 'gpt-o
 const REWRITE_MODE_OPTIONS: AiRewriteMode[] = ['conservative', 'balanced', 'aggressive'];
 const RESULT_LENGTH_OPTIONS: AiResultLength[] = ['short', 'standard', 'long'];
 const DEDUPE_MODE_OPTIONS: AiDedupeMode[] = ['strict_url', 'url_and_soft_title'];
+
+const REWRITE_MODE_LABELS: Record<AiRewriteMode, string> = {
+  conservative: 'Ближе к источнику',
+  balanced: 'Сбалансированно',
+  aggressive: 'Более свободно',
+};
+
+const RESULT_LENGTH_LABELS: Record<AiResultLength, string> = {
+  short: 'Коротко',
+  standard: 'Стандартно',
+  long: 'Подробно',
+};
+
+const DEDUPE_MODE_LABELS: Record<AiDedupeMode, string> = {
+  strict_url: 'Только точное совпадение ссылки',
+  url_and_soft_title: 'Ссылка и похожий заголовок',
+};
 
 const DEFAULT_AI_IMPORT_SETTINGS: EditableAiImportSettings = {
   dedupe_mode: 'strict_url',
@@ -64,6 +82,34 @@ function normalizeSettings(value: Partial<AiImportSettings> | null | undefined):
     rewrite_mode: normalizeRewriteMode(value?.rewrite_mode, DEFAULT_AI_IMPORT_SETTINGS.rewrite_mode),
     use_source_image: typeof value?.use_source_image === 'boolean' ? value.use_source_image : DEFAULT_AI_IMPORT_SETTINGS.use_source_image,
   };
+}
+
+function InfoHint({ hint, label }: { hint: string; label: string }) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition hover:bg-secondary"
+          aria-label={`Подсказка: ${label}`}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-w-[18rem] p-3">
+        <p className="text-xs leading-5 text-foreground/90">{hint}</p>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function LabelWithHint({ hint, htmlFor, text }: { hint?: string; htmlFor: string; text: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Label htmlFor={htmlFor}>{text}</Label>
+      {hint ? <InfoHint hint={hint} label={text} /> : null}
+    </div>
+  );
 }
 
 export function AdminAiSettingsEditor() {
@@ -163,13 +209,13 @@ export function AdminAiSettingsEditor() {
       <CardHeader>
         <CardTitle>AI-настройки импорта в черновик</CardTitle>
         <p className="text-sm leading-6 text-muted-foreground">
-          Редактируются только безопасные параметры import-to-draft. Секреты и ключи не отображаются в интерфейсе.
+          Здесь доступны только безопасные параметры импорта в черновик. Секреты и ключи в интерфейсе не показываются.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="ai-primary-model">Primary model</Label>
+            <Label htmlFor="ai-primary-model">Основная модель</Label>
             <Select
               id="ai-primary-model"
               value={settings.primary_model}
@@ -185,7 +231,7 @@ export function AdminAiSettingsEditor() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-fallback-model">Fallback model</Label>
+            <Label htmlFor="ai-fallback-model">Резервная модель</Label>
             <Select
               id="ai-fallback-model"
               value={settings.fallback_model}
@@ -201,7 +247,11 @@ export function AdminAiSettingsEditor() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-rewrite-mode">Rewrite mode</Label>
+            <LabelWithHint
+              htmlFor="ai-rewrite-mode"
+              text="Режим переработки"
+              hint="Определяет, насколько свободно AI перерабатывает исходный текст: ближе к источнику, сбалансированно или более свободно."
+            />
             <Select
               id="ai-rewrite-mode"
               value={settings.rewrite_mode}
@@ -210,14 +260,18 @@ export function AdminAiSettingsEditor() {
             >
               {REWRITE_MODE_OPTIONS.map((mode) => (
                 <option key={mode} value={mode}>
-                  {mode}
+                  {REWRITE_MODE_LABELS[mode]}
                 </option>
               ))}
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-result-length">Result length</Label>
+            <LabelWithHint
+              htmlFor="ai-result-length"
+              text="Длина результата"
+              hint="Управляет объёмом черновика: коротко, стандартно или подробно."
+            />
             <Select
               id="ai-result-length"
               value={settings.result_length}
@@ -226,14 +280,18 @@ export function AdminAiSettingsEditor() {
             >
               {RESULT_LENGTH_OPTIONS.map((length) => (
                 <option key={length} value={length}>
-                  {length}
+                  {RESULT_LENGTH_LABELS[length]}
                 </option>
               ))}
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-max-tags">Max tags (1-5)</Label>
+            <LabelWithHint
+              htmlFor="ai-max-tags"
+              text="Макс. тегов (1-5)"
+              hint="Ограничивает количество тематических тегов, которые AI может добавить в черновик."
+            />
             <Input
               id="ai-max-tags"
               type="number"
@@ -247,7 +305,11 @@ export function AdminAiSettingsEditor() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-dedupe-mode">Dedupe mode</Label>
+            <LabelWithHint
+              htmlFor="ai-dedupe-mode"
+              text="Режим дедупликации"
+              hint="Определяет, как строго система считает материал дублем: только по ссылке или по ссылке и похожему заголовку."
+            />
             <Select
               id="ai-dedupe-mode"
               value={settings.dedupe_mode}
@@ -256,7 +318,7 @@ export function AdminAiSettingsEditor() {
             >
               {DEDUPE_MODE_OPTIONS.map((mode) => (
                 <option key={mode} value={mode}>
-                  {mode}
+                  {DEDUPE_MODE_LABELS[mode]}
                 </option>
               ))}
             </Select>
@@ -266,8 +328,8 @@ export function AdminAiSettingsEditor() {
         <div className="rounded-[1.25rem] border border-border/70 bg-background/70 px-4 py-3">
           <label className="flex cursor-pointer items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold">Use source image</p>
-              <p className="text-xs text-muted-foreground">При включении import может использовать source/og:image для черновика.</p>
+              <p className="text-sm font-semibold">Использовать изображение источника</p>
+              <p className="text-xs text-muted-foreground">Если включено, AI может подтянуть source/og:image в черновик.</p>
             </div>
             <input
               type="checkbox"
@@ -281,7 +343,7 @@ export function AdminAiSettingsEditor() {
 
         {!hasFallbackReserve ? (
           <div className="rounded-[1.25rem] border border-amber-300/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            Primary и fallback совпадают, поэтому автоматического резервирования по модели не будет.
+            Основная и резервная модели совпадают, поэтому резервного переключения по модели не будет.
           </div>
         ) : null}
 
