@@ -356,7 +356,7 @@ function TopicSection({
     <section
       ref={(node) => onRegister(topic.id, node)}
       data-topic-id={topic.id}
-      className="scroll-mt-24 space-y-3 rounded-2xl border border-border/40 bg-background/35 p-3 sm:p-4"
+      className="scroll-mt-24 space-y-3 rounded-2xl bg-background/40 p-3 sm:p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -376,7 +376,7 @@ function TopicSection({
       ) : data.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 rounded-xl bg-background/65 p-2">
           {heroPost ? (
             <div className="rounded-xl bg-background/60 px-2 py-1">
               <PostCard
@@ -391,7 +391,7 @@ function TopicSection({
           ) : null}
 
           {secondaryPosts.length > 0 ? (
-            <div className="no-scrollbar overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-snap-type:x_mandatory] touch-pan-x [-webkit-overflow-scrolling:touch]">
+            <div className="no-scrollbar overflow-x-auto pb-1 pt-0.5 [overscroll-behavior-x:contain] [scroll-snap-type:x_mandatory] touch-pan-x [-webkit-overflow-scrolling:touch]">
               <div className="flex min-w-max gap-3 pr-2">
                 {secondaryPosts.map((post) => (
                   <SecondaryDigestCard

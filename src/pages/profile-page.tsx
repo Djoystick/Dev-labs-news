@@ -130,7 +130,7 @@ function getImportOperationalSummary(runs: ImportRun[]) {
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-[0.24em] text-cyan-300/80">{children}</p>;
+  return <p className="mb-2 mt-4 text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">{children}</p>;
 }
 
 type ProfileRowProps = {
@@ -145,17 +145,17 @@ type ProfileRowProps = {
 };
 
 function ProfileRow({ icon: Icon, title, subtitle, onClick, to, right, titleClassName, iconClassName }: ProfileRowProps) {
-  const rowClassName = 'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5 active:bg-white/10';
+  const rowClassName = 'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/70 active:bg-secondary';
   const content = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5">
-        <Icon className={cn('h-5 w-5 text-white/80', iconClassName)} />
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary/70">
+        <Icon className={cn('h-5 w-5 text-foreground/80', iconClassName)} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className={cn('text-base font-medium leading-tight text-white', titleClassName)}>{title}</p>
-        {subtitle ? <p className="mt-0.5 truncate whitespace-nowrap text-xs leading-tight text-white/60">{subtitle}</p> : null}
+        <p className={cn('text-base font-medium leading-tight text-foreground', titleClassName)}>{title}</p>
+        {subtitle ? <p className="mt-0.5 truncate whitespace-nowrap text-xs leading-tight text-muted-foreground">{subtitle}</p> : null}
       </div>
-      {right ?? <ChevronRight className="h-5 w-5 shrink-0 text-white/35" />}
+      {right ?? <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/70" />}
     </>
   );
 
@@ -186,14 +186,14 @@ function ProfileActionCard({ icon: Icon, title, subtitle, onClick }: ProfileActi
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[5.25rem] w-full items-start gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left transition-colors hover:bg-white/10 active:bg-white/15"
+      className="group flex min-h-[5.25rem] w-full items-start gap-3 rounded-xl border border-border/70 bg-card/70 px-3 py-3 text-left transition-colors hover:bg-card active:bg-card/90"
     >
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/85 transition-colors group-hover:bg-white/15">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/80 text-foreground/85 transition-colors group-hover:bg-secondary">
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-semibold leading-tight text-white">{title}</span>
-        {subtitle ? <span className="mt-1 block text-xs leading-snug text-white/60">{subtitle}</span> : null}
+        <span className="block text-sm font-semibold leading-tight text-foreground">{title}</span>
+        {subtitle ? <span className="mt-1 block text-xs leading-snug text-muted-foreground">{subtitle}</span> : null}
       </span>
     </button>
   );
@@ -260,7 +260,11 @@ export function ProfilePage() {
   const isTeamMember = canManageOwnPosts;
   const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
   const roleBadgeClass =
-    profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
+    profile?.role === 'admin'
+      ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-200'
+      : profile?.role === 'editor'
+        ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-200'
+        : 'bg-secondary text-secondary-foreground';
   const continueReadingPath = continueReading.path?.trim() || (continueReading.postId ? getPostPath(continueReading.postId) : null);
   const continueReadingSubtitleValue = formatContinueReadingDate(continueReading.updatedAt);
   const continueReadingSubtitle = continueReadingSubtitleValue ? `Обновлено ${continueReadingSubtitleValue}` : undefined;
@@ -447,17 +451,17 @@ export function ProfilePage() {
     <FlatPage className="py-6 sm:py-8">
       <div className="space-y-2">
         <FlatSection className="pt-0">
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
+          <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-cyan-500/12 via-background/20 to-transparent px-4 pb-4 pt-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm text-white/60">{'Здравствуйте,'}</p>
-                <h1 className="mt-1 text-3xl font-semibold leading-tight text-white">{displayName}</h1>
+                <p className="text-sm text-muted-foreground">{'Здравствуйте,'}</p>
+                <h1 className="mt-1 text-3xl font-semibold leading-tight text-foreground">{displayName}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {isTeamMember ? <span className="text-sm text-cyan-300/90">DevLabs Team</span> : null}
+                  {isTeamMember ? <span className="text-sm text-cyan-700 dark:text-cyan-300">DevLabs Team</span> : null}
                   <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', roleBadgeClass)}>{roleLabel}</span>
                 </div>
               </div>
-              <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-white/10">
+              <Avatar className="h-14 w-14 shrink-0 rounded-full ring-1 ring-border/70">
                 <AvatarImage
                   src={avatarUrl ?? undefined}
                   alt={displayName}
@@ -467,7 +471,7 @@ export function ProfilePage() {
                     setAvatarFailed(true);
                   }}
                 />
-                <AvatarFallback className="flex h-full w-full items-center justify-center bg-cyan-500/20 text-lg font-semibold text-cyan-100">
+                <AvatarFallback className="flex h-full w-full items-center justify-center bg-cyan-500/20 text-lg font-semibold text-cyan-800 dark:text-cyan-100">
                   {getInitial(displayName)}
                 </AvatarFallback>
               </Avatar>
@@ -477,12 +481,12 @@ export function ProfilePage() {
 
         {canManageOwnPosts ? (
           <FlatSection className="pt-2">
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/70 bg-card/70 p-1">
               <button
                 type="button"
                 className={cn(
                   'h-10 rounded-lg text-sm font-semibold transition-colors',
-                  hubTab === 'work' ? 'bg-cyan-400/15 text-cyan-100' : 'text-white/75 hover:bg-white/5',
+                  hubTab === 'work' ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-100' : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground',
                 )}
                 onClick={() => setHubTab('work')}
               >
@@ -492,7 +496,7 @@ export function ProfilePage() {
                 type="button"
                 className={cn(
                   'h-10 rounded-lg text-sm font-semibold transition-colors',
-                  hubTab === 'account' ? 'bg-cyan-400/15 text-cyan-100' : 'text-white/75 hover:bg-white/5',
+                  hubTab === 'account' ? 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-100' : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground',
                 )}
                 onClick={() => setHubTab('account')}
               >
@@ -506,25 +510,25 @@ export function ProfilePage() {
           <>
             <FlatSection className="pt-2">
               <SectionTitle>{'Работа'}</SectionTitle>
-              <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
-                  <p className="text-[11px] text-white/60">К ручной проверке</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{pendingDraftBacklog ?? (workSummaryLoading ? '...' : '—')}</p>
+              <div className="grid grid-cols-3 gap-2 rounded-xl border border-border/70 bg-card/70 p-3">
+                <div className="rounded-lg border border-border/70 bg-background/70 px-2.5 py-2">
+                  <p className="text-[11px] text-muted-foreground">К ручной проверке</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{pendingDraftBacklog ?? (workSummaryLoading ? '...' : '—')}</p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
-                  <p className="text-[11px] text-white/60">Ошибки импортов за 24 ч</p>
-                  <p className={cn('mt-1 text-sm font-semibold', (recentImportErrors ?? 0) > 0 ? 'text-red-200' : 'text-white')}>
+                <div className="rounded-lg border border-border/70 bg-background/70 px-2.5 py-2">
+                  <p className="text-[11px] text-muted-foreground">Ошибки импортов за 24 ч</p>
+                  <p className={cn('mt-1 text-sm font-semibold', (recentImportErrors ?? 0) > 0 ? 'text-red-600 dark:text-red-300' : 'text-foreground')}>
                     {recentImportErrors ?? (workSummaryLoading ? '...' : '—')}
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
-                  <p className="text-[11px] text-white/60">Последний успешный импорт</p>
-                  <p className="mt-1 text-sm font-semibold text-white">
+                <div className="rounded-lg border border-border/70 bg-background/70 px-2.5 py-2">
+                  <p className="text-[11px] text-muted-foreground">Последний успешный импорт</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">
                     {formatOperationalDate(lastSuccessfulImportAt) ?? (workSummaryLoading ? '...' : 'Нет данных')}
                   </p>
                 </div>
               </div>
-              {workSummaryLimited ? <p className="mt-2 text-xs text-white/55">Часть метрик доступна только администратору.</p> : null}
+              {workSummaryLimited ? <p className="mt-2 text-xs text-muted-foreground">Часть метрик доступна только администратору.</p> : null}
             </FlatSection>
 
             <FlatSection className="pt-2">
@@ -561,7 +565,7 @@ export function ProfilePage() {
 
             <FlatSection className="border-b-0 pt-2">
               <SectionTitle>{'Дополнительно'}</SectionTitle>
-              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card/60">
                 <ProfileRow icon={History} title="Все материалы" subtitle="Список публикаций и черновиков" onClick={() => navigate('/my-posts')} />
                 {isAdminUser ? <ProfileRow icon={Rss} title="Источники" subtitle="RSS-реестр и ручной запуск" onClick={() => navigate('/admin/sources')} /> : null}
                 {isAdminUser ? <ProfileRow icon={SlidersHorizontal} title="Настройки ИИ" subtitle="Модели и режимы импорта" onClick={() => navigate('/admin/ai-settings')} /> : null}
@@ -575,7 +579,7 @@ export function ProfilePage() {
         {showAccountTab && continueReading.postId && continueReadingPath ? (
           <FlatSection className="pt-2">
             <SectionTitle>{'Продолжить чтение'}</SectionTitle>
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+            <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card/60">
               <ProfileRow
                 icon={History}
                 title={continueReading.title?.trim() || 'Открыть публикацию'}
@@ -590,30 +594,30 @@ export function ProfilePage() {
           <FlatSection className="border-b-0 pt-2">
             <SectionTitle>{'Аккаунт'}</SectionTitle>
             <div className="space-y-3">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Профиль</p>
-                <p className="mt-1 text-base font-semibold text-white">{displayName}</p>
-                <p className="mt-1 text-xs text-white/60">{profileHandle ? `@${profileHandle}` : roleLabel}</p>
+              <div className="rounded-xl border border-border/70 bg-card/70 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Профиль</p>
+                <p className="mt-1 text-base font-semibold text-foreground">{displayName}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{profileHandle ? `@${profileHandle}` : roleLabel}</p>
               </div>
 
-              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card/60">
                 <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
                 <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
                 <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
-                <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
+              <div className="rounded-xl border border-border/70 bg-card/60 px-4 py-4">
+                <p className="text-xs text-muted-foreground">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
-                    <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
+                    <p className="text-sm font-semibold text-foreground">Уведомления о подборке</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
                   </div>
                   <button
                     type="button"
                     className={cn(
                       'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
-                      digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
+                      digestEnabled ? 'border-cyan-300/60 bg-cyan-500/15 text-cyan-700 dark:text-cyan-100' : 'border-border/70 bg-secondary/70 text-secondary-foreground',
                     )}
                     onClick={() => {
                       void persistDigestSettings(
@@ -628,12 +632,12 @@ export function ProfilePage() {
                   </button>
                 </div>
 
-                <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="mt-4 border-t border-border/70 pt-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => navigate('/topic-preferences')}
-                      className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                      className="inline-flex items-center gap-2 rounded-full bg-secondary/70 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-secondary active:bg-secondary/90"
                     >
                       <Settings2 className="h-4 w-4" />
                       {'Разделы'}
@@ -641,17 +645,17 @@ export function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => navigate('/for-you')}
-                      className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
+                      className="inline-flex items-center gap-2 rounded-full bg-cyan-500/12 px-3 py-1.5 text-sm text-cyan-700 transition-colors hover:bg-cyan-500/20 active:bg-cyan-500/25 dark:text-cyan-100"
                     >
                       <Sparkles className="h-4 w-4" />
                       {'Открыть Умную ленту'}
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
                 </div>
 
                 <div className="mt-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Когда отправлять уведомление</p>
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {digestThresholdOptions.map((option) => {
                       const selected = digestThreshold === option;
@@ -662,7 +666,7 @@ export function ProfilePage() {
                           type="button"
                           className={cn(
                             'h-10 rounded-lg border text-sm font-semibold transition',
-                            selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
+                            selected ? 'border-cyan-300/70 bg-cyan-500/15 text-cyan-700 dark:text-cyan-100' : 'border-border/70 bg-secondary/70 text-secondary-foreground hover:bg-secondary',
                           )}
                           onClick={() => {
                             if (option === digestThreshold) {
@@ -678,11 +682,11 @@ export function ProfilePage() {
                       );
                     })}
                   </div>
-                  <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
+                  <p className="mt-3 text-xs text-muted-foreground">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
                 </div>
               </div>
 
-              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card/60">
                 {fullscreenSupported ? (
                   <ProfileRow
                     icon={Settings2}
@@ -706,12 +710,12 @@ export function ProfilePage() {
                 <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
               </div>
 
-              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+              <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card/60">
                 <ProfileRow
                   icon={LogOut}
-                  iconClassName="text-red-300/80"
+                  iconClassName="text-red-600 dark:text-red-300/80"
                   title={signOutBusy ? 'Выходим...' : 'Выйти'}
-                  titleClassName="text-red-300/90"
+                  titleClassName="text-red-600 dark:text-red-300/90"
                   onClick={async () => {
                     if (signOutBusy) {
                       return;
@@ -731,9 +735,9 @@ export function ProfilePage() {
           </FlatSection>
         ) : null}
 
-        <div className="mt-6 pb-6 text-center text-xs text-white/40">
+        <div className="mt-6 pb-6 text-center text-xs text-muted-foreground">
           {'Разработано '}
-          <a href="https://t.me/Tvoy_Kosmonavt" target="_blank" rel="noreferrer" className="font-semibold text-white/60 transition hover:text-white/80">
+          <a href="https://t.me/Tvoy_Kosmonavt" target="_blank" rel="noreferrer" className="font-semibold text-muted-foreground transition hover:text-foreground/80">
             {'Твой Космонавт'}
           </a>
         </div>
