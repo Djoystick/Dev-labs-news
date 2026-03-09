@@ -79,6 +79,31 @@ export type ContentSource = {
   updated_by: string | null;
 };
 
+export type ImportRunType = 'url_import' | 'rss_import';
+export type ImportRunTriggerMode = 'manual' | 'scheduled';
+export type ImportRunStatus = 'running' | 'success' | 'partial_success' | 'failed';
+
+export type ImportRun = {
+  id: string;
+  created_at: string;
+  started_at: string;
+  finished_at: string | null;
+  run_type: ImportRunType;
+  trigger_mode: ImportRunTriggerMode;
+  status: ImportRunStatus;
+  initiated_by: string | null;
+  source_url: string | null;
+  source_domain: string | null;
+  content_source_id: string | null;
+  feed_url: string | null;
+  discovered_count: number;
+  imported_count: number;
+  duplicate_count: number;
+  error_count: number;
+  summary: Record<string, unknown>;
+  error_message: string | null;
+};
+
 export type Profile = {
   id: string;
   role: UserRole;
@@ -375,6 +400,65 @@ export type Database = {
           {
             foreignKeyName: 'content_sources_updated_by_fkey';
             columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      import_runs: {
+        Row: ImportRun;
+        Insert: {
+          id?: string;
+          created_at?: string;
+          started_at?: string;
+          finished_at?: string | null;
+          run_type: ImportRunType;
+          trigger_mode?: ImportRunTriggerMode;
+          status?: ImportRunStatus;
+          initiated_by?: string | null;
+          source_url?: string | null;
+          source_domain?: string | null;
+          content_source_id?: string | null;
+          feed_url?: string | null;
+          discovered_count?: number;
+          imported_count?: number;
+          duplicate_count?: number;
+          error_count?: number;
+          summary?: Record<string, unknown>;
+          error_message?: string | null;
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          started_at?: string;
+          finished_at?: string | null;
+          run_type?: ImportRunType;
+          trigger_mode?: ImportRunTriggerMode;
+          status?: ImportRunStatus;
+          initiated_by?: string | null;
+          source_url?: string | null;
+          source_domain?: string | null;
+          content_source_id?: string | null;
+          feed_url?: string | null;
+          discovered_count?: number;
+          imported_count?: number;
+          duplicate_count?: number;
+          error_count?: number;
+          summary?: Record<string, unknown>;
+          error_message?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'import_runs_content_source_id_fkey';
+            columns: ['content_source_id'];
+            isOneToOne: false;
+            referencedRelation: 'content_sources';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'import_runs_initiated_by_fkey';
+            columns: ['initiated_by'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];

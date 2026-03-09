@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.95.2";
 import { XMLParser } from "npm:fast-xml-parser@4.5.0";
+import { finishImportRun, startImportRun } from "../_shared/import-run-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -608,10 +609,57 @@ function buildImportNote(source: ContentSourceRow, entry: FeedEntry, defaultTopi
   return parts.join(" ");
 }
 
+function resolveRunStatus(importedCount: number, duplicateCount: number, errorCount: number) {
+  if (errorCount > 0 && importedCount === 0) {
+    return "failed" as const;
+  }
+
+  if (errorCount > 0 || duplicateCount > 0) {
+    return "partial_success" as const;
+  }
+
+  return "success" as const;
+}
+
 serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: responseHeaders });
   }
+
+  let serviceClient: any = null;
+  let runId: string | null = null;
+  let runFinalized = false;
+  let runContentSourceId: string | null = null;
+  let runFeedUrl: string | null = null;
+
+  const finalizeRun = async (input: {
+    status: "success" | "partial_success" | "failed";
+    discoveredCount?: number;
+    importedCount?: number;
+    duplicateCount?: number;
+    errorCount?: number;
+    errorMessage?: string;
+    summary?: Record<string, unknown>;
+    contentSourceId?: string | null;
+    feedUrl?: string | null;
+  }) => {
+    if (runFinalized || !serviceClient) {
+      return;
+    }
+
+    runFinalized = true;
+    await finishImportRun(serviceClient, runId, {
+      status: input.status,
+      discoveredCount: input.discoveredCount ?? 0,
+      importedCount: input.importedCount ?? 0,
+      duplicateCount: input.duplicateCount ?? 0,
+      errorCount: input.errorCount ?? 0,
+      errorMessage: input.errorMessage ?? null,
+      contentSourceId: input.contentSourceId ?? runContentSourceId,
+      feedUrl: input.feedUrl ?? runFeedUrl,
+      summary: input.summary ?? {},
+    });
+  };
 
   try {
     assertHttpMethod(request);
@@ -619,16 +667,29 @@ serve(async (request: Request) => {
     const authorization = getAuthorizationHeader(request);
     const { maxItems, sourceId } = await parseRequestBody(request);
     const { anonKey, serviceRoleKey, supabaseUrl } = getServerEnv();
-    await requireAdmin(supabaseUrl, anonKey, authorization);
+    const adminAccess = await requireAdmin(supabaseUrl, anonKey, authorization);
 
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    serviceClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
+    runContentSourceId = sourceId;
+    runId = await startImportRun(serviceClient, {
+      runType: "rss_import",
+      triggerMode: "manual",
+      initiatedBy: adminAccess.userId,
+      contentSourceId: runContentSourceId,
+      summary: {
+        phase: "started",
+        maxItems,
+      },
+    });
 
     const source = await loadContentSource(serviceClient, sourceId);
+    runContentSourceId = source.id;
+    runFeedUrl = source.url;
     const defaultTopic = await loadDefaultTopic(serviceClient, source.default_topic_id);
     const fetchedFeed = await fetchFeedXml(source.url);
     const parsedFeed = parseFeedEntries(fetchedFeed.xml, fetchedFeed.responseUrl, maxItems);
@@ -681,6 +742,32 @@ serve(async (request: Request) => {
       }
     }
 
+    const summary = {
+      consideredItems: parsedFeed.entries.length,
+      duplicateItems: duplicateCount,
+      errorItems: errorCount,
+      feedItemsTotal: parsedFeed.feedItemsTotal,
+      importedItems: importedCount,
+      skippedDuplicateInFeed: parsedFeed.skippedDuplicateInFeed,
+      skippedMissingUrl: parsedFeed.skippedMissingUrl,
+    };
+    const totalDuplicateCount = duplicateCount + parsedFeed.skippedDuplicateInFeed;
+    const runStatus = resolveRunStatus(importedCount, totalDuplicateCount, errorCount);
+
+    await finalizeRun({
+      status: runStatus,
+      discoveredCount: parsedFeed.feedItemsTotal,
+      importedCount,
+      duplicateCount: totalDuplicateCount,
+      errorCount,
+      contentSourceId: source.id,
+      feedUrl: source.url,
+      summary: {
+        ...summary,
+        sourceTitle: source.title,
+      },
+    });
+
     return jsonResponse({
       ok: true,
       source: {
@@ -690,19 +777,21 @@ serve(async (request: Request) => {
         type: source.type,
         url: source.url,
       },
-      summary: {
-        consideredItems: parsedFeed.entries.length,
-        duplicateItems: duplicateCount,
-        errorItems: errorCount,
-        feedItemsTotal: parsedFeed.feedItemsTotal,
-        importedItems: importedCount,
-        skippedDuplicateInFeed: parsedFeed.skippedDuplicateInFeed,
-        skippedMissingUrl: parsedFeed.skippedMissingUrl,
-      },
+      summary,
       results: results.slice(0, 50),
     });
   } catch (error) {
     if (error instanceof SourceImportError) {
+      await finalizeRun({
+        status: "failed",
+        errorCount: 1,
+        errorMessage: error.message,
+        summary: {
+          errorCode: error.code,
+          details: error.details ?? null,
+        },
+      });
+
       return jsonResponse(
         {
           code: error.code,
@@ -715,6 +804,15 @@ serve(async (request: Request) => {
     }
 
     console.error("import-rss-source failed", error);
+    await finalizeRun({
+      status: "failed",
+      errorCount: 1,
+      errorMessage: error instanceof Error ? error.message : "Internal source import error.",
+      summary: {
+        errorCode: "INTERNAL_ERROR",
+      },
+    });
+
     return jsonResponse(
       {
         code: "INTERNAL_ERROR",

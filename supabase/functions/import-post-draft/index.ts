@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.95.2";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
+import { finishImportRun, startImportRun } from "../_shared/import-run-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1067,6 +1068,41 @@ serve(async (request: Request) => {
     return new Response("ok", { headers: responseHeaders });
   }
 
+  let serviceClient: any = null;
+  let runId: string | null = null;
+  let runFinalized = false;
+  let runSourceUrl: string | null = null;
+  let runSourceDomain: string | null = null;
+
+  const finalizeRun = async (input: {
+    status: "success" | "partial_success" | "failed";
+    discoveredCount?: number;
+    importedCount?: number;
+    duplicateCount?: number;
+    errorCount?: number;
+    errorMessage?: string;
+    sourceUrl?: string | null;
+    sourceDomain?: string | null;
+    summary?: Record<string, unknown>;
+  }) => {
+    if (runFinalized || !serviceClient) {
+      return;
+    }
+
+    runFinalized = true;
+    await finishImportRun(serviceClient, runId, {
+      status: input.status,
+      discoveredCount: input.discoveredCount ?? 0,
+      importedCount: input.importedCount ?? 0,
+      duplicateCount: input.duplicateCount ?? 0,
+      errorCount: input.errorCount ?? 0,
+      errorMessage: input.errorMessage ?? null,
+      sourceUrl: input.sourceUrl ?? runSourceUrl,
+      sourceDomain: input.sourceDomain ?? runSourceDomain,
+      summary: input.summary ?? {},
+    });
+  };
+
   try {
     assertHttpMethod(request);
 
@@ -1079,17 +1115,38 @@ serve(async (request: Request) => {
     const { anon, cerebrasBaseUrl, cerebrasKey, service, url } = getServerEnv();
     const access = await requireEditorOrAdmin(url, anon, authorization);
 
-    const { normalizedUrl } = normalizeUrl(body.url ?? "");
-    const serviceClient = createClient(url, service, {
+    serviceClient = createClient(url, service, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
+    runSourceUrl = body.url ?? null;
+    runId = await startImportRun(serviceClient, {
+      runType: "url_import",
+      triggerMode: "manual",
+      initiatedBy: access.userId,
+      sourceUrl: runSourceUrl,
+      summary: {
+        phase: "started",
+      },
+    });
+
+    const { normalizedUrl } = normalizeUrl(body.url ?? "");
+    runSourceUrl = normalizedUrl;
     const aiSettings = await loadAiImportSettings(serviceClient);
 
     const duplicateByUrl = await findDuplicateBySourceUrl(serviceClient, normalizedUrl);
     if (duplicateByUrl) {
+      await finalizeRun({
+        status: "partial_success",
+        discoveredCount: 1,
+        duplicateCount: 1,
+        summary: {
+          resultCode: "DUPLICATE",
+        },
+      });
+
       return jsonResponse({
         code: "DUPLICATE",
         existingPostId: duplicateByUrl.id,
@@ -1103,10 +1160,23 @@ serve(async (request: Request) => {
     const fetchedNormalized = normalizeUrl(fetched.responseUrl || normalizedUrl);
     const canonicalSourceUrl = fetchedNormalized.normalizedUrl;
     const canonicalSourceDomain = fetchedNormalized.hostname;
+    runSourceUrl = canonicalSourceUrl;
+    runSourceDomain = canonicalSourceDomain;
 
     if (canonicalSourceUrl !== normalizedUrl) {
       const duplicateByCanonicalUrl = await findDuplicateBySourceUrl(serviceClient, canonicalSourceUrl);
       if (duplicateByCanonicalUrl) {
+        await finalizeRun({
+          status: "partial_success",
+          discoveredCount: 1,
+          duplicateCount: 1,
+          sourceUrl: canonicalSourceUrl,
+          sourceDomain: canonicalSourceDomain,
+          summary: {
+            resultCode: "DUPLICATE",
+          },
+        });
+
         return jsonResponse({
           code: "DUPLICATE",
           existingPostId: duplicateByCanonicalUrl.id,
@@ -1121,6 +1191,17 @@ serve(async (request: Request) => {
     if (aiSettings.dedupeMode === "url_and_soft_title") {
       const softDuplicate = await findSoftDuplicateByTitle(serviceClient, canonicalSourceDomain, extracted.title);
       if (softDuplicate) {
+        await finalizeRun({
+          status: "partial_success",
+          discoveredCount: 1,
+          duplicateCount: 1,
+          sourceUrl: canonicalSourceUrl,
+          sourceDomain: canonicalSourceDomain,
+          summary: {
+            resultCode: "DUPLICATE_SOFT",
+          },
+        });
+
         return jsonResponse({
         code: "DUPLICATE_SOFT",
         existingPostId: softDuplicate.id,
@@ -1191,6 +1272,17 @@ serve(async (request: Request) => {
       if (insertError.code === "23505") {
         const duplicate = await findDuplicateBySourceUrl(serviceClient, canonicalSourceUrl);
         if (duplicate) {
+          await finalizeRun({
+            status: "partial_success",
+            discoveredCount: 1,
+            duplicateCount: 1,
+            sourceUrl: canonicalSourceUrl,
+            sourceDomain: canonicalSourceDomain,
+            summary: {
+              resultCode: "DUPLICATE",
+            },
+          });
+
           return jsonResponse({
             code: "DUPLICATE",
             existingPostId: duplicate.id,
@@ -1203,6 +1295,21 @@ serve(async (request: Request) => {
 
       throw new ImportError("DB_ERROR", `Не удалось сохранить черновик. ${insertError.message}`);
     }
+
+    await finalizeRun({
+      status: "success",
+      discoveredCount: 1,
+      importedCount: 1,
+      sourceUrl: canonicalSourceUrl,
+      sourceDomain: canonicalSourceDomain,
+      summary: {
+        aiModelUsed: aiTransform.aiModelUsed,
+        aiModelsTried: aiTransform.aiModelsTried,
+        aiWasFallback: aiTransform.aiWasFallback,
+        resultCode: "SUCCESS",
+        warningCount: warnings.length,
+      },
+    });
 
     return jsonResponse({
       ok: true,
@@ -1219,6 +1326,17 @@ serve(async (request: Request) => {
     });
   } catch (error) {
     if (error instanceof ImportError) {
+      await finalizeRun({
+        status: "failed",
+        discoveredCount: 1,
+        errorCount: 1,
+        errorMessage: error.message,
+        summary: {
+          errorCode: error.code,
+          details: error.details ?? null,
+        },
+      });
+
       return jsonResponse({
         code: error.code,
         details: error.details,
@@ -1228,6 +1346,16 @@ serve(async (request: Request) => {
     }
 
     console.error("import-post-draft failed", error);
+    await finalizeRun({
+      status: "failed",
+      discoveredCount: 1,
+      errorCount: 1,
+      errorMessage: error instanceof Error ? error.message : "Internal source import error.",
+      summary: {
+        errorCode: "INTERNAL_ERROR",
+      },
+    });
+
     return jsonResponse({
       code: "INTERNAL_ERROR",
       message: "Внутренняя ошибка импорта. Повторите попытку позже.",

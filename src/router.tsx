@@ -24,6 +24,9 @@ const AdminImportPage = lazy(() => import('@/pages/admin-import-page').then((mod
 const AdminEditPage = lazy(() => import('@/pages/admin-edit-page').then((module) => ({ default: module.AdminEditPage })));
 const AdminUsersPage = lazy(() => import('@/pages/admin-users-page').then((module) => ({ default: module.AdminUsersPage })));
 const AdminSourcesPage = lazy(() => import('@/pages/admin-sources-page').then((module) => ({ default: module.AdminSourcesPage })));
+const AdminImportRunsPage = lazy(() =>
+  import('@/pages/admin-import-runs-page').then((module) => ({ default: module.AdminImportRunsPage })),
+);
 const AdminAiSettingsPage = lazy(() =>
   import('@/pages/admin-ai-settings-page').then((module) => ({ default: module.AdminAiSettingsPage })),
 );
@@ -81,6 +84,7 @@ export const router = createBrowserRouter([
       { path: 'admin/edit/:id', element: withSuspense(AdminEditPage) },
       { path: 'admin/users', element: withSuspense(AdminUsersPage) },
       { path: 'admin/sources', element: withSuspense(AdminSourcesPage) },
+      { path: 'admin/import-runs', element: withSuspense(AdminImportRunsPage) },
       { path: 'admin/ai-settings', element: withSuspense(AdminAiSettingsPage) },
       { path: 'admin/publication-rules', element: withSuspense(AdminPublicationRulesPage) },
     ],

@@ -1,4 +1,4 @@
-import { ArrowLeft, LoaderCircle, Play, Plus, RefreshCw, Rss, Trash2 } from 'lucide-react';
+import { ArrowLeft, History, LoaderCircle, Play, Plus, RefreshCw, Rss, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -235,6 +235,17 @@ export function AdminSourcesPage() {
                 RSS реестр и ручной запуск импорта в draft через текущий AI pipeline.
               </p>
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/admin/import-runs', { state: { returnTo: '/admin/sources' } })}
+            >
+              <History className="h-4 w-4" />
+              Import history
+            </Button>
           </div>
 
           <div className="rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-5">
