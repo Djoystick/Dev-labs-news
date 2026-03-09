@@ -22,6 +22,7 @@ import { EmptyState } from '@/features/posts/components/empty-state';
 import { FeedRow } from '@/features/posts/components/FeedRow';
 import { PostCard } from '@/features/posts/components/post-card';
 import type { ReactionSummary } from '@/features/reactions/api';
+import { PostReactions } from '@/features/reactions/components/PostReactions';
 import { useReactions } from '@/features/reactions/use-reactions';
 import { fetchMyTopicIds, fetchTopics } from '@/features/topics/api';
 import {
@@ -38,7 +39,8 @@ import { useAuth } from '@/providers/auth-provider';
 import type { Post, Topic } from '@/types/db';
 
 const initialTopicCount = 4;
-const sectionPostsLimit = 5;
+const maxSecondaryPosts = 5;
+const sectionPostsLimit = maxSecondaryPosts + 1;
 const modalPostsLimit = 30;
 const pillsBarHeight = 84;
 const pillActiveClass = 'border-primary bg-primary/10 text-foreground';
@@ -107,28 +109,26 @@ function InlineError({
 
 function SectionSkeleton() {
   return (
-    <div className="space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4">
+    <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-7 w-44" />
+          <Skeleton className="h-7 w-40" />
         </div>
         <Skeleton className="h-8 w-24 rounded-full" />
       </div>
-      <Skeleton className="h-48 w-full rounded-xl" />
-      <div className="divide-y divide-border/60 rounded-xl border border-border/60">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="p-3">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-4/5" />
-              </div>
-              <Skeleton className="h-16 w-16 shrink-0 rounded-lg" />
+      <Skeleton className="h-44 w-full rounded-2xl" />
+      <div className="no-scrollbar overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-snap-type:x_mandatory] touch-pan-x [-webkit-overflow-scrolling:touch]">
+        <div className="flex min-w-max gap-3 pr-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="w-[15.5rem] shrink-0 snap-start rounded-2xl border border-border/60 p-3">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-2 h-5 w-full" />
+              <Skeleton className="mt-2 h-4 w-4/5" />
+              <Skeleton className="mt-3 h-24 w-full rounded-xl" />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -198,106 +198,106 @@ function TopicSeeAllModal({
 function AllTopicsSheet({
   activeTopicId,
   onOpenChange,
-  onOpenPost,
   onRetry,
+  onTopicSelect,
   open,
   topics,
 }: {
   activeTopicId: string | null;
   onOpenChange: (open: boolean) => void;
-  onOpenPost: (post: Post, topicId: string | null) => void;
   onRetry: () => void;
+  onTopicSelect: (topicId: string) => void;
   open: boolean;
   topics: Topic[];
 }) {
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(activeTopicId);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSelectedTopicId(activeTopicId ?? topics[0]?.id ?? null);
-  }, [activeTopicId, open, topics]);
-
-  const { data, error, isLoading, retry } = useTopicPosts(selectedTopicId ?? '', modalPostsLimit, open && Boolean(selectedTopicId));
-  const postIds = useMemo(() => data.map((post) => post.id), [data]);
-  const { summariesById, toggle, isPending } = useReactions(postIds);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="inset-x-0 bottom-0 top-auto z-[100] w-full max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-b-none rounded-t-[2rem] border-x-0 border-b-0 border-t border-border/70 p-0">
         <div className="max-h-[85svh] overflow-hidden">
           <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
             <DialogHeader className="pr-10 text-left">
-              <DialogTitle className="text-2xl">Все темы</DialogTitle>
-              <DialogDescription>Просматривайте материалы по темам, не покидая раздел.</DialogDescription>
+              <DialogTitle className="text-2xl">{'\u0412\u0441\u0435 \u0442\u0435\u043c\u044b'}</DialogTitle>
+              <DialogDescription>{'\u0422\u043e\u043b\u044c\u043a\u043e \u0432\u044b\u0431\u043e\u0440 \u0442\u0435\u043c\u044b \u0434\u043b\u044f \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u0438 \u043f\u043e \u0440\u0430\u0437\u0434\u0435\u043b\u0430\u043c.'}</DialogDescription>
             </DialogHeader>
 
             {topics.length === 0 ? (
               <div className="mt-6 border-y border-dashed border-border/70 px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">Тем пока нет</p>
+                <p className="text-sm text-muted-foreground">{'\u0422\u0435\u043c \u043f\u043e\u043a\u0430 \u043d\u0435\u0442'}</p>
                 <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
-                  Повторить
+                  {'\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c'}
                 </Button>
               </div>
             ) : (
-              <>
-                <div className="no-scrollbar mt-6 overflow-x-auto pb-2">
-                  <div className="flex min-w-max gap-3">
-                    {topics.map((topic) => (
-                      <button
-                        key={topic.id}
-                        type="button"
-                        onClick={() => setSelectedTopicId(topic.id)}
-                        className={cn(
-                          'inline-flex min-h-12 items-center justify-between border px-4 py-3 text-left text-sm font-semibold transition',
-                          selectedTopicId === topic.id ? pillActiveClass : 'border-border/70 text-foreground hover:bg-secondary/30',
-                        )}
-                      >
-                        <span className="truncate">{topic.name}</span>
-                        <span className={cn('text-xs', selectedTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'✓'}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  {error ? <InlineError message={error} onAction={retry} /> : null}
-                  {isLoading ? (
-                    <div className="space-y-4">
-                      <SectionSkeleton />
-                      <SectionSkeleton />
-                    </div>
-                  ) : data.length === 0 ? (
-                    <EmptyState
-                      title="Пока материалов нет"
-                      description="Сейчас в этой теме нет публикаций."
-                      actionLabel="Повторить"
-                      onReset={retry}
-                    />
-                  ) : (
-                    <div className="divide-y divide-border/60">
-                      {data.map((post, index) => (
-                        <PostCard
-                          key={`${post.id}-sheet`}
-                          post={post}
-                          index={index}
-                          reactionSummary={summariesById.get(post.id)}
-                          reactionsDisabled={isPending(post.id)}
-                          onToggleReaction={toggle}
-                          onOpenPost={(openedPost) => onOpenPost(openedPost, selectedTopicId ?? openedPost.topic?.id ?? openedPost.topic_id ?? null)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
+              <div className="mt-6 grid gap-2 sm:grid-cols-2">
+                {topics.map((topic) => (
+                  <button
+                    key={topic.id}
+                    type="button"
+                    aria-pressed={activeTopicId === topic.id}
+                    onClick={() => {
+                      onTopicSelect(topic.id);
+                      onOpenChange(false);
+                    }}
+                    className={cn(
+                      'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold transition',
+                      activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-foreground hover:bg-secondary/30',
+                    )}
+                  >
+                    <span className="truncate">{topic.name}</span>
+                    <span className={cn('text-xs', activeTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'\u2713'}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SecondaryDigestCard({
+  isReactionPending,
+  onOpenPost,
+  onToggleReaction,
+  post,
+  reactionSummary,
+  topicId,
+}: {
+  isReactionPending: (postId: string) => boolean;
+  onOpenPost: (post: Post, topicId: string | null) => void;
+  onToggleReaction: (postId: string, value: -1 | 1) => void;
+  post: Post;
+  reactionSummary?: ReactionSummary;
+  topicId: string;
+}) {
+  return (
+    <article className="w-[15.5rem] shrink-0 snap-start overflow-hidden rounded-2xl border border-border/60 bg-background/40">
+      <button
+        type="button"
+        className="w-full cursor-pointer px-3 pb-3 pt-3 text-left transition active:bg-secondary/20"
+        onClick={() => onOpenPost(post, topicId)}
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          {new Date(post.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+        </p>
+        <h3 className="mt-1 line-clamp-3 text-base font-bold leading-snug">{post.title}</h3>
+        {post.excerpt ? <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">{post.excerpt}</p> : null}
+        {post.cover_url ? (
+          <div className="mt-3 h-24 overflow-hidden rounded-xl bg-secondary/70">
+            <img src={post.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+          </div>
+        ) : null}
+      </button>
+      <div className="border-t border-border/60 px-3 py-2">
+        <PostReactions
+          postId={post.id}
+          summary={reactionSummary}
+          disabled={isReactionPending(post.id)}
+          onToggle={onToggleReaction}
+        />
+      </div>
+    </article>
   );
 }
 
@@ -326,7 +326,7 @@ function TopicSection({
 }) {
   const { data, error, isLoading, retry } = useTopicPosts(topic.id, sectionPostsLimit, enabled);
   const heroPost = data[0] ?? null;
-  const secondaryPosts = data.slice(1);
+  const secondaryPosts = data.slice(1, maxSecondaryPosts + 1);
 
   useEffect(() => {
     if (data.length > 0) {
@@ -346,7 +346,7 @@ function TopicSection({
     <section
       ref={(node) => onRegister(topic.id, node)}
       data-topic-id={topic.id}
-      className="scroll-mt-24 space-y-3 rounded-2xl border border-border/60 bg-background/60 p-4"
+      className="scroll-mt-24 space-y-4 border-t border-border/60 pt-6 first:border-t-0 first:pt-0"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -366,9 +366,9 @@ function TopicSection({
       ) : data.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {heroPost ? (
-            <div className="rounded-xl border border-border/60 bg-background/40 px-3 py-1">
+            <div className="rounded-2xl border border-border/60 bg-background/40 px-3 py-1">
               <PostCard
                 post={heroPost}
                 index={0}
@@ -381,17 +381,20 @@ function TopicSection({
           ) : null}
 
           {secondaryPosts.length > 0 ? (
-            <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/60 bg-background/40 px-1">
-              {secondaryPosts.map((post) => (
-                <FeedRow
-                  key={`${post.id}-secondary`}
-                  post={post}
-                  onOpen={(openedPost) => onOpenPost(openedPost, topic.id)}
-                  reactionSummary={reactionSummariesById.get(post.id)}
-                  reactionsDisabled={isReactionPending(post.id)}
-                  onToggleReaction={onToggleReaction}
-                />
-              ))}
+            <div className="no-scrollbar overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-snap-type:x_mandatory] touch-pan-x [-webkit-overflow-scrolling:touch]">
+              <div className="flex min-w-max gap-3 pr-2">
+                {secondaryPosts.map((post) => (
+                  <SecondaryDigestCard
+                    key={`${post.id}-secondary`}
+                    post={post}
+                    topicId={topic.id}
+                    reactionSummary={reactionSummariesById.get(post.id)}
+                    isReactionPending={isReactionPending}
+                    onToggleReaction={onToggleReaction}
+                    onOpenPost={onOpenPost}
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -426,6 +429,8 @@ export function DigestsPage() {
   const [seeAllTopic, setSeeAllTopic] = useState<Topic | null>(null);
   const [allTopicsOpen, setAllTopicsOpen] = useState(false);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const topicChipRefs = useRef(new Map<string, HTMLButtonElement>());
+  const chipsScrollRef = useRef<HTMLDivElement | null>(null);
   const suppressUntilRef = useRef(0);
   const scheduleRafRef = useRef<number | null>(null);
   const selectedChipTopicsRef = useRef(new Set<string>());
@@ -769,6 +774,32 @@ export function DigestsPage() {
   }, [activeTopicId]);
 
   useEffect(() => {
+    if (!activeTopicId) {
+      return;
+    }
+
+    const scroller = chipsScrollRef.current;
+    const activeChip = topicChipRefs.current.get(activeTopicId);
+    if (!scroller || !activeChip) {
+      return;
+    }
+
+    const scrollerRect = scroller.getBoundingClientRect();
+    const chipRect = activeChip.getBoundingClientRect();
+    const isFullyVisible = chipRect.left >= scrollerRect.left && chipRect.right <= scrollerRect.right;
+
+    if (isFullyVisible) {
+      return;
+    }
+
+    activeChip.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }, [activeTopicId]);
+
+  useEffect(() => {
     const previousTopicId = lastActiveTopicRef.current;
     const now = Date.now();
 
@@ -836,6 +867,15 @@ export function DigestsPage() {
     [scheduleCompute],
   );
 
+  const handleRegisterTopicChip = useCallback((topicId: string, element: HTMLButtonElement | null) => {
+    if (!element) {
+      topicChipRefs.current.delete(topicId);
+      return;
+    }
+
+    topicChipRefs.current.set(topicId, element);
+  }, []);
+
   const scrollToTopic = useCallback(
     (topicId: string) => {
       const wasSelectedBefore = selectedChipTopicsRef.current.has(topicId);
@@ -853,6 +893,14 @@ export function DigestsPage() {
       });
     },
     [markTopicEngagement],
+  );
+
+  const handleSelectTopic = useCallback(
+    (topicId: string) => {
+      scrollToTopic(topicId);
+      setAllTopicsOpen(false);
+    },
+    [scrollToTopic],
   );
 
   const handleSectionData = useCallback((topicId: string, posts: Post[]) => {
@@ -913,18 +961,18 @@ export function DigestsPage() {
   return (
     <>
       <FlatPage className="safe-pb py-6 sm:py-8">
-        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-6">
-          <div className="border-b border-border/60 pb-5 sm:pb-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center text-primary">
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4">
+          <div className="border-b border-border/60 pb-4 sm:pb-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 items-center justify-center text-primary">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Сводки</p>
-                <h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Сводки</h1>
+                <h1 className="mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">Сводки</h1>
               </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">Выбирайте тему, открывайте материалы и продолжайте просмотр с того же места.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-5 text-muted-foreground">Выбирайте тему, открывайте материалы и продолжайте просмотр с того же места.</p>
           </div>
 
           <div className="relative">
@@ -953,32 +1001,34 @@ export function DigestsPage() {
       </FlatPage>
 
       <div className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="w-full px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="no-scrollbar flex-1 overflow-x-auto">
-              <div className="flex min-w-max gap-3">
-                {topicsLoading
-                  ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-11 w-28 rounded-full" />)
-                  : topicsOrdered.map((topic) => (
-                      <button
-                        key={topic.id}
-                        type="button"
-                        onClick={() => scrollToTopic(topic.id)}
-                        className={cn(
-                          'rounded-full border px-4 py-2.5 text-sm font-semibold transition',
-                          activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-muted-foreground hover:bg-secondary/30 hover:text-foreground',
-                        )}
-                      >
-                        {topic.name}
-                      </button>
-                    ))}
-              </div>
+        <div className="w-full px-4 py-2.5 sm:px-6">
+          <div
+            ref={chipsScrollRef}
+            className="no-scrollbar w-full overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-behavior:smooth] [scroll-snap-type:x_proximity] touch-pan-x [-webkit-overflow-scrolling:touch]"
+          >
+            <div className="flex min-w-max items-center gap-2.5 pr-4">
+              <Button type="button" variant="outline" className="h-10 shrink-0 snap-start rounded-full border-border/70 px-4" onClick={() => setAllTopicsOpen(true)}>
+                {'\u0412\u0441\u0435 \u0442\u0435\u043c\u044b'}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              {topicsLoading
+                ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-10 w-28 shrink-0 rounded-full" />)
+                : topicsOrdered.map((topic) => (
+                    <button
+                      ref={(element) => handleRegisterTopicChip(topic.id, element)}
+                      key={topic.id}
+                      type="button"
+                      aria-pressed={activeTopicId === topic.id}
+                      onClick={() => scrollToTopic(topic.id)}
+                      className={cn(
+                        'h-10 shrink-0 snap-start whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition',
+                        activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-muted-foreground hover:bg-secondary/30 hover:text-foreground',
+                      )}
+                    >
+                      {topic.name}
+                    </button>
+                  ))}
             </div>
-
-            <Button type="button" variant="outline" className="shrink-0 rounded-full" onClick={() => setAllTopicsOpen(true)}>
-              Все темы
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>
@@ -1065,8 +1115,8 @@ export function DigestsPage() {
         topics={topicsOrdered}
         activeTopicId={activeTopicId}
         open={allTopicsOpen}
-        onOpenPost={handleOpenPost}
         onOpenChange={setAllTopicsOpen}
+        onTopicSelect={handleSelectTopic}
         onRetry={() => setTopicsRetryToken((current) => current + 1)}
       />
     </>
