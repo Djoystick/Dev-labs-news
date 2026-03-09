@@ -24,12 +24,14 @@ export function PostCard({
   reactionSummary,
   reactionsDisabled = false,
   onToggleReaction,
+  onOpenPost,
 }: {
   post: Post;
   index: number;
   reactionSummary?: ReactionSummary | null;
   reactionsDisabled?: boolean;
   onToggleReaction?: (postId: string, value: -1 | 1) => void;
+  onOpenPost?: (post: Post) => void;
 }) {
   const { isAdmin } = useAuth();
   const location = useLocation();
@@ -42,6 +44,7 @@ export function PostCard({
   };
 
   const handleOpen = () => {
+    onOpenPost?.(post);
     saveFeedState({
       scrollY: window.scrollY,
       search: window.location.search,

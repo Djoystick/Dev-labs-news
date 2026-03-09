@@ -232,6 +232,29 @@ export function recordTopicRead(topic: string) {
   }));
 }
 
+export function recordTopicSkim(topic: string) {
+  const normalizedTopic = topic.trim();
+  if (!normalizedTopic) {
+    return;
+  }
+
+  updateState((state) => {
+    const nextCount = Math.max(0, (state.readTopics[normalizedTopic] ?? 0) - 1);
+    const nextReadTopics = { ...state.readTopics };
+
+    if (nextCount > 0) {
+      nextReadTopics[normalizedTopic] = nextCount;
+    } else {
+      delete nextReadTopics[normalizedTopic];
+    }
+
+    return {
+      ...state,
+      readTopics: nextReadTopics,
+    };
+  });
+}
+
 export function getTopicReadCount(topic: string) {
   const normalizedTopic = topic.trim();
   if (!normalizedTopic) {
