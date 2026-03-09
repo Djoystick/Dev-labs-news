@@ -526,7 +526,7 @@ export function ProfilePage() {
           <FlatSection className="border-b-0 pt-2">
             <SectionTitle>{'AI и импорт'}</SectionTitle>
             <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr))]">
-              <ProfileActionCard icon={SlidersHorizontal} title="AI-настройки импорта" subtitle="Primary/fallback и режимы" onClick={() => navigate('/admin/ai-settings')} />
+              <ProfileActionCard icon={SlidersHorizontal} title="AI-настройки импорта" subtitle="Основная/резервная модель и режимы" onClick={() => navigate('/admin/ai-settings')} />
               <ProfileActionCard icon={Rss} title="Источники" subtitle="RSS-реестр и запуск импорта" onClick={() => navigate('/admin/sources')} />
             </div>
           </FlatSection>

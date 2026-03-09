@@ -46,7 +46,7 @@ function getAiDiagnostics(errorResult: ImportDraftFailure) {
     ? details.aiModelsTried.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     : [];
 
-  const modelHint = modelsTried.length > 0 ? `Models: ${modelsTried.join(', ')}` : '';
+  const modelHint = modelsTried.length > 0 ? `Модели: ${modelsTried.join(', ')}` : '';
   return [rawReason, modelHint].filter(Boolean).join(' | ');
 }
 
@@ -60,8 +60,8 @@ function ImportResultSuccess({ result, onOpenDraft }: { onOpenDraft: () => void;
       {result.aiModelUsed ? (
         <p className="mt-2 text-xs text-emerald-100/90">
           {result.aiWasFallback
-            ? `AI: fallback model ${result.aiModelUsed}`
-            : `AI: model ${result.aiModelUsed}`}
+            ? `AI: резервная модель ${result.aiModelUsed}`
+            : `AI: модель ${result.aiModelUsed}`}
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -72,7 +72,7 @@ function ImportResultSuccess({ result, onOpenDraft }: { onOpenDraft: () => void;
       </div>
       {result.warnings && result.warnings.length > 0 ? (
         <div className="mt-3 rounded-xl border border-amber-300/35 bg-amber-500/10 p-3 text-amber-100">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em]">Warnings</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.15em]">Предупреждения</p>
           <ul className="mt-2 list-disc space-y-1 pl-4">
             {result.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -93,8 +93,9 @@ function ImportResultError({ errorResult, onOpenExisting }: { errorResult: Impor
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <p className="font-semibold">{errorResult.code ?? 'IMPORT_ERROR'}</p>
+          <p className="font-semibold">Импорт не выполнен</p>
           <p className="mt-1">{friendlyMessage}</p>
+          {errorResult.code ? <p className="mt-2 text-xs text-destructive/80">{`Код: ${errorResult.code}`}</p> : null}
           {diagnostics ? (
             <p className="mt-2 text-xs text-destructive/80">{diagnostics}</p>
           ) : null}
@@ -209,7 +210,7 @@ export function AdminImportPage() {
                 <div>
                 <h1 className="text-3xl font-bold">{'Импортировать в черновик'}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {'URL -> server extraction -> AI draft. Публикация остаётся только ручной.'}
+                  {'URL -> извлечение на сервере -> AI-черновик. Публикация остаётся только ручной.'}
                 </p>
                 </div>
               </div>
@@ -249,7 +250,7 @@ export function AdminImportPage() {
             </div>
 
             <div className="rounded-[1.25rem] border border-border/60 bg-background/60 p-3 text-xs leading-6 text-muted-foreground">
-              {'Импорт создаёт только draft. Перед публикацией обязательно откройте черновик, проверьте факты и внесите ручные правки.'}
+              {'Импорт создаёт только черновик. Перед публикацией обязательно откройте материал, проверьте факты и внесите ручные правки.'}
             </div>
 
             <div className="flex flex-wrap gap-3">

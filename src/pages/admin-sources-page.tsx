@@ -232,7 +232,7 @@ export function AdminSourcesPage() {
             <div>
               <h1 className="text-3xl font-extrabold">Источники</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                RSS реестр и ручной запуск импорта в draft через текущий AI pipeline.
+                RSS-реестр и ручной запуск импорта в черновики через текущий AI-контур.
               </p>
             </div>
           </div>
@@ -244,7 +244,7 @@ export function AdminSourcesPage() {
               onClick={() => navigate('/admin/import-runs', { state: { returnTo: '/admin/sources' } })}
             >
               <History className="h-4 w-4" />
-              Import history
+              История импортов
             </Button>
           </div>
 

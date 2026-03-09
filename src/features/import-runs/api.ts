@@ -30,8 +30,23 @@ export async function listRecentImportRuns(limit = 20): Promise<ImportRun[]> {
     .limit(safeLimit);
 
   if (error) {
-    throw new Error(`Failed to load import runs. ${error.message}`);
+    throw new Error(`Не удалось загрузить историю импортов. ${error.message}`);
   }
 
   return (data ?? []).map((row) => normalizeImportRun(row as ImportRun));
+}
+
+export async function getPendingDraftBacklogCount(): Promise<number> {
+  const supabase = getSupabaseClient();
+  const { count, error } = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_published', false)
+    .is('scheduled_at', null);
+
+  if (error) {
+    throw new Error(`Не удалось загрузить количество черновиков. ${error.message}`);
+  }
+
+  return count ?? 0;
 }

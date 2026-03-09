@@ -685,6 +685,13 @@ export function AuthorPanelPage() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2.5">
+          <p className="text-sm font-semibold text-amber-100">{`К ручной проверке: ${stats.drafts} черновик(ов)`}</p>
+          <p className="mt-1 text-xs text-amber-100/85">
+            Перед публикацией откройте материал, пройдите чеклист и опубликуйте вручную.
+          </p>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {TAB_ITEMS.map((tab) => (
             <button
@@ -796,9 +803,9 @@ export function AuthorPanelPage() {
                   </p>
                   {postStats.hasAny ? (
                     <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-white/50">
-                      {postStats.views !== null ? <span>{`Views: ${postStats.views}`}</span> : null}
-                      {postStats.likes !== null ? <span>{`Likes: ${postStats.likes}`}</span> : null}
-                      {postStats.dislikes !== null ? <span>{`Dislikes: ${postStats.dislikes}`}</span> : null}
+                      {postStats.views !== null ? <span>{`Просмотры: ${postStats.views}`}</span> : null}
+                      {postStats.likes !== null ? <span>{`Лайки: ${postStats.likes}`}</span> : null}
+                      {postStats.dislikes !== null ? <span>{`Дизлайки: ${postStats.dislikes}`}</span> : null}
                     </p>
                   ) : null}
                 </button>

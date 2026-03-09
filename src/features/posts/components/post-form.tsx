@@ -97,14 +97,14 @@ function getImportOriginLabel(origin: string | null | undefined, importNote: str
 
   if (normalizedOrigin === 'manual_import_ai') {
     if (normalizedNote.includes('source registry')) {
-      return 'RSS import + AI draft';
+      return 'RSS-импорт + AI-черновик';
     }
 
-    return 'URL import + AI draft';
+    return 'Импорт по URL + AI-черновик';
   }
 
   if (!normalizedOrigin) {
-    return 'Imported draft';
+    return 'Импортированный черновик';
   }
 
   return normalizedOrigin;
@@ -740,11 +740,11 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
           >
             {submitError ? <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
             {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
-            {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Разделы не найдены. Проверьте миграции." /> : null}
+            {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Не удалось найти разделы. Обратитесь к администратору." /> : null}
 
             {isImportedMaterial ? (
               <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Imported draft</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Импортированный черновик</p>
                 <p className="mt-2 text-sm text-amber-100/95">
                   {`Происхождение: ${importOriginLabel}. Перед публикацией обязательно проверьте источник и факты вручную.`}
                 </p>

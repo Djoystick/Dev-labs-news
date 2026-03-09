@@ -60,7 +60,7 @@ function normalizeSourcePayload(input: ContentSourceInput) {
 function parseRunResult(value: unknown): SourceImportRunResult {
   if (!value || typeof value !== 'object') {
     return {
-      message: 'Import function returned an invalid response.',
+      message: 'Функция импорта вернула некорректный ответ.',
       ok: false,
     };
   }
@@ -78,7 +78,7 @@ function parseRunResult(value: unknown): SourceImportRunResult {
         message: typeof item.message === 'string' ? item.message : undefined,
         postId: typeof item.postId === 'string' ? item.postId : undefined,
         status: item.status === 'imported' || item.status === 'duplicate' || item.status === 'error' ? item.status : 'error',
-        title: typeof item.title === 'string' ? item.title : 'Untitled',
+        title: typeof item.title === 'string' ? item.title : 'Без заголовка',
         url: typeof item.url === 'string' ? item.url : '',
       }));
 
@@ -97,7 +97,7 @@ function parseRunResult(value: unknown): SourceImportRunResult {
       source: {
         id: typeof source.id === 'string' ? source.id : '',
         isEnabled: typeof source.isEnabled === 'boolean' ? source.isEnabled : true,
-        title: typeof source.title === 'string' ? source.title : 'Unknown source',
+        title: typeof source.title === 'string' ? source.title : 'Неизвестный источник',
         type: typeof source.type === 'string' ? source.type : 'rss',
         url: typeof source.url === 'string' ? source.url : '',
       },
@@ -116,7 +116,7 @@ function parseRunResult(value: unknown): SourceImportRunResult {
   return {
     code: typeof raw.code === 'string' ? raw.code : undefined,
     details: raw.details && typeof raw.details === 'object' ? raw.details as Record<string, unknown> : undefined,
-    message: typeof raw.message === 'string' && raw.message.trim().length > 0 ? raw.message : 'Source import failed.',
+    message: typeof raw.message === 'string' && raw.message.trim().length > 0 ? raw.message : 'Импорт источника завершился ошибкой.',
     ok: false,
   };
 }
@@ -129,7 +129,7 @@ export async function listContentSources() {
     .order('updated_at', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to load sources. ${error.message}`);
+    throw new Error(`Не удалось загрузить источники. ${error.message}`);
   }
 
   return (data ?? []) as ContentSource[];
@@ -145,7 +145,7 @@ export async function createContentSource(input: ContentSourceInput) {
     .single();
 
   if (error) {
-    throw new Error(`Failed to create source. ${error.message}`);
+    throw new Error(`Не удалось создать источник. ${error.message}`);
   }
 
   return data as ContentSource;
@@ -179,7 +179,7 @@ export async function updateContentSource(sourceId: string, input: Partial<Conte
     .single();
 
   if (error) {
-    throw new Error(`Failed to update source. ${error.message}`);
+    throw new Error(`Не удалось обновить источник. ${error.message}`);
   }
 
   return data as ContentSource;
@@ -190,7 +190,7 @@ export async function deleteContentSource(sourceId: string) {
   const { error } = await supabase.from('content_sources').delete().eq('id', sourceId);
 
   if (error) {
-    throw new Error(`Failed to delete source. ${error.message}`);
+    throw new Error(`Не удалось удалить источник. ${error.message}`);
   }
 }
 
@@ -204,7 +204,7 @@ export async function runContentSourceImport(sourceId: string, maxItems = 15): P
   });
 
   if (error) {
-    throw new Error(error.message || 'Failed to run source import.');
+    throw new Error(error.message || 'Не удалось запустить импорт источника.');
   }
 
   return parseRunResult(data);
