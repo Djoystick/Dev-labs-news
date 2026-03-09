@@ -370,20 +370,24 @@ serve(async (request: Request) => {
       ? (successCount > 0 || partialCount > 0 ? "partial_success" : "failed")
       : (partialCount > 0 ? "partial_success" : "success");
 
-    return jsonResponse({
-      ok: true,
-      triggerMode: "scheduled",
-      status: batchStatus,
-      startedAt,
-      finishedAt,
-      maxItems,
-      sourceCount: sources.length,
-      successCount,
-      partialCount,
-      failedCount,
-      totals,
-      results: results.slice(0, MAX_RESULT_ITEMS),
-    });
+    const isBatchFailed = batchStatus === "failed";
+    return jsonResponse(
+      {
+        ok: !isBatchFailed,
+        triggerMode: "scheduled",
+        status: batchStatus,
+        startedAt,
+        finishedAt,
+        maxItems,
+        sourceCount: sources.length,
+        successCount,
+        partialCount,
+        failedCount,
+        totals,
+        results: results.slice(0, MAX_RESULT_ITEMS),
+      },
+      isBatchFailed ? 500 : 200,
+    );
   } catch (error) {
     if (error instanceof ScheduledImportError) {
       return jsonResponse(
