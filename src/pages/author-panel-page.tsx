@@ -428,6 +428,12 @@ export function AuthorPanelPage() {
 
   const runQuickAction = useCallback(
     async (postId: string, action: QuickAction) => {
+      if (action === 'publish') {
+        openEditor(postId);
+        toast.info('Публикация выполняется на экране редактирования после ручной проверки.');
+        return;
+      }
+
       if (action === 'unpublish') {
         const confirmed = window.confirm('Снять публикацию? Пост исчезнет из ленты.');
         if (!confirmed) {
@@ -447,13 +453,7 @@ export function AuthorPanelPage() {
       setLastFailedAction(null);
 
       try {
-        if (action === 'publish') {
-          await updatePostFields(postId, { is_published: true, scheduled_at: null });
-        } else if (action === 'unschedule') {
-          await updatePostFields(postId, { is_published: false, scheduled_at: null });
-        } else {
-          await updatePostFields(postId, { is_published: false, scheduled_at: null });
-        }
+        await updatePostFields(postId, { is_published: false, scheduled_at: null });
 
         await loadPosts();
       } catch {
@@ -463,7 +463,7 @@ export function AuthorPanelPage() {
         setActionBusyId(null);
       }
     },
-    [loadPosts, updatePostFields],
+    [loadPosts, openEditor, updatePostFields],
   );
 
   const openScheduleEditor = useCallback((post: AuthorPost) => {
@@ -815,7 +815,7 @@ export function AuthorPanelPage() {
                       }}
                     >
                       {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                      {'Опубликовать'}
+                      {'Проверить и опубликовать'}
                     </Button>
                     <Button
                       type="button"
@@ -842,7 +842,7 @@ export function AuthorPanelPage() {
                         }}
                       >
                         {actionBusyId === post.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                        {'Опубликовать'}
+                        {'Проверить и опубликовать'}
                       </Button>
                       <Button
                         type="button"

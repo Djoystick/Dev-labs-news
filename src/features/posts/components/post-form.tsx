@@ -56,9 +56,59 @@ type TagFeedback = {
   kind: 'error' | 'info' | 'success';
   message: string;
 };
+
+type PrePublishChecklistKey =
+  | 'title'
+  | 'excerpt'
+  | 'content'
+  | 'source'
+  | 'topics'
+  | 'cover'
+  | 'facts';
+
+type PrePublishChecklistItem = {
+  key: PrePublishChecklistKey;
+  label: string;
+};
 type EditablePost = Post & {
   is_published?: boolean | null;
 };
+
+const PRE_PUBLISH_CHECKLIST_ITEMS: PrePublishChecklistItem[] = [
+  { key: 'title', label: 'Заголовок проверен' },
+  { key: 'excerpt', label: 'Лид / краткое описание проверены' },
+  { key: 'content', label: 'Основной текст проверен' },
+  { key: 'source', label: 'Источник проверен' },
+  { key: 'topics', label: 'Тема и теги проверены' },
+  { key: 'cover', label: 'Обложка / изображение проверены' },
+  { key: 'facts', label: 'Факты проверены вручную' },
+];
+
+function createEmptyPrePublishChecklistState() {
+  return PRE_PUBLISH_CHECKLIST_ITEMS.reduce((acc, item) => {
+    acc[item.key] = false;
+    return acc;
+  }, {} as Record<PrePublishChecklistKey, boolean>);
+}
+
+function getImportOriginLabel(origin: string | null | undefined, importNote: string | null | undefined) {
+  const normalizedOrigin = typeof origin === 'string' ? origin.trim().toLowerCase() : '';
+  const normalizedNote = typeof importNote === 'string' ? importNote.toLowerCase() : '';
+
+  if (normalizedOrigin === 'manual_import_ai') {
+    if (normalizedNote.includes('source registry')) {
+      return 'RSS import + AI draft';
+    }
+
+    return 'URL import + AI draft';
+  }
+
+  if (!normalizedOrigin) {
+    return 'Imported draft';
+  }
+
+  return normalizedOrigin;
+}
 
 const emptyValues: PostFormValues = {
   content: '',
@@ -116,6 +166,9 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   const [publishMode, setPublishMode] = useState<PublishingMode>('draft');
   const [tagInputValue, setTagInputValue] = useState('');
   const [tagFeedback, setTagFeedback] = useState<TagFeedback | null>(null);
+  const [prePublishChecklist, setPrePublishChecklist] = useState<Record<PrePublishChecklistKey, boolean>>(
+    createEmptyPrePublishChecklistState(),
+  );
   const [autosaveStatus, setAutosaveStatus] = useState<'saved' | 'restored' | null>(null);
   const [hasCheckedDraftRestore, setHasCheckedDraftRestore] = useState(false);
   const lastSavedSnapshotRef = useRef('');
@@ -173,6 +226,10 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   useEffect(() => {
     setPublishMode(initialPublishMode);
   }, [initialPublishMode]);
+
+  useEffect(() => {
+    setPrePublishChecklist(createEmptyPrePublishChecklistState());
+  }, [editablePost?.id, mode]);
 
   useEffect(() => {
     if (!draftStorageKey || hasRestoredDraftRef.current) {
@@ -332,6 +389,12 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
 
   const coverUrl = watchedCoverUrl;
   const isPublishedMaterial = publishMode === 'published';
+  const isImportedMaterial = Boolean(
+    editablePost?.import_origin || editablePost?.source_url || editablePost?.source_domain || editablePost?.import_note,
+  );
+  const importOriginLabel = getImportOriginLabel(editablePost?.import_origin, editablePost?.import_note);
+  const completedChecklistItems = PRE_PUBLISH_CHECKLIST_ITEMS.filter((item) => prePublishChecklist[item.key]).length;
+  const isPrePublishChecklistComplete = completedChecklistItems === PRE_PUBLISH_CHECKLIST_ITEMS.length;
   const canDeletePost = profile?.role === 'admin';
   const canSaveAsDraft = mode === 'create' || !isPublishedMaterial;
   const publishActionLabel = mode === 'edit' && isPublishedMaterial ? 'Обновить публикацию' : 'Опубликовать';
@@ -482,6 +545,22 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
     setTagFeedback(null);
   };
 
+  const toggleChecklistItem = (key: PrePublishChecklistKey, checked: boolean) => {
+    setPrePublishChecklist((prev) => ({
+      ...prev,
+      [key]: checked,
+    }));
+  };
+
+  const markChecklistDone = () => {
+    setPrePublishChecklist(
+      PRE_PUBLISH_CHECKLIST_ITEMS.reduce((acc, item) => {
+        acc[item.key] = true;
+        return acc;
+      }, {} as Record<PrePublishChecklistKey, boolean>),
+    );
+  };
+
   const handleCoverUpload = async (file: File) => {
     setIsUploadingCover(true);
     try {
@@ -511,6 +590,13 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
   };
 
   const submitPost = async (values: PostFormValues, nextMode: PublishingMode) => {
+    if (nextMode === 'published' && !isPrePublishChecklistComplete) {
+      const message = 'Перед публикацией пройдите весь чеклист редакторской проверки.';
+      setSubmitError(message);
+      toast.error(message);
+      return;
+    }
+
     setSubmitError(null);
     setIsSubmitting(true);
 
@@ -655,6 +741,25 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
             {submitError ? <div className="border-y border-destructive/35 bg-destructive/10 px-4 py-3 text-sm text-destructive">{submitError}</div> : null}
             {topicsError ? <StateCard title="Разделы недоступны" description={topicsError} /> : null}
             {!topicsError && !hasSectionTopics ? <StateCard title="Разделы не найдены" description="Разделы не найдены. Проверьте миграции." /> : null}
+
+            {isImportedMaterial ? (
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-200">Imported draft</p>
+                <p className="mt-2 text-sm text-amber-100/95">
+                  {`Происхождение: ${importOriginLabel}. Перед публикацией обязательно проверьте источник и факты вручную.`}
+                </p>
+                {editablePost?.source_url ? (
+                  <a
+                    href={editablePost.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block break-all text-sm text-amber-100 underline underline-offset-2 hover:text-amber-50"
+                  >
+                    {editablePost.source_url}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="space-y-5">
@@ -811,11 +916,55 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
               {form.formState.errors.content ? <p className="text-sm text-destructive">{form.formState.errors.content.message}</p> : null}
             </div>
 
+            <div className="rounded-2xl border border-border/70 bg-card/60 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Редакторский чеклист перед публикацией</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Публикация доступна только после прохождения всех пунктов ручной проверки.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={markChecklistDone}
+                  disabled={isPrePublishChecklistComplete}
+                >
+                  Отметить все
+                </Button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {PRE_PUBLISH_CHECKLIST_ITEMS.map((item) => (
+                  <label
+                    key={item.key}
+                    className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-cyan-500"
+                      checked={prePublishChecklist[item.key]}
+                      onChange={(event) => toggleChecklistItem(item.key, event.target.checked)}
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {`Готово: ${completedChecklistItems}/${PRE_PUBLISH_CHECKLIST_ITEMS.length}`}
+              </p>
+            </div>
+
             <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <p className="text-xs text-white/60">{statusHint}</p>
                 <p className="text-sm text-muted-foreground">{publicationHint}</p>
                 {autosaveHint ? <p className="text-xs text-white/60">{autosaveHint}</p> : null}
+                {!isPublishedMaterial ? (
+                  <p className="text-xs text-muted-foreground">
+                    Следующий шаг: откройте предпросмотр, пройдите чеклист и публикуйте вручную.
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button type="button" variant="outline" onClick={() => setIsPreviewDialogOpen(true)}>
@@ -841,7 +990,7 @@ export function PostForm({ mode, post, userId }: PostFormProps) {
                 ) : null}
                 <Button
                   type="button"
-                  disabled={isSubmitting || isUploadingCover}
+                  disabled={isSubmitting || isUploadingCover || !isPrePublishChecklistComplete}
                   onClick={() => submitByMode('published')}
                 >
                   {isSubmitting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
