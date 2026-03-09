@@ -68,3 +68,34 @@ jobs:
           if [ "$status" -ne 200 ]; then
             exit 1
           fi
+
+          node -e '
+            const fs = require("fs");
+            const raw = fs.readFileSync(process.argv[1], "utf8");
+            let payload;
+            try {
+              payload = JSON.parse(raw);
+            } catch (error) {
+              console.error("Response is not valid JSON.");
+              process.exit(1);
+            }
+
+            if (!payload || typeof payload !== "object") {
+              console.error("Response payload is invalid.");
+              process.exit(1);
+            }
+
+            const status = typeof payload.status === "string" ? payload.status : "unknown";
+            const ok = payload.ok === true;
+
+            if (!ok || status === "failed") {
+              console.error(`Scheduled import failed: ok=${String(payload.ok)} status=${status}`);
+              process.exit(1);
+            }
+
+            if (status === "partial_success") {
+              console.warn("Scheduled import completed with partial_success.");
+            } else {
+              console.log("Scheduled import completed successfully.");
+            }
+          ' "$response_file"

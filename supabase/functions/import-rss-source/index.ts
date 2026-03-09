@@ -18,6 +18,7 @@ const responseHeaders = {
 } as const;
 
 const FETCH_TIMEOUT_MS = 15_000;
+const IMPORT_POST_DRAFT_TIMEOUT_MS = 90_000;
 const DEFAULT_MAX_ITEMS = 15;
 const MAX_ITEMS_LIMIT = 25;
 
@@ -560,12 +561,32 @@ function toImportResult(value: unknown): ImportDraftResult {
   if (!value || typeof value !== "object") {
     return {
       code: "IMPORT_INVALID_RESPONSE",
-      message: "Import function returned invalid response.",
+      message: "import-post-draft returned invalid response.",
       ok: false,
     };
   }
 
   return value as ImportDraftResult;
+}
+
+function toOperationalImportFailureMessage(code: string, fallback: string) {
+  if (code === "UNAUTHORIZED") {
+    return "import-post-draft unauthorized. Check auth headers and x-cron-secret wiring.";
+  }
+
+  if (code === "CONFIG_MISSING") {
+    return "import-post-draft misconfigured. Check required server env.";
+  }
+
+  if (code === "IMPORT_TIMEOUT") {
+    return "import-post-draft timed out. Retry later or lower maxItems.";
+  }
+
+  if (code === "IMPORT_NETWORK_ERROR" || code === "IMPORT_CALL_FAILED") {
+    return "Network error while calling import-post-draft. Retry later.";
+  }
+
+  return fallback;
 }
 
 async function callImportPostDraft(
@@ -589,36 +610,63 @@ async function callImportPostDraft(
     headers["x-cron-secret"] = cronSecret;
   }
 
-  const response = await fetch(importEndpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), IMPORT_POST_DRAFT_TIMEOUT_MS);
 
-  const raw = await response.text();
-  let parsed: unknown = null;
-  if (raw.trim()) {
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      parsed = null;
+  try {
+    const response = await fetch(importEndpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const raw = await response.text();
+    let parsed: unknown = null;
+    if (raw.trim()) {
+      try {
+        parsed = JSON.parse(raw) as unknown;
+      } catch {
+        parsed = null;
+      }
     }
-  }
 
-  if (!response.ok) {
-    const errorObject = (parsed && typeof parsed === "object") ? parsed as Record<string, unknown> : null;
-    const message = typeof errorObject?.message === "string"
-      ? errorObject.message
-      : `import-post-draft failed with HTTP ${response.status}`;
+    if (!response.ok) {
+      const errorObject = (parsed && typeof parsed === "object") ? parsed as Record<string, unknown> : null;
+      const rawCode = typeof errorObject?.code === "string" ? errorObject.code : "IMPORT_HTTP_ERROR";
+      const fallbackMessage = typeof errorObject?.message === "string"
+        ? errorObject.message
+        : `import-post-draft failed with HTTP ${response.status}`;
+      const message = toOperationalImportFailureMessage(rawCode, fallbackMessage);
+
+      return {
+        code: rawCode,
+        message,
+        ok: false,
+      };
+    }
+
+    return toImportResult(parsed);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return {
+        code: "IMPORT_TIMEOUT",
+        message: toOperationalImportFailureMessage("IMPORT_TIMEOUT", "import-post-draft timed out."),
+        ok: false,
+      };
+    }
 
     return {
-      code: typeof errorObject?.code === "string" ? errorObject.code : "IMPORT_HTTP_ERROR",
-      message,
+      code: "IMPORT_NETWORK_ERROR",
+      message: toOperationalImportFailureMessage(
+        "IMPORT_NETWORK_ERROR",
+        error instanceof Error ? error.message : "Failed to call import-post-draft.",
+      ),
       ok: false,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return toImportResult(parsed);
 }
 
 function buildImportNote(source: ContentSourceRow, entry: FeedEntry, defaultTopic: TopicRow | null) {
@@ -644,6 +692,21 @@ function resolveRunStatus(importedCount: number, duplicateCount: number, errorCo
   }
 
   return "success" as const;
+}
+
+function summarizeResultCodes(results: RunItemResult[], status: RunItemResult["status"]) {
+  const counts = new Map<string, number>();
+
+  for (const item of results) {
+    if (item.status !== status) {
+      continue;
+    }
+
+    const code = item.code ?? (status === "duplicate" ? "DUPLICATE" : "IMPORT_FAILED");
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+
+  return Object.fromEntries([...counts.entries()].sort((a, b) => b[1] - a[1]));
 }
 
 serve(async (request: Request) => {
@@ -742,11 +805,23 @@ serve(async (request: Request) => {
 
     for (const entry of parsedFeed.entries) {
       const note = buildImportNote(source, entry, defaultTopic);
-      const importResult = await callImportPostDraft(importEndpoint, anonKey, downstreamAuthorization, {
-        note,
-        triggerMode,
-        url: entry.url,
-      }, cronSecret);
+      let importResult: ImportDraftResult;
+      try {
+        importResult = await callImportPostDraft(importEndpoint, anonKey, downstreamAuthorization, {
+          note,
+          triggerMode,
+          url: entry.url,
+        }, cronSecret);
+      } catch (error) {
+        importResult = {
+          code: "IMPORT_CALL_FAILED",
+          message: toOperationalImportFailureMessage(
+            "IMPORT_CALL_FAILED",
+            error instanceof Error ? error.message : "Failed to call import-post-draft.",
+          ),
+          ok: false,
+        };
+      }
 
       if (importResult.ok === true) {
         importedCount += 1;
@@ -760,7 +835,10 @@ serve(async (request: Request) => {
       }
 
       const code = typeof importResult.code === "string" ? importResult.code : "IMPORT_FAILED";
-      const message = typeof importResult.message === "string" ? importResult.message : "Import failed.";
+      const message = toOperationalImportFailureMessage(
+        code,
+        typeof importResult.message === "string" ? importResult.message : "Import failed.",
+      );
 
       if (code === "DUPLICATE" || code === "DUPLICATE_SOFT") {
         duplicateCount += 1;
@@ -791,6 +869,8 @@ serve(async (request: Request) => {
       importedItems: importedCount,
       skippedDuplicateInFeed: parsedFeed.skippedDuplicateInFeed,
       skippedMissingUrl: parsedFeed.skippedMissingUrl,
+      duplicateCodes: summarizeResultCodes(results, "duplicate"),
+      errorCodes: summarizeResultCodes(results, "error"),
     };
     const totalDuplicateCount = duplicateCount + parsedFeed.skippedDuplicateInFeed;
     const runStatus = resolveRunStatus(importedCount, totalDuplicateCount, errorCount);
@@ -823,10 +903,16 @@ serve(async (request: Request) => {
     });
   } catch (error) {
     if (error instanceof SourceImportError) {
+      const operationalMessage = error.code === "UNAUTHORIZED"
+        ? "Unauthorized request. For scheduled mode send x-cron-secret, for manual mode send admin Authorization."
+        : error.code === "CONFIG_MISSING"
+        ? "Server misconfigured: missing required Supabase environment variables."
+        : error.message;
+
       await finalizeRun({
         status: "failed",
         errorCount: 1,
-        errorMessage: error.message,
+        errorMessage: operationalMessage,
         summary: {
           errorCode: error.code,
           details: error.details ?? null,
@@ -837,7 +923,7 @@ serve(async (request: Request) => {
         {
           code: error.code,
           details: error.details,
-          message: error.message,
+          message: operationalMessage,
           ok: false,
         },
         error.status,

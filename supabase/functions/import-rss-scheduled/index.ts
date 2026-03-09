@@ -18,6 +18,7 @@ const responseHeaders = {
 const DEFAULT_MAX_ITEMS_PER_SOURCE = 15;
 const MAX_ITEMS_LIMIT = 25;
 const MAX_RESULT_ITEMS = 120;
+const RSS_SOURCE_CALL_TIMEOUT_MS = 180_000;
 
 type ImportRequestBody = {
   maxItems?: number;
@@ -101,8 +102,22 @@ function getServerEnv() {
   const anonKey = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const cronSecret = Deno.env.get("CRON_SECRET")?.trim();
 
-  if (!supabaseUrl || !serviceRoleKey || !anonKey || !cronSecret) {
-    throw new ScheduledImportError(500, "Server misconfigured.");
+  const missing: string[] = [];
+  if (!supabaseUrl) {
+    missing.push("PROJECT_URL|SUPABASE_URL");
+  }
+  if (!serviceRoleKey) {
+    missing.push("SERVICE_ROLE_KEY|SUPABASE_SERVICE_ROLE_KEY");
+  }
+  if (!anonKey) {
+    missing.push("ANON_KEY|SUPABASE_ANON_KEY");
+  }
+  if (!cronSecret) {
+    missing.push("CRON_SECRET");
+  }
+
+  if (missing.length > 0) {
+    throw new ScheduledImportError(500, `Server misconfigured: missing ${missing.join(", ")}.`);
   }
 
   return { anonKey, cronSecret, serviceRoleKey, supabaseUrl };
@@ -117,7 +132,7 @@ function assertMethod(request: Request) {
 function ensureCronAuthorized(request: Request, expectedSecret: string) {
   const providedSecret = request.headers.get("x-cron-secret");
   if (!providedSecret || providedSecret !== expectedSecret) {
-    throw new ScheduledImportError(401, "Unauthorized.");
+    throw new ScheduledImportError(401, "Unauthorized: invalid or missing x-cron-secret.");
   }
 }
 
@@ -156,7 +171,7 @@ async function loadEnabledRssSources(serviceClient: any): Promise<ContentSourceR
     .order("id", { ascending: true });
 
   if (error) {
-    throw new ScheduledImportError(500, `Failed to load sources. ${error.message}`);
+    throw new ScheduledImportError(500, `Failed to load enabled RSS sources. ${error.message}`);
   }
 
   return (data ?? []) as ContentSourceRow[];
@@ -208,6 +223,26 @@ function resolveSourceStatus(summary: SourceImportSummary): "success" | "partial
   return "success";
 }
 
+function toOperationalScheduledFailureMessage(code: string, fallback: string) {
+  if (code === "UNAUTHORIZED") {
+    return "import-rss-source unauthorized. Check x-cron-secret/auth wiring.";
+  }
+
+  if (code === "CONFIG_MISSING") {
+    return "import-rss-source misconfigured. Check required server env.";
+  }
+
+  if (code === "RSS_SOURCE_TIMEOUT") {
+    return "import-rss-source timed out. Retry with lower maxItems.";
+  }
+
+  if (code === "RSS_SOURCE_NETWORK") {
+    return "Network error while calling import-rss-source.";
+  }
+
+  return fallback;
+}
+
 async function callImportRssSource(
   endpoint: string,
   anonKey: string,
@@ -215,45 +250,73 @@ async function callImportRssSource(
   sourceId: string,
   maxItems: number,
 ): Promise<SourceImportResult> {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${anonKey}`,
-      "Content-Type": "application/json",
-      "apikey": anonKey,
-      "x-client-info": "import-rss-scheduled/1.0",
-      "x-cron-secret": cronSecret,
-    },
-    body: JSON.stringify({
-      sourceId,
-      maxItems,
-      triggerMode: "scheduled",
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), RSS_SOURCE_CALL_TIMEOUT_MS);
 
-  const rawText = await response.text();
-  let parsed: unknown = null;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+        "apikey": anonKey,
+        "x-client-info": "import-rss-scheduled/1.0",
+        "x-cron-secret": cronSecret,
+      },
+      body: JSON.stringify({
+        sourceId,
+        maxItems,
+        triggerMode: "scheduled",
+      }),
+      signal: controller.signal,
+    });
 
-  if (rawText.trim()) {
-    try {
-      parsed = JSON.parse(rawText) as unknown;
-    } catch {
-      parsed = null;
+    const rawText = await response.text();
+    let parsed: unknown = null;
+
+    if (rawText.trim()) {
+      try {
+        parsed = JSON.parse(rawText) as unknown;
+      } catch {
+        parsed = null;
+      }
     }
-  }
 
-  if (!response.ok) {
-    const payload = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
-    return {
-      code: typeof payload?.code === "string" ? payload.code : "RSS_SOURCE_HTTP_ERROR",
-      message: typeof payload?.message === "string"
+    if (!response.ok) {
+      const payload = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+      const rawCode = typeof payload?.code === "string" ? payload.code : "RSS_SOURCE_HTTP_ERROR";
+      const fallbackMessage = typeof payload?.message === "string"
         ? payload.message
-        : `import-rss-source failed with HTTP ${response.status}.`,
+        : `import-rss-source failed with HTTP ${response.status}.`;
+
+      return {
+        code: rawCode,
+        message: toOperationalScheduledFailureMessage(rawCode, fallbackMessage),
+        ok: false,
+      };
+    }
+
+    return parseSourceImportResult(parsed);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return {
+        code: "RSS_SOURCE_TIMEOUT",
+        message: toOperationalScheduledFailureMessage("RSS_SOURCE_TIMEOUT", "import-rss-source timed out."),
+        ok: false,
+      };
+    }
+
+    return {
+      code: "RSS_SOURCE_NETWORK",
+      message: toOperationalScheduledFailureMessage(
+        "RSS_SOURCE_NETWORK",
+        error instanceof Error ? error.message : "Failed to call import-rss-source.",
+      ),
       ok: false,
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return parseSourceImportResult(parsed);
 }
 
 function pushAggregate(counters: AggregateCounters, result: ScheduledSourceResult) {
@@ -261,6 +324,21 @@ function pushAggregate(counters: AggregateCounters, result: ScheduledSourceResul
   counters.importedCount += result.importedCount;
   counters.duplicateCount += result.duplicateCount;
   counters.errorCount += result.errorCount;
+}
+
+function summarizeFailureCodes(results: ScheduledSourceResult[]) {
+  const counts = new Map<string, number>();
+
+  for (const item of results) {
+    if (item.status !== "failed") {
+      continue;
+    }
+
+    const code = item.code ?? "UNKNOWN_FAILED";
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+
+  return Object.fromEntries([...counts.entries()].sort((a, b) => b[1] - a[1]));
 }
 
 serve(async (request: Request) => {
@@ -369,6 +447,7 @@ serve(async (request: Request) => {
     const batchStatus = failedCount > 0
       ? (successCount > 0 || partialCount > 0 ? "partial_success" : "failed")
       : (partialCount > 0 ? "partial_success" : "success");
+    const failedCodes = summarizeFailureCodes(results);
 
     const isBatchFailed = batchStatus === "failed";
     return jsonResponse(
@@ -383,6 +462,7 @@ serve(async (request: Request) => {
         successCount,
         partialCount,
         failedCount,
+        failedCodes,
         totals,
         results: results.slice(0, MAX_RESULT_ITEMS),
       },
