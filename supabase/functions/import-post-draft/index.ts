@@ -8,7 +8,7 @@ import { finishImportRun, startImportRun } from "../_shared/import-run-logger.ts
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 } as const;
 
 const responseHeaders = {
@@ -56,6 +56,7 @@ const DEFAULT_AI_IMPORT_SETTINGS = {
 
 type ImportBody = {
   note?: string;
+  triggerMode?: "manual" | "scheduled";
   url?: string;
 };
 
@@ -141,6 +142,7 @@ function getServerEnv() {
   const url = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anon = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const service = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
+  const cronSecret = Deno.env.get("CRON_SECRET")?.trim() ?? null;
   const cerebrasKey = Deno.env.get("CEREBRAS_API_KEY");
   const cerebrasBaseUrl = (Deno.env.get("CEREBRAS_BASE_URL")?.trim() || DEFAULT_CEREBRAS_BASE_URL).replace(/\/+$/u, "");
 
@@ -161,13 +163,22 @@ function getServerEnv() {
     throw new ImportError("CONFIG_MISSING", "Server misconfigured: CEREBRAS_BASE_URL is invalid.");
   }
 
-  return { anon, cerebrasBaseUrl, cerebrasKey, service, url };
+  return { anon, cerebrasBaseUrl, cerebrasKey, cronSecret, service, url };
 }
 
 function assertHttpMethod(request: Request) {
   if (request.method !== "POST") {
     throw new ImportError("METHOD_NOT_ALLOWED", "Method not allowed.");
   }
+}
+
+function isCronAuthorized(request: Request, expectedSecret: string | null) {
+  if (!expectedSecret) {
+    return false;
+  }
+
+  const providedSecret = request.headers.get("x-cron-secret");
+  return Boolean(providedSecret && providedSecret === expectedSecret);
 }
 
 async function parseBody(request: Request): Promise<ImportBody> {
@@ -185,6 +196,7 @@ async function parseBody(request: Request): Promise<ImportBody> {
   const body = parsed as ImportBody;
   const url = typeof body.url === "string" ? body.url.trim() : "";
   const note = typeof body.note === "string" ? body.note.trim() : "";
+  const triggerMode = body.triggerMode === "scheduled" ? "scheduled" : "manual";
 
   if (!url) {
     throw new ImportError("URL_REQUIRED", "Укажите URL статьи для импорта.");
@@ -192,6 +204,7 @@ async function parseBody(request: Request): Promise<ImportBody> {
 
   return {
     note: note ? note.slice(0, 1_500) : undefined,
+    triggerMode,
     url,
   };
 }
@@ -1106,14 +1119,23 @@ serve(async (request: Request) => {
   try {
     assertHttpMethod(request);
 
-    const authorization = request.headers.get("Authorization");
-    if (!authorization) {
-      return jsonResponse({ code: "UNAUTHORIZED", message: "Missing Authorization header.", ok: false }, 401);
-    }
-
     const body = await parseBody(request);
-    const { anon, cerebrasBaseUrl, cerebrasKey, service, url } = getServerEnv();
-    const access = await requireEditorOrAdmin(url, anon, authorization);
+    const { anon, cerebrasBaseUrl, cerebrasKey, cronSecret, service, url } = getServerEnv();
+    const cronAuthorized = isCronAuthorized(request, cronSecret);
+    const authorization = request.headers.get("Authorization")?.trim() || null;
+    let accessUserId: string | null = null;
+
+    if (body.triggerMode === "scheduled") {
+      if (!cronAuthorized) {
+        return jsonResponse({ code: "UNAUTHORIZED", message: "Scheduled mode requires x-cron-secret.", ok: false }, 401);
+      }
+    } else {
+      if (!authorization) {
+        return jsonResponse({ code: "UNAUTHORIZED", message: "Missing Authorization header.", ok: false }, 401);
+      }
+      const access = await requireEditorOrAdmin(url, anon, authorization);
+      accessUserId = access.userId;
+    }
 
     serviceClient = createClient(url, service, {
       auth: {
@@ -1124,11 +1146,12 @@ serve(async (request: Request) => {
     runSourceUrl = body.url ?? null;
     runId = await startImportRun(serviceClient, {
       runType: "url_import",
-      triggerMode: "manual",
-      initiatedBy: access.userId,
+      triggerMode: body.triggerMode,
+      initiatedBy: accessUserId,
       sourceUrl: runSourceUrl,
       summary: {
         phase: "started",
+        triggerMode: body.triggerMode,
       },
     });
 
@@ -1252,7 +1275,7 @@ serve(async (request: Request) => {
     const { data: inserted, error: insertError } = await serviceClient
       .from("posts")
       .insert({
-        author_id: access.userId,
+        author_id: accessUserId,
         content: draftContent,
         cover_url: aiDraft.cover_image_url ?? null,
         excerpt: aiDraft.excerpt || null,

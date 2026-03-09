@@ -1,0 +1,70 @@
+name: Scheduled RSS import
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_items:
+        description: "Max RSS items per enabled source (1-25)"
+        required: false
+        default: "15"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call import-rss-scheduled
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_RSS_SCHEDULED_FUNCTION_URL: ${{ secrets.SUPABASE_RSS_SCHEDULED_FUNCTION_URL }}
+          DISPATCH_MAX_ITEMS: ${{ github.event.inputs.max_items }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::$CRON_SECRET"
+
+          if [ -z "${SUPABASE_RSS_SCHEDULED_FUNCTION_URL:-}" ]; then
+            echo "SUPABASE_RSS_SCHEDULED_FUNCTION_URL is not set"
+            exit 1
+          fi
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "CRON_SECRET is not set"
+            exit 1
+          fi
+
+          if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "SUPABASE_ANON_KEY is not set"
+            exit 1
+          fi
+
+          MAX_ITEMS="${DISPATCH_MAX_ITEMS:-15}"
+          if ! [[ "$MAX_ITEMS" =~ ^[0-9]+$ ]]; then
+            echo "Invalid max_items value: $MAX_ITEMS"
+            exit 1
+          fi
+
+          if [ "$MAX_ITEMS" -lt 1 ] || [ "$MAX_ITEMS" -gt 25 ]; then
+            echo "max_items must be between 1 and 25"
+            exit 1
+          fi
+
+          payload=$(printf '{"maxItems":%s}' "$MAX_ITEMS")
+          response_file=$(mktemp)
+          status=$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$SUPABASE_RSS_SCHEDULED_FUNCTION_URL" \
+            -H "content-type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            --data "$payload")
+
+          echo "HTTP status: $status"
+          echo "Response:"
+          cat "$response_file"
+          echo
+
+          if [ "$status" -ne 200 ]; then
+            exit 1
+          fi

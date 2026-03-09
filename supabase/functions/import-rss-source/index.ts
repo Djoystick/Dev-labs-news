@@ -8,7 +8,7 @@ import { finishImportRun, startImportRun } from "../_shared/import-run-logger.ts
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 } as const;
 
 const responseHeaders = {
@@ -24,6 +24,7 @@ const MAX_ITEMS_LIMIT = 25;
 type ImportRequestBody = {
   sourceId?: string;
   maxItems?: number;
+  triggerMode?: "manual" | "scheduled";
 };
 
 type ContentSourceRow = {
@@ -101,12 +102,13 @@ function getServerEnv() {
   const supabaseUrl = getEnvWithFallback("PROJECT_URL", "SUPABASE_URL");
   const anonKey = getEnvWithFallback("ANON_KEY", "SUPABASE_ANON_KEY");
   const serviceRoleKey = getEnvWithFallback("SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY");
+  const cronSecret = Deno.env.get("CRON_SECRET")?.trim() ?? null;
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     throw new SourceImportError(500, "CONFIG_MISSING", "Server misconfigured: missing Supabase env.");
   }
 
-  return { anonKey, serviceRoleKey, supabaseUrl };
+  return { anonKey, cronSecret, serviceRoleKey, supabaseUrl };
 }
 
 function assertHttpMethod(request: Request) {
@@ -118,13 +120,25 @@ function assertHttpMethod(request: Request) {
 function getAuthorizationHeader(request: Request) {
   const authorization = request.headers.get("Authorization");
   if (!authorization) {
-    throw new SourceImportError(401, "UNAUTHORIZED", "Missing Authorization header.");
+    return null;
   }
 
-  return authorization;
+  const normalized = authorization.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
-async function parseRequestBody(request: Request): Promise<{ maxItems: number; sourceId: string }> {
+function isCronAuthorized(request: Request, expectedSecret: string | null) {
+  if (!expectedSecret) {
+    return false;
+  }
+
+  const providedSecret = request.headers.get("x-cron-secret");
+  return Boolean(providedSecret && providedSecret === expectedSecret);
+}
+
+async function parseRequestBody(
+  request: Request,
+): Promise<{ maxItems: number; sourceId: string; triggerMode: "manual" | "scheduled" }> {
   let parsed: unknown;
   try {
     parsed = await request.json();
@@ -146,8 +160,9 @@ async function parseRequestBody(request: Request): Promise<{ maxItems: number; s
     ? Math.round(body.maxItems)
     : DEFAULT_MAX_ITEMS;
   const maxItems = Math.min(MAX_ITEMS_LIMIT, Math.max(1, rawMaxItems));
+  const triggerMode = body.triggerMode === "scheduled" ? "scheduled" : "manual";
 
-  return { maxItems, sourceId };
+  return { maxItems, sourceId, triggerMode };
 }
 
 async function requireAdmin(
@@ -556,17 +571,27 @@ function toImportResult(value: unknown): ImportDraftResult {
 async function callImportPostDraft(
   importEndpoint: string,
   anonKey: string,
-  authorization: string,
-  payload: { note: string; url: string },
+  authorization: string | null,
+  payload: { note: string; triggerMode: "manual" | "scheduled"; url: string },
+  cronSecret: string | null,
 ): Promise<ImportDraftResult> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "apikey": anonKey,
+    "x-client-info": "import-rss-source/1.0",
+  };
+
+  if (authorization) {
+    headers.Authorization = authorization;
+  }
+
+  if (payload.triggerMode === "scheduled" && cronSecret) {
+    headers["x-cron-secret"] = cronSecret;
+  }
+
   const response = await fetch(importEndpoint, {
     method: "POST",
-    headers: {
-      "Authorization": authorization,
-      "Content-Type": "application/json",
-      "apikey": anonKey,
-      "x-client-info": "import-rss-source/1.0",
-    },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -665,9 +690,22 @@ serve(async (request: Request) => {
     assertHttpMethod(request);
 
     const authorization = getAuthorizationHeader(request);
-    const { maxItems, sourceId } = await parseRequestBody(request);
-    const { anonKey, serviceRoleKey, supabaseUrl } = getServerEnv();
-    const adminAccess = await requireAdmin(supabaseUrl, anonKey, authorization);
+    const { maxItems, sourceId, triggerMode } = await parseRequestBody(request);
+    const { anonKey, cronSecret, serviceRoleKey, supabaseUrl } = getServerEnv();
+    const cronAuthorized = isCronAuthorized(request, cronSecret);
+    let initiatedBy: string | null = null;
+
+    if (triggerMode === "scheduled") {
+      if (!cronAuthorized) {
+        throw new SourceImportError(401, "UNAUTHORIZED", "Scheduled mode requires x-cron-secret.");
+      }
+    } else {
+      if (!authorization) {
+        throw new SourceImportError(401, "UNAUTHORIZED", "Missing Authorization header.");
+      }
+      const adminAccess = await requireAdmin(supabaseUrl, anonKey, authorization);
+      initiatedBy = adminAccess.userId;
+    }
 
     serviceClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -678,12 +716,13 @@ serve(async (request: Request) => {
     runContentSourceId = sourceId;
     runId = await startImportRun(serviceClient, {
       runType: "rss_import",
-      triggerMode: "manual",
-      initiatedBy: adminAccess.userId,
+      triggerMode,
+      initiatedBy,
       contentSourceId: runContentSourceId,
       summary: {
         phase: "started",
         maxItems,
+        triggerMode,
       },
     });
 
@@ -694,6 +733,7 @@ serve(async (request: Request) => {
     const fetchedFeed = await fetchFeedXml(source.url);
     const parsedFeed = parseFeedEntries(fetchedFeed.xml, fetchedFeed.responseUrl, maxItems);
     const importEndpoint = `${supabaseUrl.replace(/\/+$/u, "")}/functions/v1/import-post-draft`;
+    const downstreamAuthorization = authorization ?? `Bearer ${anonKey}`;
 
     const results: RunItemResult[] = [];
     let importedCount = 0;
@@ -702,10 +742,11 @@ serve(async (request: Request) => {
 
     for (const entry of parsedFeed.entries) {
       const note = buildImportNote(source, entry, defaultTopic);
-      const importResult = await callImportPostDraft(importEndpoint, anonKey, authorization, {
+      const importResult = await callImportPostDraft(importEndpoint, anonKey, downstreamAuthorization, {
         note,
+        triggerMode,
         url: entry.url,
-      });
+      }, cronSecret);
 
       if (importResult.ok === true) {
         importedCount += 1;

@@ -51,6 +51,10 @@ function getRunTypeLabel(value: ImportRun['run_type']) {
   return value === 'rss_import' ? 'RSS import' : 'URL import';
 }
 
+function getTriggerModeLabel(value: ImportRun['trigger_mode']) {
+  return value === 'scheduled' ? 'Scheduled' : 'Manual';
+}
+
 function getStatusLabel(value: ImportRunStatus) {
   if (value === 'success') {
     return 'Success';
@@ -179,7 +183,7 @@ export function AdminImportRunsPage() {
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-bold sm:text-3xl">История импортов</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Последние ручные запуски URL и RSS импорта. Все импорты создают только черновики.
+                Последние запуски URL и RSS импорта (manual и scheduled). Все импорты создают только черновики.
               </p>
             </div>
             <Button type="button" variant="outline" onClick={() => void loadRuns()} disabled={state.isLoading}>
@@ -213,6 +217,9 @@ export function AdminImportRunsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center rounded-full border border-border/70 px-2 py-0.5 text-xs text-muted-foreground">
                         {getRunTypeLabel(run.run_type)}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-border/70 px-2 py-0.5 text-xs text-muted-foreground">
+                        {getTriggerModeLabel(run.trigger_mode)}
                       </span>
                       <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs', getStatusClass(run.status))}>
                         {getStatusLabel(run.status)}
