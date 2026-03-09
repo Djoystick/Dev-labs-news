@@ -1,4 +1,24 @@
-import { Activity, ArrowLeft, Bookmark, Bug, ChevronRight, EyeOff, FilePenLine, History, Info, LifeBuoy, LogOut, MoonStar, Rss, ScrollText, Settings2, SlidersHorizontal, Sparkles, Trash2, Users } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  Bookmark,
+  Bug,
+  ChevronRight,
+  EyeOff,
+  FilePenLine,
+  History,
+  Info,
+  LifeBuoy,
+  LogOut,
+  MoonStar,
+  Rss,
+  ScrollText,
+  Settings2,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -8,18 +28,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StateCard } from '@/components/ui/state-card';
+import { getPendingDraftBacklogCount, listRecentImportRuns } from '@/features/import-runs/api';
 import { getProfileDisplayName, normalizeHandle, updateForYouDigestSettings } from '@/features/profile/api';
 import { useReadingProgress } from '@/features/reading/reading-progress';
-import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramWebApp, telegramFullscreenStorageKey } from '@/lib/telegram';
+import { getTelegramAvatarProxyUrl, getTelegramPhotoUrlProxy } from '@/lib/telegram-avatar';
 import { getTelegramDisplayName, getTelegramUser } from '@/lib/telegram-user';
 import { getPostPath } from '@/lib/post-links';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/providers/theme-provider';
+import type { ImportRun } from '@/types/db';
 
 type DigestThreshold = 10 | 20 | 30;
+type ProfileHubTab = 'work' | 'account';
+
 const digestThresholdOptions: DigestThreshold[] = [10, 20, 30];
+const RECENT_IMPORT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function normalizeDigestThreshold(value: number | null | undefined): DigestThreshold {
   return value === 20 || value === 30 ? value : 10;
@@ -60,6 +85,48 @@ function formatContinueReadingDate(value: string | null | undefined) {
     minute: '2-digit',
     month: '2-digit',
   });
+}
+
+function formatOperationalDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: '2-digit',
+  });
+}
+
+function getImportOperationalSummary(runs: ImportRun[]) {
+  const now = Date.now();
+  let recentErrorCount = 0;
+  let lastSuccessfulImportAt: string | null = null;
+
+  for (const run of runs) {
+    const startedAtMs = new Date(run.started_at).getTime();
+    if (Number.isFinite(startedAtMs) && now - startedAtMs <= RECENT_IMPORT_WINDOW_MS) {
+      if (run.status === 'failed' || run.status === 'partial_success' || run.error_count > 0) {
+        recentErrorCount += 1;
+      }
+    }
+
+    if (!lastSuccessfulImportAt && (run.status === 'success' || (run.status === 'partial_success' && run.imported_count > 0))) {
+      lastSuccessfulImportAt = run.finished_at ?? run.started_at;
+    }
+  }
+
+  return {
+    lastSuccessfulImportAt,
+    recentErrorCount,
+  };
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
@@ -143,6 +210,7 @@ export function ProfilePage() {
   const [digestEnabled, setDigestEnabled] = useState(false);
   const [digestSaving, setDigestSaving] = useState(false);
   const [digestThreshold, setDigestThreshold] = useState<DigestThreshold>(10);
+  const [hubTab, setHubTab] = useState<ProfileHubTab>('account');
   const [fullscreenSupported, setFullscreenSupported] = useState(false);
   const [fullscreenEnabled, setFullscreenEnabled] = useState(() => {
     if (typeof window === 'undefined') {
@@ -151,6 +219,11 @@ export function ProfilePage() {
 
     return window.localStorage.getItem(telegramFullscreenStorageKey) !== '0';
   });
+  const [pendingDraftBacklog, setPendingDraftBacklog] = useState<number | null>(null);
+  const [recentImportErrors, setRecentImportErrors] = useState<number | null>(null);
+  const [lastSuccessfulImportAt, setLastSuccessfulImportAt] = useState<string | null>(null);
+  const [workSummaryLoading, setWorkSummaryLoading] = useState(false);
+  const [workSummaryLimited, setWorkSummaryLimited] = useState(false);
   const telegramUser = useMemo(() => getTelegramUser(), []);
 
   const displayName = useMemo(() => {
@@ -181,14 +254,23 @@ export function ProfilePage() {
 
     return null;
   }, [avatarFailed, telegramUser]);
+
   const isAdminUser = profile?.role === 'admin';
   const canManageOwnPosts = profile?.role === 'admin' || profile?.role === 'editor';
-  const isTeamMember = profile?.role === 'admin' || profile?.role === 'editor';
+  const isTeamMember = canManageOwnPosts;
   const roleLabel = profile?.role === 'admin' ? 'Администратор' : profile?.role === 'editor' ? 'Редактор' : 'Пользователь';
-  const roleBadgeClass = profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
+  const roleBadgeClass =
+    profile?.role === 'admin' ? 'bg-cyan-500/15 text-cyan-200' : profile?.role === 'editor' ? 'bg-emerald-500/15 text-emerald-200' : 'bg-white/10 text-white/80';
   const continueReadingPath = continueReading.path?.trim() || (continueReading.postId ? getPostPath(continueReading.postId) : null);
   const continueReadingSubtitleValue = formatContinueReadingDate(continueReading.updatedAt);
   const continueReadingSubtitle = continueReadingSubtitleValue ? `Обновлено ${continueReadingSubtitleValue}` : undefined;
+  const showWorkTab = canManageOwnPosts && hubTab === 'work';
+  const showAccountTab = !canManageOwnPosts || hubTab === 'account';
+  const profileHandle = normalizeHandle(profile?.handle ?? profile?.username ?? '');
+
+  useEffect(() => {
+    setHubTab(canManageOwnPosts ? 'work' : 'account');
+  }, [canManageOwnPosts]);
 
   useEffect(() => {
     if (!profile) {
@@ -221,6 +303,54 @@ export function ProfilePage() {
       webApp.offEvent?.('fullscreenChanged', handleFullscreenChanged);
     };
   }, []);
+
+  useEffect(() => {
+    if (!canManageOwnPosts) {
+      setPendingDraftBacklog(null);
+      setRecentImportErrors(null);
+      setLastSuccessfulImportAt(null);
+      setWorkSummaryLimited(false);
+      setWorkSummaryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setWorkSummaryLoading(true);
+
+    async function loadWorkSummary() {
+      const runsRequest = isAdminUser
+        ? listRecentImportRuns(25)
+            .then((runs) => ({ canRead: true, runs }))
+            .catch(() => ({ canRead: false, runs: [] as ImportRun[] }))
+        : Promise.resolve({ canRead: false, runs: [] as ImportRun[] });
+      const pendingRequest = getPendingDraftBacklogCount().catch(() => null);
+
+      const [pendingCount, runData] = await Promise.all([pendingRequest, runsRequest]);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (runData.canRead) {
+        const summary = getImportOperationalSummary(runData.runs);
+        setRecentImportErrors(summary.recentErrorCount);
+        setLastSuccessfulImportAt(summary.lastSuccessfulImportAt);
+      } else {
+        setRecentImportErrors(null);
+        setLastSuccessfulImportAt(null);
+      }
+
+      setPendingDraftBacklog(pendingCount);
+      setWorkSummaryLimited(!runData.canRead);
+      setWorkSummaryLoading(false);
+    }
+
+    void loadWorkSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canManageOwnPosts, isAdminUser]);
 
   const persistDigestSettings = async (nextEnabled: boolean, nextThreshold: DigestThreshold, successMessage: string) => {
     if (!user?.id || digestSaving) {
@@ -315,7 +445,7 @@ export function ProfilePage() {
 
   return (
     <FlatPage className="py-6 sm:py-8">
-      <div className="space-y-1">
+      <div className="space-y-2">
         <FlatSection className="pt-0">
           <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-500/10 via-white/0 to-white/0 px-4 pb-4 pt-4">
             <div className="flex items-start justify-between gap-4">
@@ -345,9 +475,106 @@ export function ProfilePage() {
           </div>
         </FlatSection>
 
-        {continueReading.postId && continueReadingPath ? (
+        {canManageOwnPosts ? (
           <FlatSection className="pt-2">
-            <SectionTitle>{'ПРОДОЛЖИТЬ ЧТЕНИЕ'}</SectionTitle>
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+              <button
+                type="button"
+                className={cn(
+                  'h-10 rounded-lg text-sm font-semibold transition-colors',
+                  hubTab === 'work' ? 'bg-cyan-400/15 text-cyan-100' : 'text-white/75 hover:bg-white/5',
+                )}
+                onClick={() => setHubTab('work')}
+              >
+                Работа
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  'h-10 rounded-lg text-sm font-semibold transition-colors',
+                  hubTab === 'account' ? 'bg-cyan-400/15 text-cyan-100' : 'text-white/75 hover:bg-white/5',
+                )}
+                onClick={() => setHubTab('account')}
+              >
+                Аккаунт
+              </button>
+            </div>
+          </FlatSection>
+        ) : null}
+
+        {showWorkTab ? (
+          <>
+            <FlatSection className="pt-2">
+              <SectionTitle>{'Работа'}</SectionTitle>
+              <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                  <p className="text-[11px] text-white/60">К ручной проверке</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{pendingDraftBacklog ?? (workSummaryLoading ? '...' : '—')}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                  <p className="text-[11px] text-white/60">Ошибки импортов за 24 ч</p>
+                  <p className={cn('mt-1 text-sm font-semibold', (recentImportErrors ?? 0) > 0 ? 'text-red-200' : 'text-white')}>
+                    {recentImportErrors ?? (workSummaryLoading ? '...' : '—')}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                  <p className="text-[11px] text-white/60">Последний успешный импорт</p>
+                  <p className="mt-1 text-sm font-semibold text-white">
+                    {formatOperationalDate(lastSuccessfulImportAt) ?? (workSummaryLoading ? '...' : 'Нет данных')}
+                  </p>
+                </div>
+              </div>
+              {workSummaryLimited ? <p className="mt-2 text-xs text-white/55">Часть метрик доступна только администратору.</p> : null}
+            </FlatSection>
+
+            <FlatSection className="pt-2">
+              <SectionTitle>{'Главные действия'}</SectionTitle>
+              <div className="grid grid-cols-2 gap-2">
+                <ProfileActionCard
+                  icon={FilePenLine}
+                  title="Новая новость"
+                  subtitle="Создать материал"
+                  onClick={() => navigate('/admin/new', { state: { returnTo: '/profile' } })}
+                />
+                <ProfileActionCard
+                  icon={Sparkles}
+                  title="Импортировать в черновик"
+                  subtitle="Ручной URL-импорт"
+                  onClick={() => navigate('/admin/import', { state: { returnTo: '/profile' } })}
+                />
+                <ProfileActionCard
+                  icon={History}
+                  title="Черновики"
+                  subtitle="Проверка и публикация"
+                  onClick={() => navigate('/author', { state: { returnTo: '/profile' } })}
+                />
+                {isAdminUser ? (
+                  <ProfileActionCard
+                    icon={History}
+                    title="История импортов"
+                    subtitle="Ручные и по расписанию"
+                    onClick={() => navigate('/admin/import-runs', { state: { returnTo: '/profile' } })}
+                  />
+                ) : null}
+              </div>
+            </FlatSection>
+
+            <FlatSection className="border-b-0 pt-2">
+              <SectionTitle>{'Дополнительно'}</SectionTitle>
+              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+                <ProfileRow icon={History} title="Все материалы" subtitle="Список публикаций и черновиков" onClick={() => navigate('/my-posts')} />
+                {isAdminUser ? <ProfileRow icon={Rss} title="Источники" subtitle="RSS-реестр и ручной запуск" onClick={() => navigate('/admin/sources')} /> : null}
+                {isAdminUser ? <ProfileRow icon={SlidersHorizontal} title="Настройки ИИ" subtitle="Модели и режимы импорта" onClick={() => navigate('/admin/ai-settings')} /> : null}
+                {isAdminUser ? <ProfileRow icon={ScrollText} title="Правила публикаций" subtitle="Редакторский контур" onClick={() => navigate('/admin/publication-rules')} /> : null}
+                {isAdminUser ? <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} /> : null}
+              </div>
+            </FlatSection>
+          </>
+        ) : null}
+
+        {showAccountTab && continueReading.postId && continueReadingPath ? (
+          <FlatSection className="pt-2">
+            <SectionTitle>{'Продолжить чтение'}</SectionTitle>
             <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
               <ProfileRow
                 icon={History}
@@ -359,175 +586,147 @@ export function ProfilePage() {
           </FlatSection>
         ) : null}
 
-        <FlatSection className="pt-2">
-          <SectionTitle>{'Аккаунт'}</SectionTitle>
-          <div className="space-y-3">
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
-              <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
-              <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
-              <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
-                  <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
-                </div>
-                <button
-                  type="button"
-                  className={cn(
-                    'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
-                    digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
-                  )}
-                  onClick={() => {
-                    void persistDigestSettings(
-                      !digestEnabled,
-                      digestThreshold,
-                      !digestEnabled ? 'Уведомления о подборке включены.' : 'Уведомления о подборке отключены.',
-                    );
-                  }}
-                  disabled={digestSaving}
-                >
-                  {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
-                </button>
+        {showAccountTab ? (
+          <FlatSection className="border-b-0 pt-2">
+            <SectionTitle>{'Аккаунт'}</SectionTitle>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/50">Профиль</p>
+                <p className="mt-1 text-base font-semibold text-white">{displayName}</p>
+                <p className="mt-1 text-xs text-white/60">{profileHandle ? `@${profileHandle}` : roleLabel}</p>
               </div>
 
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+                <ProfileRow icon={Bookmark} title="Сохранённые статьи" onClick={() => navigate('/saved-articles')} />
+                <ProfileRow icon={History} title="История чтения" onClick={() => navigate('/reading-history')} />
+                <ProfileRow icon={Activity} title="Активность" onClick={() => navigate('/activity')} />
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-transparent px-4 py-4">
+                <p className="text-xs text-white/60">Здесь вы выбираете разделы и уведомления, а персональная подборка открывается на экране «Умная лента».</p>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">Уведомления о подборке</p>
+                    <p className="mt-1 text-xs text-white/60">Сообщим в Telegram, когда в Умной ленте накопится нужное число новых материалов.</p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/topic-preferences')}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                    className={cn(
+                      'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold transition',
+                      digestEnabled ? 'border-cyan-300/60 bg-cyan-400/15 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70',
+                    )}
+                    onClick={() => {
+                      void persistDigestSettings(
+                        !digestEnabled,
+                        digestThreshold,
+                        !digestEnabled ? 'Уведомления о подборке включены.' : 'Уведомления о подборке отключены.',
+                      );
+                    }}
+                    disabled={digestSaving}
                   >
-                    <Settings2 className="h-4 w-4" />
-                    {'Разделы'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/for-you')}
-                    className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {'Открыть Умную ленту'}
+                    {digestSaving ? 'Сохранение...' : digestEnabled ? 'Включено' : 'Выключено'}
                   </button>
                 </div>
-                <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
-              </div>
 
-              <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {digestThresholdOptions.map((option) => {
-                    const selected = digestThreshold === option;
-
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        className={cn(
-                          'h-10 rounded-lg border text-sm font-semibold transition',
-                          selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
-                        )}
-                        onClick={() => {
-                          if (option === digestThreshold) {
-                            return;
-                          }
-
-                          void persistDigestSettings(digestEnabled, option, 'Порог уведомлений о подборке обновлён.');
-                        }}
-                        disabled={digestSaving}
-                      >
-                        {option}
-                      </button>
-                    );
-                  })}
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/topic-preferences')}
+                      className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/90 transition-colors hover:bg-white/10 active:bg-white/15"
+                    >
+                      <Settings2 className="h-4 w-4" />
+                      {'Разделы'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/for-you')}
+                      className="inline-flex items-center gap-2 rounded-full bg-cyan-400/10 px-3 py-1.5 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/20 active:bg-cyan-400/25"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {'Открыть Умную ленту'}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-white/60">Разделы задают темы для Умной ленты и уведомлений о подборке.</p>
                 </div>
-                <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
-              </div>
-            </div>
 
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              {fullscreenSupported ? (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/50">Когда отправлять уведомление</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {digestThresholdOptions.map((option) => {
+                      const selected = digestThreshold === option;
+
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          className={cn(
+                            'h-10 rounded-lg border text-sm font-semibold transition',
+                            selected ? 'border-cyan-300/70 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10',
+                          )}
+                          onClick={() => {
+                            if (option === digestThreshold) {
+                              return;
+                            }
+
+                            void persistDigestSettings(digestEnabled, option, 'Порог уведомлений о подборке обновлён.');
+                          }}
+                          disabled={digestSaving}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-3 text-xs text-white/55">Уведомление придёт, когда в Умной ленте накопится выбранное количество новых материалов.</p>
+                </div>
+              </div>
+
+              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+                {fullscreenSupported ? (
+                  <ProfileRow
+                    icon={Settings2}
+                    title="Полный экран"
+                    subtitle={fullscreenEnabled ? 'Включен' : 'Выключен'}
+                    onClick={() => {
+                      void toggleFullscreen();
+                    }}
+                  />
+                ) : null}
                 <ProfileRow
-                  icon={Settings2}
-                  title="Полный экран"
-                  subtitle={fullscreenEnabled ? 'Включен' : 'Выключен'}
-                  onClick={() => {
-                    void toggleFullscreen();
+                  icon={EyeOff}
+                  title="Скрывать прочитанное"
+                  subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
+                  onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
+                />
+                <ProfileRow icon={MoonStar} title="Цветовая схема" subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'} onClick={toggleTheme} />
+                <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
+                <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
+                <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
+                <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
+              </div>
+
+              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
+                <ProfileRow
+                  icon={LogOut}
+                  iconClassName="text-red-300/80"
+                  title={signOutBusy ? 'Выходим...' : 'Выйти'}
+                  titleClassName="text-red-300/90"
+                  onClick={async () => {
+                    if (signOutBusy) {
+                      return;
+                    }
+
+                    setSignOutBusy(true);
+                    try {
+                      await signOut();
+                      navigate('/', { replace: true });
+                    } finally {
+                      setSignOutBusy(false);
+                    }
                   }}
                 />
-              ) : null}
-              <ProfileRow
-                icon={EyeOff}
-                title="Скрывать прочитанное"
-                subtitle={hiddenReadEnabled ? 'Включено' : 'Выключено'}
-                onClick={() => setHiddenReadEnabled(!hiddenReadEnabled)}
-              />
-              <ProfileRow
-                icon={MoonStar}
-                title="Цветовая схема"
-                subtitle={theme === 'dark' ? 'Тёмная' : 'Светлая'}
-                onClick={toggleTheme}
-              />
-              <ProfileRow icon={Bug} title="Диагностика WebApp" onClick={() => navigate('/webapp-debug')} />
-              <ProfileRow icon={Trash2} title="Сбросить историю чтения" onClick={clearReadingHistory} />
-              <ProfileRow icon={LifeBuoy} title="Поддержка" onClick={() => navigate('/support')} />
-              <ProfileRow icon={Info} title="О приложении" onClick={() => navigate('/about')} />
-              {isAdminUser ? <ProfileRow icon={Users} title="Роли пользователей" onClick={() => navigate('/admin/users')} /> : null}
-            </div>
-
-            <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-transparent">
-              <ProfileRow
-                icon={LogOut}
-                iconClassName="text-red-300/80"
-                title={signOutBusy ? 'Выходим...' : 'Выйти'}
-                titleClassName="text-red-300/90"
-                onClick={async () => {
-                  if (signOutBusy) {
-                    return;
-                  }
-
-                  setSignOutBusy(true);
-                  try {
-                    await signOut();
-                    navigate('/', { replace: true });
-                  } finally {
-                    setSignOutBusy(false);
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </FlatSection>
-
-        {canManageOwnPosts ? (
-          <FlatSection className="pt-2">
-            <SectionTitle>{'Редакторка'}</SectionTitle>
-            <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr))]">
-              <ProfileActionCard icon={FilePenLine} title="Новая новость" subtitle="Создать материал" onClick={() => navigate('/admin/new')} />
-              <ProfileActionCard
-                icon={FilePenLine}
-                title="Панель автора"
-                subtitle="Черновики и публикации"
-                onClick={() => navigate('/author')}
-              />
-              <ProfileActionCard icon={Sparkles} title="Импорт в черновик" subtitle="Ручной URL-импорт" onClick={() => navigate('/admin/import')} />
-              <ProfileActionCard icon={History} title="Список материалов" subtitle="Все ваши публикации" onClick={() => navigate('/my-posts')} />
-              {isAdminUser ? (
-                <ProfileActionCard icon={ScrollText} title="Правила публикаций" subtitle="Редакторский контур" onClick={() => navigate('/admin/publication-rules')} />
-              ) : null}
-            </div>
-          </FlatSection>
-        ) : null}
-
-        {isAdminUser ? (
-          <FlatSection className="border-b-0 pt-2">
-            <SectionTitle>{'AI и импорт'}</SectionTitle>
-            <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr))]">
-              <ProfileActionCard icon={SlidersHorizontal} title="AI-настройки импорта" subtitle="Основная/резервная модель и режимы" onClick={() => navigate('/admin/ai-settings')} />
-              <ProfileActionCard icon={Rss} title="Источники" subtitle="RSS-реестр и запуск импорта" onClick={() => navigate('/admin/sources')} />
+              </div>
             </div>
           </FlatSection>
         ) : null}
