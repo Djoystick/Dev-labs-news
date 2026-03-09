@@ -42,7 +42,7 @@ const initialTopicCount = 4;
 const maxSecondaryPosts = 5;
 const sectionPostsLimit = maxSecondaryPosts + 1;
 const modalPostsLimit = 30;
-const pillsBarHeight = 84;
+const pillsBarHeight = 76;
 const pillActiveClass = 'border-primary bg-primary/10 text-foreground';
 
 type TopicPostsMap = Record<string, Post[]>;
@@ -199,15 +199,17 @@ function AllTopicsSheet({
   activeTopicId,
   onOpenChange,
   onRetry,
-  onTopicSelect,
+  onTopicToggle,
   open,
+  selectedTopicIds,
   topics,
 }: {
   activeTopicId: string | null;
   onOpenChange: (open: boolean) => void;
   onRetry: () => void;
-  onTopicSelect: (topicId: string) => void;
+  onTopicToggle: (topicId: string, nextSelected: boolean) => void;
   open: boolean;
+  selectedTopicIds: Record<string, true>;
   topics: Topic[];
 }) {
   return (
@@ -216,39 +218,47 @@ function AllTopicsSheet({
         <div className="max-h-[85svh] overflow-hidden">
           <div className="safe-pb max-h-[85svh] overflow-y-auto px-5 pb-6 pt-5 sm:px-6">
             <DialogHeader className="pr-10 text-left">
-              <DialogTitle className="text-2xl">{'\u0412\u0441\u0435 \u0442\u0435\u043c\u044b'}</DialogTitle>
-              <DialogDescription>{'\u0422\u043e\u043b\u044c\u043a\u043e \u0432\u044b\u0431\u043e\u0440 \u0442\u0435\u043c\u044b \u0434\u043b\u044f \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u0438 \u043f\u043e \u0440\u0430\u0437\u0434\u0435\u043b\u0430\u043c.'}</DialogDescription>
+              <DialogTitle className="text-2xl">Все темы</DialogTitle>
+              <DialogDescription>Выберите, какие темы показывать в разделе «Сводки».</DialogDescription>
             </DialogHeader>
 
             {topics.length === 0 ? (
               <div className="mt-6 border-y border-dashed border-border/70 px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground">{'\u0422\u0435\u043c \u043f\u043e\u043a\u0430 \u043d\u0435\u0442'}</p>
+                <p className="text-sm text-muted-foreground">Тем пока нет</p>
                 <Button type="button" variant="secondary" className="mt-4" onClick={onRetry}>
-                  {'\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u044c'}
+                  Повторить
                 </Button>
               </div>
             ) : (
-              <div className="mt-6 grid gap-2 sm:grid-cols-2">
-                {topics.map((topic) => (
-                  <button
-                    key={topic.id}
-                    type="button"
-                    aria-pressed={activeTopicId === topic.id}
-                    onClick={() => {
-                      onTopicSelect(topic.id);
-                      onOpenChange(false);
-                    }}
-                    className={cn(
-                      'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold transition',
-                      activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-foreground hover:bg-secondary/30',
-                    )}
-                  >
-                    <span className="truncate">{topic.name}</span>
-                    <span className={cn('text-xs', activeTopicId === topic.id ? 'opacity-100' : 'opacity-0')}>{'\u2713'}</span>
-                  </button>
-                ))}
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                {topics.map((topic) => {
+                  const isSelected = Boolean(selectedTopicIds[topic.id]);
+                  const isActive = activeTopicId === topic.id;
+
+                  return (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => onTopicToggle(topic.id, !isSelected)}
+                      className={cn(
+                        'inline-flex min-h-12 items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-semibold transition',
+                        isSelected ? pillActiveClass : 'border-border/70 text-foreground hover:bg-secondary/30',
+                        isActive && isSelected ? 'ring-1 ring-primary/40' : null,
+                      )}
+                    >
+                      <span className="truncate">{topic.name}</span>
+                      <span className={cn('text-xs', isSelected ? 'opacity-100' : 'opacity-0')}>{String.fromCharCode(10003)}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
+            <div className="mt-5 flex justify-end">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Готово
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -346,12 +356,12 @@ function TopicSection({
     <section
       ref={(node) => onRegister(topic.id, node)}
       data-topic-id={topic.id}
-      className="scroll-mt-24 space-y-4 border-t border-border/60 pt-6 first:border-t-0 first:pt-0"
+      className="scroll-mt-24 space-y-3 rounded-2xl border border-border/40 bg-background/35 p-3 sm:p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Секция</p>
-          <h2 className="mt-1 text-2xl font-extrabold sm:text-3xl">{topic.name}</h2>
+          <h2 className="mt-1 text-xl font-extrabold sm:text-2xl">{topic.name}</h2>
         </div>
         <Button type="button" variant="ghost" className="shrink-0 px-0 text-primary hover:bg-transparent" onClick={() => onOpenTopic(topic)}>
           Смотреть всё
@@ -366,9 +376,9 @@ function TopicSection({
       ) : data.length === 0 ? (
         <p className="text-sm text-muted-foreground">Пока материалов нет.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {heroPost ? (
-            <div className="rounded-2xl border border-border/60 bg-background/40 px-3 py-1">
+            <div className="rounded-xl bg-background/60 px-2 py-1">
               <PostCard
                 post={heroPost}
                 index={0}
@@ -577,79 +587,52 @@ export function DigestsPage() {
 
   useEffect(() => {
     if (topicsOrdered.length === 0) {
+      setVisibleTopicIds({});
       setActiveTopicId(null);
       return;
     }
 
-    if (!activeTopicId || !topicsOrdered.some((topic) => topic.id === activeTopicId)) {
-      setActiveTopicId(topicsOrdered[0].id);
-    }
-  }, [activeTopicId, topicsOrdered]);
-
-  useEffect(() => {
-    if (topicsOrdered.length === 0) {
-      return;
-    }
-
     setVisibleTopicIds((current) => {
-      const next = { ...current };
+      const availableTopicIds = new Set(topicsOrdered.map((topic) => topic.id));
+      const next: Record<string, true> = {};
 
-      topicsOrdered.slice(0, initialTopicCount).forEach((topic) => {
-        next[topic.id] = true;
+      Object.keys(current).forEach((topicId) => {
+        if (availableTopicIds.has(topicId)) {
+          next[topicId] = true;
+        }
       });
 
-      return next;
+      if (Object.keys(next).length === 0) {
+        topicsOrdered.slice(0, initialTopicCount).forEach((topic) => {
+          next[topic.id] = true;
+        });
+      }
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      const isSame =
+        currentKeys.length === nextKeys.length &&
+        nextKeys.every((topicId) => Object.prototype.hasOwnProperty.call(current, topicId));
+
+      return isSame ? current : next;
     });
   }, [topicsOrdered]);
+
+  const selectedTopicsOrdered = useMemo(
+    () => topicsOrdered.filter((topic) => Boolean(visibleTopicIds[topic.id])),
+    [topicsOrdered, visibleTopicIds],
+  );
 
   useEffect(() => {
-    if (topicsOrdered.length === 0) {
+    if (selectedTopicsOrdered.length === 0) {
+      setActiveTopicId(null);
       return;
     }
 
-    const elements = topicsOrdered
-      .map((topic) => sectionRefs.current.get(topic.id))
-      .filter((element): element is HTMLElement => Boolean(element));
-
-    if (elements.length === 0) {
-      return;
+    if (!activeTopicId || !selectedTopicsOrdered.some((topic) => topic.id === activeTopicId)) {
+      setActiveTopicId(selectedTopicsOrdered[0].id);
     }
-
-    const preloadObserver = new IntersectionObserver(
-      (entries) => {
-        setVisibleTopicIds((current) => {
-          let changed = false;
-          const next = { ...current };
-
-          entries.forEach((entry) => {
-            if (!entry.isIntersecting) {
-              return;
-            }
-
-            const topicId = entry.target.getAttribute('data-topic-id');
-            if (topicId && !next[topicId]) {
-              next[topicId] = true;
-              changed = true;
-            }
-          });
-
-          return changed ? next : current;
-        });
-      },
-      {
-        rootMargin: '240px 0px',
-        threshold: 0.01,
-      },
-    );
-
-    elements.forEach((element) => {
-      preloadObserver.observe(element);
-    });
-
-    return () => {
-      preloadObserver.disconnect();
-    };
-  }, [topicsOrdered]);
+  }, [activeTopicId, selectedTopicsOrdered]);
 
   const computeActive = useCallback(() => {
     if (Date.now() < suppressUntilRef.current) {
@@ -703,7 +686,7 @@ export function DigestsPage() {
   }, [computeActive]);
 
   useEffect(() => {
-    if (topicsOrdered.length === 0) {
+    if (selectedTopicsOrdered.length === 0) {
       return;
     }
 
@@ -734,7 +717,7 @@ export function DigestsPage() {
       }
       window.removeEventListener('resize', onResize);
     };
-  }, [scheduleCompute, topicsOrdered.length]);
+  }, [scheduleCompute, selectedTopicsOrdered.length]);
 
   useEffect(() => {
     if (!activeTopicId) {
@@ -846,7 +829,7 @@ export function DigestsPage() {
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [topicsLoading, topicsOrdered.length]);
+  }, [topicsLoading, selectedTopicsOrdered.length]);
 
   const handleRegisterSection = useCallback(
     (topicId: string, element: HTMLElement | null) => {
@@ -895,13 +878,37 @@ export function DigestsPage() {
     [markTopicEngagement],
   );
 
-  const handleSelectTopic = useCallback(
-    (topicId: string) => {
-      scrollToTopic(topicId);
-      setAllTopicsOpen(false);
-    },
-    [scrollToTopic],
-  );
+  const handleToggleTopic = useCallback((topicId: string, nextSelected: boolean) => {
+    if (nextSelected) {
+      setVisibleTopicIds((current) => {
+        if (current[topicId]) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [topicId]: true,
+        };
+      });
+      setActiveTopicId(topicId);
+      return;
+    }
+
+    setVisibleTopicIds((current) => {
+      if (!current[topicId]) {
+        return current;
+      }
+
+      const selectedCount = Object.keys(current).length;
+      if (selectedCount <= 1) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[topicId];
+      return next;
+    });
+  }, []);
 
   const handleSectionData = useCallback((topicId: string, posts: Post[]) => {
     setLoadedPostsByTopic((current) => {
@@ -960,19 +967,19 @@ export function DigestsPage() {
 
   return (
     <>
-      <FlatPage className="safe-pb py-6 sm:py-8">
-        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4">
-          <div className="border-b border-border/60 pb-4 sm:pb-5">
+      <FlatPage className="safe-pb py-4 sm:py-5">
+        <motion.section initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-3">
+          <div className="border-b border-border/60 pb-3 sm:pb-4">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 items-center justify-center text-primary">
-                <Sparkles className="h-5 w-5" />
+              <div className="mt-0.5 flex h-8 w-8 items-center justify-center text-primary">
+                <Sparkles className="h-4.5 w-4.5" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Сводки</p>
                 <h1 className="mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">Сводки</h1>
               </div>
             </div>
-            <p className="mt-2 max-w-2xl text-sm leading-5 text-muted-foreground">Выбирайте тему, открывайте материалы и продолжайте просмотр с того же места.</p>
+            <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted-foreground">Выбирайте тему, открывайте материалы и продолжайте просмотр с того же места.</p>
           </div>
 
           <div className="relative">
@@ -980,7 +987,7 @@ export function DigestsPage() {
             <Input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-12 rounded-[1.25rem] border-border/70 bg-background/80 pl-11 pr-24"
+              className="h-11 rounded-[1.1rem] border-border/70 bg-background/80 pl-11 pr-24"
               placeholder="Поиск по материалам"
             />
             {searchQuery.trim() ? (
@@ -1001,42 +1008,44 @@ export function DigestsPage() {
       </FlatPage>
 
       <div className="fixed inset-x-0 top-[var(--tma-content-safe-top)] z-[60] border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="w-full px-4 py-2.5 sm:px-6">
-          <div
-            ref={chipsScrollRef}
-            className="no-scrollbar w-full overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-behavior:smooth] [scroll-snap-type:x_proximity] touch-pan-x [-webkit-overflow-scrolling:touch]"
-          >
-            <div className="flex min-w-max items-center gap-2.5 pr-4">
-              <Button type="button" variant="outline" className="h-10 shrink-0 snap-start rounded-full border-border/70 px-4" onClick={() => setAllTopicsOpen(true)}>
-                {'\u0412\u0441\u0435 \u0442\u0435\u043c\u044b'}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              {topicsLoading
-                ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-10 w-28 shrink-0 rounded-full" />)
-                : topicsOrdered.map((topic) => (
-                    <button
-                      ref={(element) => handleRegisterTopicChip(topic.id, element)}
-                      key={topic.id}
-                      type="button"
-                      aria-pressed={activeTopicId === topic.id}
-                      onClick={() => scrollToTopic(topic.id)}
-                      className={cn(
-                        'h-10 shrink-0 snap-start whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition',
-                        activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-muted-foreground hover:bg-secondary/30 hover:text-foreground',
-                      )}
-                    >
-                      {topic.name}
-                    </button>
-                  ))}
+        <div className="w-full px-4 py-2 sm:px-6">
+          <div className="flex items-center gap-2">
+            <div
+              ref={chipsScrollRef}
+              className="no-scrollbar min-w-0 flex-1 overflow-x-auto pb-1 [overscroll-behavior-x:contain] [scroll-behavior:smooth] [scroll-snap-type:x_proximity] touch-pan-x [-webkit-overflow-scrolling:touch]"
+            >
+              <div className="flex min-w-max items-center gap-2 pr-2">
+                {topicsLoading
+                  ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-10 w-24 shrink-0 rounded-full" />)
+                  : selectedTopicsOrdered.map((topic) => (
+                      <button
+                        ref={(element) => handleRegisterTopicChip(topic.id, element)}
+                        key={topic.id}
+                        type="button"
+                        aria-pressed={activeTopicId === topic.id}
+                        onClick={() => scrollToTopic(topic.id)}
+                        className={cn(
+                          'h-10 shrink-0 snap-start whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition',
+                          activeTopicId === topic.id ? pillActiveClass : 'border-border/70 text-muted-foreground hover:bg-secondary/30 hover:text-foreground',
+                        )}
+                      >
+                        {topic.name}
+                      </button>
+                    ))}
+              </div>
             </div>
+            <Button type="button" variant="outline" className="h-10 shrink-0 rounded-full border-border/70 px-3.5" onClick={() => setAllTopicsOpen(true)}>
+              Все темы
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
 
       <div style={{ paddingTop: pillsBarHeight }}>
-        <FlatPage className="safe-pb py-4 sm:py-6">
+        <FlatPage className="safe-pb py-3 sm:py-4">
           {topicsLoading ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <SectionSkeleton />
               <SectionSkeleton />
             </div>
@@ -1084,8 +1093,8 @@ export function DigestsPage() {
               onReset={() => setTopicsRetryToken((current) => current + 1)}
             />
           ) : (
-            <div className="space-y-4">
-              {topicsOrdered.map((topic) => (
+            <div className="space-y-3">
+              {selectedTopicsOrdered.map((topic) => (
                 <TopicSection
                   key={topic.id}
                   topic={topic}
@@ -1116,7 +1125,8 @@ export function DigestsPage() {
         activeTopicId={activeTopicId}
         open={allTopicsOpen}
         onOpenChange={setAllTopicsOpen}
-        onTopicSelect={handleSelectTopic}
+        onTopicToggle={handleToggleTopic}
+        selectedTopicIds={visibleTopicIds}
         onRetry={() => setTopicsRetryToken((current) => current + 1)}
       />
     </>
