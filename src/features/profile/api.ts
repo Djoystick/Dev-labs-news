@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase';
 import type { Favorite, Post, Profile, ReadingHistoryEntry } from '@/types/db';
 
 const postSelect =
-  'id, topic_id, title, excerpt, content, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
+  'id, topic_id, title, excerpt, content, custom_tags, cover_url, created_at, updated_at, author_id, topic:topics(id, slug, name, created_at)';
 const profileSelect =
   'id, role, handle, handle_norm, bio, telegram_id, telegram_user_id, telegram_notifications_enabled, telegram_linked_at, for_you_digest_enabled, for_you_digest_threshold, username, full_name, avatar_url, created_at';
 const favoriteSelect = `id, user_id, post_id, created_at, post:posts(${postSelect})`;
